@@ -1,0 +1,186 @@
+// body: Container(
+//           padding: const EdgeInsets.only(top: 100, left: 10, right: 10),
+//           child: Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Expanded(
+//                 child: Stack(
+//                   clipBehavior: Clip.none,
+//                   alignment: Alignment.topCenter,
+//                   children: [
+//                     Container(
+//                       width: double.infinity,
+//                       height: MediaQuery.of(context).size.height,
+//                       decoration: BoxDecoration(
+//                         color: HexColor("#0d0c8f"),
+//                         borderRadius: const BorderRadius.only(
+//                           topLeft: Radius.circular(15),
+//                           topRight: Radius.circular(15),
+//                         ),
+//                       ),
+//                       child: Column(
+//                         children: [
+//                           Padding(
+//                             padding: const EdgeInsets.only(top: 80),
+//                             child: Container(
+//                               height: 40,
+//                               child: Row(
+//                                 mainAxisAlignment: MainAxisAlignment.center,
+//                                 children: [
+//                                   Text(
+//                                     "${widget.userNameController.text}",
+//                                     style: GoogleFonts.actor(
+//                                         fontSize: 20,
+//                                         fontWeight: FontWeight.w600,
+//                                         color: HexColor("FFFFFF")),
+//                                   ),
+//                                   const SizedBox(
+//                                     width: 8.0,
+//                                   ),
+//                                   Icon(
+//                                     Icons.perm_identity,
+//                                     color: HexColor(appColors.iconColor),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ),
+//                           ),
+//                           Text(
+//                             "${widget.emailController.text}",
+//                             style: userInfoStyle,
+//                           )
+//                         ],
+//                       ),
+//                     ),
+//                     selectedImage != null
+//                         ? Container(
+//                             width: 100,
+//                             height: 100,
+//                             alignment: Alignment.center,
+                            // decoration: BoxDecoration(
+                            //     color: HexColor('#0d0c8f'),
+                            //     borderRadius: BorderRadius.circular(100)),
+//                             child: ClipOval(
+//                               child: Image.file(
+//                                 selectedImage!,
+//                                 width: 160,
+//                                 height: 160,
+//                               ),
+//                             ),
+//                           )
+//                         : Container(
+//                             width: 100,
+//                             height: 100,
+//                             alignment: Alignment.center,
+//                             decoration: BoxDecoration(
+//                                 color: HexColor("FFFFFF"),
+//                                 // color: HexColor('#0d0c8f'),
+//                                 borderRadius: BorderRadius.circular(100)),
+//                             child: CircleAvatar(
+//                               radius: 45,
+//                               backgroundImage: AssetImage(
+//                                 'images/brickwall2.jpg',
+//                               ),
+//                             ),
+//                           ),
+                    // Positioned(
+                    //   right: 140,
+                    //   top: 50,
+                    //   child: IconButton(
+                    //     onPressed: () => pickImage(),
+                    //     icon: Icon(
+                    //       Icons.camera_alt_rounded,
+                    //       size: 35,
+                    //       color: HexColor("FFFFFF"),
+                    //     ),
+                    //   ),
+                    // ),
+//                     Container(
+//                       padding: EdgeInsets.only(top: 150),
+//                       child: ListView(
+//                         shrinkWrap: true,
+//                         children: [
+//                           ExpansionTileWidget(
+//                             icon: Icons.document_scanner,
+//                             text: "User ID Info",
+//                             children: [
+//                               Padding(
+//                                 padding: padding,
+//                                 child: Text("Name", style: style),
+//                               ),
+//                               Text(
+//                                 "${widget.userNameController.text}",
+//                                 style: userInfoStyle,
+//                               ),
+//                               Padding(
+//                                 padding: padding,
+//                                 child: Text(
+//                                   "NIN Number",
+//                                   style: style,
+//                                 ),
+//                               ),
+//                               Text(
+//                                 "${widget.idNINController.text}",
+//                                 style: userInfoStyle,
+//                               ),
+//                               Padding(
+//                                 padding: padding,
+//                                 child: Text(
+//                                   "Phone Number",
+//                                   style: style,
+//                                 ),
+//                               ),
+//                               Text(
+//                                 "${widget.phoneNumController.text}",
+//                                 style: userInfoStyle,
+//                               ),
+//                               Padding(
+//                                 padding: padding,
+//                                 child: Text(
+//                                   "Gender",
+//                                   style: style,
+//                                 ),
+//                               ),
+//                               Text(
+//                                 "Male",
+//                                 style: userInfoStyle,
+//                               ),
+//                             ],
+//                           ),
+                        //   Padding(
+                        //     padding: const EdgeInsets.all(20.0),
+                        //     child: MaterialButton(
+                        //       height: 50,
+                        //       minWidth: MediaQuery.of(context).size.width,
+                        //       onPressed: () {
+                        //         MaterialPageRoute(
+                        //             builder: (context) => AddPost());
+                        //       },
+                        //       child: Text(
+                        //         "Add Post",
+                        //         style: GoogleFonts.actor(
+                        //           color: HexColor(appColors.textColor),
+                        //         ),
+                        //       ),
+                        //       color: HexColor(appColors.buttonColor),
+                        //       shape: RoundedRectangleBorder(
+                        //         borderRadius: BorderRadius.circular(20),
+                        //       ),
+                        //     ),
+                        //   ),
+                    //       const ExpansionTileWidget(
+                    //         icon: Icons.post_add,
+                    //         text: "Remove Posts",
+                    //         children: [
+                    //           Text("Remove Posts"),
+                    //         ],
+                    //       ),
+                    //     ],
+                    //   ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
