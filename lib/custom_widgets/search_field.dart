@@ -14,7 +14,7 @@ class SearchCard extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(100.0),
-          color: Colors.white.withOpacity(0.4),
+          color: const Color.fromARGB(255, 172, 171, 171).withOpacity(0.4),
         ),
         child: TextFormField(
           style: GoogleFonts.actor(
@@ -37,7 +37,7 @@ class SearchCard extends StatelessWidget {
             hintText: hintText,
             hintStyle: GoogleFonts.actor(
               fontSize: 13,
-              color: AppColors.backgroundColor,
+              color: AppColors.darkTextColor,
             ),
             suffixIcon: Icon(Icons.search, color: Colors.black),
             border: const OutlineInputBorder(borderSide: BorderSide.none),

@@ -1,11 +1,13 @@
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/change_password.dart';
-import 'package:brickapp/pages/client_pages/client_home_page.dart';
+import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
 import 'package:brickapp/pages/client_pages/history_page.dart';
+import 'package:brickapp/pages/client_pages/payment_methods';
 import 'package:brickapp/pages/client_pages/profile_page.dart';
 import 'package:brickapp/pages/client_pages/trucks-page.dart';
 import 'package:brickapp/pages/client_pages/view_favourite.dart';
@@ -72,6 +74,7 @@ class MainNavigation {
   static String truckPageRoute = "/truckPageRoute";
   static String viewSelectedProductRoute = "/viewSelectedProductRoute";
   static String editPostPae = "/editPostPageRoute";
+  static String paymentMethodRoute = "/paymentMethodRoute";
 
   static Route onGenerateRoute(RouteSettings settings, bool isClient) {
     print("Route ${settings.name}");
@@ -131,6 +134,17 @@ class MainNavigation {
             (context) => BookingPageForMore(
               selectedItem: settings.arguments as MoreProductViewModel,
             ),
+      );
+    }
+    if (settings.name == paymentMethodRoute) {
+      return MaterialPageRoute(
+        builder:
+            (context) => ApartmentBookingPage(
+              productModel: settings.arguments as ProductModel,
+            ),
+        // BookingPageForMore(
+        //   selectedItem: settings.arguments as MoreProductViewModel,
+        // ),
       );
     }
     if (settings.name == truckPageRoute) {

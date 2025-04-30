@@ -19,41 +19,20 @@ class ClientHistoryPage extends ConsumerWidget {
     final clietnRequestList = ref.watch(clietntReqestProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(AppImages.backImg),
-                fit: BoxFit.fill,
-              ),
-            ),
-          ),
-          Container(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-          ListView.builder(
-            itemCount: clietnRequestList.length,
-            itemBuilder: (BuildContext context, int index) {
-              ClientHistoryModel clientRequestsModel = clietnRequestList[index];
-              return ClientHistoryWidget(
-                img: clientRequestsModel.image,
-                clientName: clientRequestsModel.clientName,
-                itemName: clientRequestsModel.itemName,
-                itemID: clientRequestsModel.itemID,
-                time: "${clientRequestsModel.time}",
-                amount: clientRequestsModel.amount,
-              );
-            },
-          ),
-        ],
+      backgroundColor: AppColors.whiteBG,
+      body: ListView.builder(
+        itemCount: clietnRequestList.length,
+        itemBuilder: (BuildContext context, int index) {
+          ClientHistoryModel clientRequestsModel = clietnRequestList[index];
+          return ClientHistoryWidget(
+            img: clientRequestsModel.image,
+            clientName: clientRequestsModel.clientName,
+            itemName: clientRequestsModel.itemName,
+            itemID: clientRequestsModel.itemID,
+            time: "${clientRequestsModel.time}",
+            amount: clientRequestsModel.amount,
+          );
+        },
       ),
     );
   }

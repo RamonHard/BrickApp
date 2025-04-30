@@ -1,4 +1,4 @@
-import 'package:brickapp/pages/client_pages/client_home_page.dart';
+import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';

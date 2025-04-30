@@ -7,6 +7,7 @@ class AppColors {
   static Color lightTextColor = HexColor("FFFFFF");
   static Color secondaryTextColor = HexColor("17202A");
   static Color whiteTextColor = HexColor("FFFFFF");
+  static Color whiteBG = HexColor("FFFFFF");
   static Color backgroundColor = HexColor("ECECEC");
   static Color buttonColor = HexColor("ffa700");
   static Color bottomNavColor = HexColor("EFF1F3");

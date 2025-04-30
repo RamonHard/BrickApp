@@ -12,86 +12,217 @@ class HouseCard extends StatelessWidget {
     required this.location,
     required this.price,
     required this.onTap,
+    required this.unitsNum,
+    this.sqft,
     required this.id,
     required this.profileIMG,
+    required this.houseType,
     required this.uploaderName,
+    required this.bedroomNum,
+    required this.starRating,
+    required this.reviews,
   }) : super(key: key);
   final String description;
   final String productimage;
   final String location;
+  final String houseType;
   final double price;
   final String profileIMG;
   final int id;
+  final int unitsNum;
   final String uploaderName;
+  final int bedroomNum;
+  double? sqft;
+  final double starRating;
+  final double reviews;
   final Function() onTap;
   TextStyle textStyle = GoogleFonts.oxygen(
-      fontSize: 16, fontWeight: FontWeight.w600, color: HexColor("FFFFFF"));
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: HexColor("FFFFFF"),
+  );
   @override
   Widget build(BuildContext context) {
-    final deviceWidth = MediaQuery.of(context).size.width;
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: deviceWidth / 1.7,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: HexColor("FFFFFF").withOpacity(0.5),
-            borderRadius: BorderRadius.circular(45),
+      padding: const EdgeInsets.only(left: 5.0, right: 5.0, top: 8.0),
+      child: SizedBox(
+        height: 350,
+        child: Card(
+          elevation: 15.0,
+          color: Colors.white,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(10.0),
+              bottomRight: Radius.circular(10.0),
+            ),
           ),
-          child: Stack(
-            fit: StackFit.loose,
-            alignment: Alignment.topCenter,
+          child: Column(
             children: [
-              Container(
-                height: deviceWidth / 1.5,
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(45),
-                  child: Image.network(
-                    productimage,
-                    fit: BoxFit.fill,
+              Expanded(
+                child: Stack(
+                  children: [
+                    InkWell(
+                      onTap: onTap,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10.0),
+                            topRight: Radius.circular(10.0),
+                          ),
+                          image: DecorationImage(
+                            image: NetworkImage(productimage),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white.withOpacity(0.7),
+                        child: IconButton(
+                          icon: Icon(Icons.favorite, color: Colors.white),
+                          highlightColor: AppColors.iconColor,
+                          onPressed: () {
+                            // TODO: Add your like functionality here
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              ListTile(
+                title: Text(
+                  "$houseType",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkTextColor,
+                  ),
+                ),
+                leading: CircleAvatar(
+                  radius: 25,
+                  backgroundImage: NetworkImage(profileIMG),
+                ),
+
+                subtitle: Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.lightGrey,
                   ),
                 ),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(45.0),
-                    topRight: Radius.circular(45.0),
-                  ),
-                ),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5.0)),
-                  leading: Container(
-                    padding: EdgeInsets.all(2.0),
-                    alignment: Alignment.center,
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                        color: HexColor("#ced2d9"),
-                        borderRadius: BorderRadius.circular(100)),
-                    child: CircleAvatar(
-                      radius: 30,
-                      backgroundImage: NetworkImage(profileIMG),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.bed,
+                      color: const Color.fromARGB(255, 128, 127, 127),
                     ),
-                  ),
-                  title: Text(
-                    uploaderName,
-                    style: textStyle,
-                    overflow: TextOverflow.clip,
-                    maxLines: 1,
-                  ),
-                  subtitle: Text(
-                    description,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.actor(
-                        color: HexColor('e0d7fe'), fontWeight: FontWeight.w300),
-                  ),
+                    Text(
+                      "$bedroomNum",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: const Color.fromARGB(255, 128, 127, 127),
+                      ),
+                    ),
+                    SizedBox(width: 20),
+                    Icon(
+                      Icons.square_foot_rounded,
+                      color: const Color.fromARGB(255, 128, 127, 127),
+                    ),
+                    Text(
+                      "${sqft}sqft",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: const Color.fromARGB(255, 128, 127, 127),
+                      ),
+                    ),
+                    SizedBox(width: 5.0),
+                    Icon(
+                      Icons.house_rounded,
+                      color: const Color.fromARGB(255, 128, 127, 127),
+                    ),
+                    SizedBox(width: 4),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '$unitsNum',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' Units',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: const Color.fromARGB(255, 128, 127, 127),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 10.0,
+                  right: 10.0,
+                  bottom: 20.0,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.star, color: Colors.amber, size: 15),
+                    SizedBox(width: 4.0),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '$starRating',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '($reviews)reviews',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: const Color.fromARGB(255, 128, 127, 127),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: Container()),
+                    Text(
+                      "UGX${price}/m",
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.orangeTextColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

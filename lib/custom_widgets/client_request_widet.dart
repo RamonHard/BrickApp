@@ -23,16 +23,12 @@ class ClientHistoryWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(2.0),
-      child: Container(
-        decoration: BoxDecoration(
+      child: Card(
+        elevation: 20.0,
+        shadowColor: AppColors.darkBg,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: AppColors.lightGrey),
           borderRadius: BorderRadius.circular(5.0),
-          color: HexColor("FFFFFF").withOpacity(0.5),
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.iconColor.withOpacity(0.4),
-              width: 2,
-            ),
-          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(8.0),
