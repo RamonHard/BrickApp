@@ -14,6 +14,7 @@ class ProductModel {
   final double starRating;
   final double reviews;
   final double sqft;
+  final bool isActive;
 
   ProductModel({
     required this.price,
@@ -31,5 +32,6 @@ class ProductModel {
     required this.starRating,
     required this.reviews,
     required this.sqft,
+    required this.isActive,
   });
 }

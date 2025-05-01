@@ -9,8 +9,8 @@ import 'package:hexcolor/hexcolor.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../utils/app_colors.dart';
 
-class TruckPage extends ConsumerWidget {
-  TruckPage({super.key});
+class Transporter extends ConsumerWidget {
+  Transporter({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,8 +57,9 @@ class TruckPage extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder:
-                              (BuildContext context) =>
-                                  TruckDetailed(truck: truckDriverModel),
+                              (BuildContext context) => DriverProfilePage(
+                                driverModel: truckDriverModel,
+                              ),
                         ),
                       );
                     },

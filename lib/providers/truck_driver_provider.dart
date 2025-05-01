@@ -14,6 +14,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Luzira",
       startingPrice: 100000,
+      starRating: 6,
+      trips: 120,
       profileImg:
           'https://www.trucknews.com/wp-content/uploads/2020/11/iStock-170169493.jpg',
       truckImg:
@@ -25,6 +27,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Kitintale",
       startingPrice: 100000,
+      starRating: 4,
+      trips: 100,
       profileImg:
           'https://media.istockphoto.com/id/170042558/photo/female-truck-driver-by-big-rig-with-digital-tablet.jpg?s=612x612&w=0&k=20&c=N0He6aw2ZxVnYXdPZZgwOstyNcsQYVF22gcCem7t9L4=',
       truckImg:
@@ -36,6 +40,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Kasokoso",
       startingPrice: 100000,
+      starRating: 5,
+      trips: 50,
       profileImg: 'https://i.insider.com/5eb4902c204ad3265a422ac7?width=700',
       truckImg:
           'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3Pa8vRIly1RjGD57f9MH2TfAufAH14r9ppQ&usqp=CAU',
@@ -46,6 +52,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Entebbe",
       startingPrice: 100000,
+      starRating: 2,
+      trips: 120,
       profileImg:
           'https://assets.website-files.com/5f70f0246e0318453837c2b9/645e490635327ca9b661bb47_becoming%20a%20truck%20driver.webp',
       truckImg:
@@ -57,6 +65,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Kawempe",
       startingPrice: 100000,
+      starRating: 1,
+      trips: 60,
       profileImg:
           'https://www.trucknews.com/wp-content/uploads/2022/08/Happy-truck-driver.jpg',
       truckImg:
@@ -68,6 +78,8 @@ final truckProvider = Provider((ref) {
       phone: '074085674',
       location: "Matuga",
       startingPrice: 100000,
+      starRating: 9,
+      trips: 120,
       profileImg:
           'https://www.trucknews.com/wp-content/uploads/2022/08/Happy-truck-driver.jpg',
       truckImg:

@@ -1,16 +1,16 @@
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
-import 'package:brickapp/pages/client_pages/booking-pages/booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
+import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
 import 'package:brickapp/pages/client_pages/change_password.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
 import 'package:brickapp/pages/client_pages/history_page.dart';
-import 'package:brickapp/pages/client_pages/payment_methods';
 import 'package:brickapp/pages/client_pages/profile_page.dart';
-import 'package:brickapp/pages/client_pages/trucks-page.dart';
+import 'package:brickapp/pages/client_pages/transporter.dart';
 import 'package:brickapp/pages/client_pages/view_favourite.dart';
+import 'package:brickapp/pages/client_pages/view_more_products.dart';
 import 'package:brickapp/pages/client_pages/view_selected_product.dart';
 import 'package:brickapp/pages/land_and_truck_pages/add_post.dart';
 import 'package:brickapp/pages/land_and_truck_pages/edit_post.dart';
@@ -57,7 +57,7 @@ class MainNavigation {
 
   static String sortByRoute = "/sortByRoute";
   static String clientHomePageRoute = "/clientHomePageRoute";
-
+  static String transporterRoute = "/transporterRoute";
   static String postViewRoute = "/postViewRoute";
   static String landAndTruckProfileRoute = "/landAndTruckProfileRoute";
   static String addPostRoute = "/addPostRoute";
@@ -69,10 +69,13 @@ class MainNavigation {
   static String viewFavouritePageRoute = "/viewFavouritePageRoute";
   static String changePasswordRoute = "/changePasswordRoute";
 
-  static String bookingPageRoute = "/bookingPageRoute";
+  // static String bookingPageRoute = "/bookingPageRoute";
   static String bookingPageForMoreRoute = "/bookingPageForMoreRoute";
-  static String truckPageRoute = "/truckPageRoute";
+  // static String truckPageRoute = "/truckPageRoute";
   static String viewSelectedProductRoute = "/viewSelectedProductRoute";
+  static String viewMoreProducts = "/viewMoreProductsRoute";
+  static String moreBookingRoute = "/moreBookingRoute";
+
   static String editPostPae = "/editPostPageRoute";
   static String paymentMethodRoute = "/paymentMethodRoute";
 
@@ -83,6 +86,9 @@ class MainNavigation {
     }
     if (settings.name == clientHomePageRoute) {
       return MaterialPageRoute(builder: (context) => HomePage());
+    }
+    if (settings.name == transporterRoute) {
+      return MaterialPageRoute(builder: (context) => Transporter());
     }
 
     if (settings.name == clientprofilePageRoute) {
@@ -113,13 +119,13 @@ class MainNavigation {
     if (settings.name == homeTruckAndLandRoute) {
       return MaterialPageRoute(builder: (context) => LandAndTruckRequestPage());
     }
-    if (settings.name == bookingPageRoute) {
-      return MaterialPageRoute(
-        builder:
-            (context) =>
-                BookingPage(selectedItem: settings.arguments as ProductModel),
-      );
-    }
+    // if (settings.name == bookingPageRoute) {
+    //   return MaterialPageRoute(
+    //     builder:
+    //         (context) =>
+    //             BookingPage(selectedItem: settings.arguments as ProductModel),
+    //   );
+    // }
     if (settings.name == editPostPae) {
       return MaterialPageRoute(
         builder:
@@ -147,8 +153,22 @@ class MainNavigation {
         // ),
       );
     }
-    if (settings.name == truckPageRoute) {
-      return MaterialPageRoute(builder: (context) => TruckPage());
+
+    if (settings.name == viewMoreProducts) {
+      return MaterialPageRoute(
+        builder:
+            (context) => ViewMoreProducts(
+              productModel: settings.arguments as ProductModel,
+            ),
+      );
+    }
+    if (settings.name == moreBookingRoute) {
+      return MaterialPageRoute(
+        builder:
+            (context) => MoreProductBookingPage(
+              moreProductViewModel: settings.arguments as MoreProductViewModel,
+            ),
+      );
     }
     if (settings.name == viewSelectedProductRoute) {
       return MaterialPageRoute(

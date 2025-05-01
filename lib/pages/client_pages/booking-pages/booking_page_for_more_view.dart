@@ -1,6 +1,5 @@
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/utils/app_colors.dart';
-import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -218,11 +217,7 @@ class BookingPageForMore extends ConsumerWidget {
                       child: MaterialButton(
                         height: 40,
                         minWidth: deviceWidth,
-                        onPressed: () {
-                          MainNavigation.navigateToRoute(
-                            MainNavigation.truckPageRoute,
-                          );
-                        },
+                        onPressed: () {},
                         color: AppColors.iconColor,
                         child: Text(
                           "Find Your Transporter Here",

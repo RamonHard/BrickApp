@@ -17,6 +17,7 @@ final productProvider = StateProvider((ref) {
       sqft: 3200,
       reviews: 24,
       starRating: 4.0,
+      isActive: true,
       uploaderPhoneNumber: 075356556587,
       productIMG:
           'https://i.pinimg.com/736x/1a/45/09/1a4509d22b165852bc8115d5073a56ea.jpg',
@@ -39,6 +40,7 @@ final productProvider = StateProvider((ref) {
       unitsNum: 2,
       starRating: 8.0,
       uploaderPhoneNumber: 3796360936,
+      isActive: false,
       productIMG:
           'https://i.pinimg.com/736x/46/9a/f7/469af73674363bdd1c5431f02254ab39.jpg',
     ),
@@ -58,6 +60,7 @@ final productProvider = StateProvider((ref) {
       reviews: 100,
       starRating: 4.0,
       uploaderPhoneNumber: 86943705379,
+      isActive: true,
       productIMG:
           'https://i.pinimg.com/736x/6f/2b/5e/6f2b5e576db99eab1076061acae111dd.jpg',
     ),
@@ -77,6 +80,7 @@ final productProvider = StateProvider((ref) {
       reviews: 24,
       starRating: 4.0,
       uploaderPhoneNumber: 4957953590,
+      isActive: true,
       productIMG:
           'https://i.pinimg.com/736x/84/54/cd/8454cdf4d678c5b7005b53b7d9401158.jpg',
     ),
@@ -96,6 +100,7 @@ final productProvider = StateProvider((ref) {
       reviews: 24,
       starRating: 4.0,
       uploaderPhoneNumber: 973587073,
+      isActive: true,
       productIMG:
           'https://i.pinimg.com/736x/ed/0a/1e/ed0a1e7c196b11ba4b24f3c9ff8d23b7.jpg',
     ),
@@ -115,6 +120,7 @@ final productProvider = StateProvider((ref) {
       reviews: 24,
       starRating: 4.0,
       uploaderPhoneNumber: 9743680946796,
+      isActive: false,
       productIMG:
           'https://i.pinimg.com/736x/33/2b/c7/332bc79ff66c0e9787c3b8b4cdf70080.jpg',
     ),

@@ -21,6 +21,7 @@ class HouseCard extends StatelessWidget {
     required this.bedroomNum,
     required this.starRating,
     required this.reviews,
+    required this.isActive,
   }) : super(key: key);
   final String description;
   final String productimage;
@@ -34,6 +35,7 @@ class HouseCard extends StatelessWidget {
   final int bedroomNum;
   double? sqft;
   final double starRating;
+  final bool isActive;
   final double reviews;
   final Function() onTap;
   TextStyle textStyle = GoogleFonts.oxygen(
@@ -89,6 +91,34 @@ class HouseCard extends StatelessWidget {
                           onPressed: () {
                             // TODO: Add your like functionality here
                           },
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isActive ? Colors.green : Colors.orange,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () {
+                          // Optional: handle button press
+                        },
+                        child: Text(
+                          isActive ? 'Active' : 'Pending',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

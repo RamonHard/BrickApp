@@ -1,26 +1,24 @@
 import 'package:brickapp/models/tuck_driver_model.dart';
 import 'package:brickapp/notifiers/fav_notifier.dart';
+import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../utils/app_colors.dart';
 
-class TruckDetailed extends HookConsumerWidget {
-  const TruckDetailed({super.key, required this.truck});
-  final TruckDriverModel truck;
+class DriverProfilePage extends ConsumerWidget {
+  final TruckDriverModel driverModel;
+
+  const DriverProfilePage({super.key, required this.driverModel});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deviceSize = MediaQuery.of(context).size.width;
-    final reachOut = useState(false);
     final isFavorite = ref.watch(
-      favoriteListProvider.select((favorites) => favorites.contains(truck)),
+      favoriteListProvider.select(
+        (favorites) => favorites.contains(driverModel),
+      ),
     );
     final favoriteListNotifier = ref.read(favoriteListProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         centerTitle: true,
         elevation: 0,
@@ -43,9 +41,9 @@ class TruckDetailed extends HookConsumerWidget {
           IconButton(
             onPressed: () {
               if (isFavorite) {
-                favoriteListNotifier.removeFromFavorites(truck);
+                favoriteListNotifier.removeFromFavorites(driverModel);
               } else {
-                favoriteListNotifier.addToFavorites(truck);
+                favoriteListNotifier.addToFavorites(driverModel);
               }
             },
             icon: Icon(
@@ -56,126 +54,230 @@ class TruckDetailed extends HookConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: deviceSize / 10),
+            // Profile Image
             CircleAvatar(
-              radius: 50,
-              backgroundImage: NetworkImage(truck.profileImg),
+              radius: 40,
+              backgroundImage: NetworkImage(driverModel.profileImg),
             ),
+            SizedBox(height: 8),
             Text(
-              truck.name,
-              style: GoogleFonts.oxygen(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textColor,
-              ),
+              driverModel.name,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
-            Container(
-              child:
-                  reachOut.value
-                      ? Column(
-                        children: [
-                          Text(
-                            truck.email,
-                            style: GoogleFonts.oxygen(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textColor,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Phone: ${truck.phone}",
-                            style: GoogleFonts.oxygen(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textColor,
-                            ),
-                          ),
-                        ],
-                      )
-                      : Container(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.verified, color: Colors.blue, size: 16),
+                SizedBox(width: 4),
+                Text("Verified Driver", style: TextStyle(color: Colors.grey)),
+              ],
             ),
-            SizedBox(height: deviceSize / 20),
-            Container(
-              // height: deviceSize / 2,
-              decoration: BoxDecoration(
-                color: HexColor("FFFFFF"),
-                borderRadius: BorderRadius.circular(15.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ...List.generate(
+                  driverModel.starRating,
+                  (index) => Icon(Icons.star, color: Colors.amber, size: 16),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  "${driverModel.starRating} (${driverModel.trips} trips)",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            // Hero Image (with animation)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            DriverProfilePage(driverModel: driverModel),
+                  ),
+                );
+              },
+              child: Card(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      alignment: Alignment.center,
+                    Hero(
+                      tag:
+                          driverModel
+                              .truckImg, // Use unique tag (image URL works great)
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20.0),
-                        child: Container(
-                          height: 150,
-                          width: deviceSize,
-                          decoration: BoxDecoration(
-                            image: DecorationImage(
-                              image: NetworkImage(truck.truckImg),
-                            ),
-                          ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          driverModel.truckImg,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Location: ${truck.location}",
-                        style: GoogleFonts.actor(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textColor,
-                        ),
-                      ),
+                    ListTile(
+                      title: Text(driverModel.name),
+                      subtitle: Text(driverModel.location),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Starting price ${truck.startingPrice}\$",
-                        style: GoogleFonts.actor(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textColor,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: deviceSize / 25),
-                    // Text(
-                    //   truckDescription,
-                    //   style: GoogleFonts.actor(
-                    //     fontSize: 16,
-                    //     fontWeight: FontWeight.w600,
-                    //     color: AppColors.textColor,
-                    //   ),
-                    // ),
                   ],
                 ),
               ),
             ),
-            SizedBox(height: deviceSize / 15),
-            MaterialButton(
-              height: 40,
-              minWidth: 100,
-              onPressed: () {
-                reachOut.value = !reachOut.value;
-              },
-              color: AppColors.iconColor,
-              child: Text(
-                "Reach Out",
-                style: GoogleFonts.actor(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.lightTextColor,
+
+            SizedBox(height: 16),
+            // Info Card
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Location",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            driverModel.location,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Divider(height: 24),
+                  Row(
+                    children: [
+                      Icon(Icons.local_shipping, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Vehicle Type",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            "Tesla Semi Truck",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Divider(height: 24),
+                  Row(
+                    children: [
+                      Icon(Icons.attach_money, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Starting Price",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            "${driverModel.startingPrice}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+            // Badges
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.verified_user, color: Colors.orange),
+                        SizedBox(height: 8),
+                        Text(
+                          "Fully Insured",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "Protected Transport",
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.shield, color: Colors.orange),
+                        SizedBox(height: 8),
+                        Text(
+                          "Verified Driver",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "Background Checked",
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 24),
+            // Reach Out Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  // handle action
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text("Reach Out", style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

@@ -1,4 +1,4 @@
-import 'package:brickapp/pages/client_pages/trucks-page.dart';
+import 'package:brickapp/pages/client_pages/transporter.dart';
 import 'package:brickapp/pages/land_and_truck_pages/subscription.dart';
 import 'package:brickapp/pages/onboardingPages/change_passward.dart';
 import 'package:flutter/material.dart';
@@ -55,10 +55,10 @@ class DrawerWidget extends StatelessWidget {
           ),
           ListTile(
             onTap: () {
-              Navigator.pop(context);
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (context) => TruckPage()));
+              // Navigator.pop(context);
+              // Navigator.of(
+              //   context,
+              // ).push(MaterialPageRoute(builder: (context) => TruckPage()));
             },
             leading: Icon(Icons.car_rental, color: AppColors.iconColor),
             title: Text('Trucks', style: style),

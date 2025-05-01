@@ -1,32 +1,17 @@
 import 'dart:ui';
 import 'package:brickapp/models/destination_model.dart';
+import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/house_view_provider.dart';
+import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../models/house_views_model.dart';
 import '../../utils/app_colors.dart';
-import 'full_screen_view.dart';
 
 class DetailedHouseView extends ConsumerWidget {
-  DetailedHouseView({
-    super.key,
-    required this.houseIMG,
-    required this.id,
-    required this.location,
-    required this.description,
-    required this.price,
-    required this.contact,
-    required this.selectedProduct,
-  });
-  final String houseIMG;
-  final int id;
-  final String location;
-  final String description;
-  final int contact;
-  final double price;
+  DetailedHouseView({super.key, required this.selectedProduct});
+
   final MoreProductViewModel selectedProduct;
 
   @override
@@ -34,232 +19,310 @@ class DetailedHouseView extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
     final houseViewImageList = ref.watch(houseViewProvider);
+    final featuredImages = ref.watch(feauturedImagesProvider);
 
-    return SafeArea(
-      child: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          leading: IconButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            icon: Icon(Icons.arrow_back, color: AppColors.iconColor),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Property Details',
+          style: GoogleFonts.poppins(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        body: SingleChildScrollView(
-          primary: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(3.0),
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(10.0),
-                        bottomRight: Radius.circular(10.0),
-                      ),
-                      child: Container(
-                        height: height * 1 / 2.5,
-                        width: width,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(houseIMG),
-                            fit: BoxFit.cover,
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.share, color: Colors.black),
+            onPressed: () {},
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Image.network(
+                  selectedProduct.img,
+                  width: width,
+                  height: 250,
+                  fit: BoxFit.cover,
+                ),
+                selectedProduct.isActive
+                    ? Container()
+                    : Positioned(
+                      right: 10,
+                      top: 10,
+                      child: MaterialButton(
+                        height: 35,
+                        color: AppColors.iconColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50.0),
+                        ),
+                        onPressed: () {},
+                        child: Text(
+                          "Book Now",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.lightTextColor,
                           ),
                         ),
                       ),
                     ),
-                    Container(
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(10.0),
-                          bottomRight: Radius.circular(10.0),
-                        ),
-                      ),
-                      height: 50,
-                      child: ListTile(
-                        leading: Text(
-                          "Rent now",
-                          style: GoogleFonts.actor(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.iconColor,
+              ],
+            ),
+
+            selectedProduct.isActive
+                ? Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.orange),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: Text(
+                            'Rent now',
+                            style: TextStyle(color: Colors.orange),
                           ),
                         ),
-                        trailing: MaterialButton(
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
                           onPressed: () {
                             MainNavigation.navigateToRoute(
-                              MainNavigation.bookingPageForMoreRoute,
+                              MainNavigation.moreBookingRoute,
                               data: selectedProduct,
                             );
                           },
-                          padding: EdgeInsets.all(4.0),
-                          height: 40,
-                          minWidth: 100,
-                          color: AppColors.buttonColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: Text(
-                            "Book",
-                            style: GoogleFonts.actor(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: HexColor("FFFFFF"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
                             ),
                           ),
+                          child: Text('Book'),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              ListTile(
-                leading: Text(
-                  "Location:",
-                  style: GoogleFonts.actor(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
+                    ],
                   ),
-                ),
-                title: Text(
-                  location,
-                  style: GoogleFonts.actor(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-                trailing: MaterialButton(
-                  onPressed: () {
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (BuildContext context) => MapScreen(),
-                    //   ),
-                    // );
-                  },
-                  color: AppColors.iconColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100),
-                  ),
+                )
+                : Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    "View Location",
-                    style: GoogleFonts.actor(
+                    'Currently Unavailable due to reasons like maintainance, under constraction, or renovations but you can book it ealier in advance.',
+                    style: TextStyle(
+                      color: Colors.black,
                       fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.lightTextColor,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedProduct.houseType,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
+                  Text(
+                    "UGX ${selectedProduct.price}",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(
+                    selectedProduct.location,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  Spacer(),
+                  Icon(Icons.star, color: Colors.amber, size: 16),
+                  Text('${selectedProduct.starRating} '),
+                  Text(
+                    '(${selectedProduct.reviews} reviews)',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildFeatureIcon(
+                    Icons.bed,
+                    '${selectedProduct.bedRoomNum} Beds',
+                  ),
+                  _buildFeatureIcon(Icons.weekend, 'Living Room'),
+                  _buildFeatureIcon(Icons.park, 'Compound'),
+                  _buildFeatureIcon(Icons.local_parking, 'Parking'),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Featured Images',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              ListTile(
-                leading: Text(
-                  "House Number:",
-                  style: GoogleFonts.actor(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-                title: Text(
-                  "${id}",
-                  style: GoogleFonts.actor(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: Text(
-                  "Price:",
-                  style: GoogleFonts.actor(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-                title: Text(
-                  "UGX ${price}",
-                  style: GoogleFonts.actor(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.iconColor,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  description,
-                  maxLines: 5,
-                  overflow: TextOverflow.visible,
-                  style: GoogleFonts.actor(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Featured Images",
-                  style: GoogleFonts.actor(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: HexColor("000000"),
-                  ),
-                ),
-              ),
-              Container(
-                height: 220,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: houseViewImageList.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    HouseViewsModel houseViewsModel = houseViewImageList[index];
-                    return Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => FullScreenView(
-                                    imageUrl: houseViewsModel.insideView,
-                                  ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          height: 200,
-                          width: 200,
-                          child: Image.network(
-                            houseViewsModel.insideView as String,
-                            fit: BoxFit.cover,
-                          ),
+            ),
+
+            SizedBox(height: 8),
+
+            // 🔥 Featured Images from Provider
+            Container(
+              height: 120,
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: featuredImages.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => FullScreenView(
+                                imageUrl: featuredImages[index].insideView,
+                              ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 120,
+                      margin: EdgeInsets.only(right: 10),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          featuredImages[index].insideView,
+                          height: 100,
+                          fit: BoxFit.cover,
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            TextButton(
+              onPressed: () {
+                final featuredImages = ref.read(feauturedImagesProvider);
+                final urls = featuredImages.map((e) => e.insideView).toList();
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GalleryView(imageUrls: urls),
+                  ),
+                );
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.photo_library_outlined),
+                  SizedBox(width: 4),
+                  Text('View All Photos'),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Description',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkTextColor,
                 ),
               ),
-              SizedBox(height: height * 1 / 20),
-            ],
-          ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(selectedProduct.description),
+            ),
+
+            SizedBox(height: 20),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFeatureIcon(IconData icon, String label) {
+    return Column(
+      children: [
+        CircleAvatar(
+          backgroundColor: Colors.grey[200],
+          child: Icon(icon, color: Colors.black),
+        ),
+        SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class FullScreenView extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenView({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
+      body: Center(child: InteractiveViewer(child: Image.network(imageUrl))),
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'package:brickapp/custom_widgets/house_card.dart';
+import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/pages/client_pages/detailed_house_view.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
 import 'package:flutter/material.dart';
@@ -11,20 +13,9 @@ import '../../utils/app_colors.dart';
 
 // ignore: must_be_immutable
 class ViewMoreProducts extends ConsumerWidget {
-  ViewMoreProducts({
-    Key? key,
-    required this.name,
-    required this.image,
-    required this.email,
-    required this.phone,
-    required this.iconicHouseIMG,
-  }) : super(key: key);
+  ViewMoreProducts({Key? key, required this.productModel}) : super(key: key);
 
-  final String name;
-  final String image;
-  final String email;
-  final String iconicHouseIMG;
-  final int phone;
+  final ProductModel productModel;
   TextStyle style = GoogleFonts.oxygen(
     fontSize: 16,
     fontWeight: FontWeight.w400,
@@ -77,7 +68,10 @@ class ViewMoreProducts extends ConsumerWidget {
                           bottomLeft: Radius.circular(36.0),
                           bottomRight: Radius.circular(36.0),
                         ),
-                        child: Image.network(iconicHouseIMG, fit: BoxFit.cover),
+                        child: Image.network(
+                          productModel.productIMG,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     Container(
@@ -101,9 +95,9 @@ class ViewMoreProducts extends ConsumerWidget {
                     ListTile(
                       leading: CircleAvatar(
                         radius: 40,
-                        backgroundImage: NetworkImage(image),
+                        backgroundImage: NetworkImage(productModel.uploaderIMG),
                       ),
-                      title: Text(name, style: style),
+                      title: Text(productModel.uploaderName, style: style),
                     ),
                   ],
                 ),
@@ -115,30 +109,51 @@ class ViewMoreProducts extends ConsumerWidget {
                   itemBuilder: (BuildContext context, int index) {
                     MoreProductViewModel moreProductViewModel =
                         moreProductViewList[index];
-                    return ProductCard(
+                    return HouseCard(
+                      profileIMG: productModel.uploaderIMG,
                       price: moreProductViewModel.price,
                       location: moreProductViewModel.location,
-                      id: moreProductViewModel.id,
-                      img: moreProductViewModel.img,
                       description: moreProductViewModel.description,
+                      productimage: moreProductViewModel.img,
+                      houseType: moreProductViewModel.houseType,
+                      isActive: moreProductViewModel.isActive,
+                      id: 1,
+                      uploaderName: productModel.uploaderName,
+                      unitsNum: moreProductViewModel.unitsNum,
+                      bedroomNum: moreProductViewModel.bedRoomNum,
+                      starRating: moreProductViewModel.starRating,
+                      reviews: moreProductViewModel.reviews,
+                      sqft: moreProductViewModel.sqft,
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder:
                                 (BuildContext context) => DetailedHouseView(
-                                  houseIMG: moreProductViewModel.img,
-                                  location: moreProductViewModel.location,
-                                  description: moreProductViewModel.description,
-                                  price: moreProductViewModel.price,
-                                  contact: phone,
-                                  id: moreProductViewModel.id,
                                   selectedProduct: moreProductViewModel,
                                 ),
                           ),
                         );
                       },
                     );
+                    // ProductCard(
+                    //   price: moreProductViewModel.price,
+                    //   location: moreProductViewModel.location,
+                    //   id: moreProductViewModel.id,
+                    //   img: moreProductViewModel.img,
+                    //   description: moreProductViewModel.description,
+                    //   onTap: () {
+                    // Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(
+                    //     builder:
+                    //         (BuildContext context) => DetailedHouseView(
+                    //           selectedProduct: moreProductViewModel,
+                    //         ),
+                    //   ),
+                    // );
+                    //   },
+                    // );
                   },
                 ),
               ),

@@ -111,7 +111,7 @@ class HomePage extends ConsumerWidget {
                         description: productModel.description,
                         productimage: productModel.productIMG,
                         houseType: productModel.houseType,
-
+                        isActive: productModel.isActive,
                         id: 1,
                         uploaderName: productModel.uploaderName,
                         unitsNum: productModel.unitsNum,

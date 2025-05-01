@@ -68,7 +68,12 @@ class ClientNavBar extends ConsumerWidget {
         unselectedIconTheme: IconThemeData(color: AppColors.darkTextColor),
         items: const [
           BottomNavigationBarItem(label: 'Home', icon: Icon(Icons.home)),
+          BottomNavigationBarItem(
+            label: 'Transporter',
+            icon: Icon(Icons.car_rental),
+          ),
           BottomNavigationBarItem(label: 'History', icon: Icon(Icons.history)),
+
           BottomNavigationBarItem(label: 'Profile', icon: Icon(Icons.person)),
         ],
         currentIndex: selectedIndex.value,
@@ -88,10 +93,13 @@ class ClientNavBar extends ConsumerWidget {
     }
 
     if (index == 1) {
+      MainNavigation.navigateToRoute(MainNavigation.transporterRoute);
+    }
+    if (index == 2) {
       MainNavigation.navigateToRoute(MainNavigation.clientHistoryPageRoute);
     }
 
-    if (index == 2) {
+    if (index == 3) {
       MainNavigation.navigateToRoute(MainNavigation.clientprofilePageRoute);
     }
   }

@@ -1,6 +1,7 @@
 import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -59,49 +60,89 @@ class ViewSelectedProduct extends ConsumerWidget {
                     child: Icon(Icons.favorite_border, color: Colors.red),
                   ),
                 ),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    height: 35,
+                    width: 75,
+                    alignment: Alignment.center,
+                    padding: EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: AppColors.darkBg.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Icon(Icons.house, color: Colors.white),
+                        Text(
+                          "${selectedProduct.unitsNum}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: AppColors.whiteTextColor,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.orange),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+            selectedProduct.isActive
+                ? Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.orange),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: Text(
+                            'Rent now',
+                            style: TextStyle(color: Colors.orange),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        'Rent now',
-                        style: TextStyle(color: Colors.orange),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        MainNavigation.navigateToRoute(
-                          MainNavigation.paymentMethodRoute,
-                          data: selectedProduct,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            MainNavigation.navigateToRoute(
+                              MainNavigation.paymentMethodRoute,
+                              data: selectedProduct,
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: Text('Book'),
                         ),
                       ),
-                      child: Text('Book'),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                )
+                : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Currently Unavailable due to reasons like maintainance, under constraction, or renovations but you can book it ealier in advance.',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                ),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -111,8 +152,8 @@ class ViewSelectedProduct extends ConsumerWidget {
                     child: Text(
                       selectedProduct.houseType,
                       style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -244,6 +285,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.darkTextColor,
                 ),
               ),
             ),
@@ -253,23 +295,57 @@ class ViewSelectedProduct extends ConsumerWidget {
               child: Text(selectedProduct.description),
             ),
 
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.grey[300],
-                child: Icon(Icons.person, color: Colors.black),
-              ),
-              title: Text(selectedProduct.uploaderName),
-              subtitle: Text('Property Manager'),
-              trailing: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
+            Row(
+              children: [
+                Expanded(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.grey[300],
+                      backgroundImage: NetworkImage(
+                        selectedProduct.uploaderIMG,
+                      ),
+                    ),
+                    title: Text(
+                      selectedProduct.uploaderName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkTextColor,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Property Manager',
+                      style: GoogleFonts.poppins(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.lightGrey,
+                      ),
+                    ),
+                  ),
+                ),
+                MaterialButton(
+                  onPressed: () {
+                    MainNavigation.navigateToRoute(
+                      MainNavigation.viewMoreProducts,
+                      data: selectedProduct,
+                    );
+                  },
+                  padding: EdgeInsets.all(8.0),
+                  color: Colors.orange,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
+                  child: Text(
+                    'View More',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkTextColor,
+                    ),
+                  ),
                 ),
-                child: Text('Contact'),
-              ),
+                SizedBox(width: 5),
+              ],
             ),
             SizedBox(height: 20),
           ],
