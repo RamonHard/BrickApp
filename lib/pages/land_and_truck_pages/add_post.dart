@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 class AddPost extends StatefulWidget {
   const AddPost({super.key});
@@ -13,6 +15,174 @@ class AddPost extends StatefulWidget {
 }
 
 class _AddPostState extends State<AddPost> {
+  final style = GoogleFonts.poppins(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: AppColors.darkTextColor,
+  );
+  final List<String> packages = ['1 Month', '2 Months', '3 Months'];
+  String? selectedPackage;
+  int? price;
+  int? discount;
+  int? commission;
+
+  final currencyFormatter = NumberFormat("#,##0", "en_US"); // Format UGX nicely
+
+  void showPriceDialog(String pkg) {
+    final priceController = TextEditingController(
+      text: price?.toString() ?? '600000',
+    );
+
+    int dialogDiscount = discount ?? 30000; // default 5% of 600,000
+    int dialogCommission = commission ?? 18000; // default 3% of 600,000
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  title: Row(
+                    children: [
+                      Text(
+                        'Set Price',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkTextColor,
+                        ),
+                      ),
+                      Expanded(child: Container()),
+                      IconButton(
+                        tooltip: 'Cancel',
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        icon: Icon(
+                          Icons.close,
+                          color: const Color.fromARGB(255, 197, 13, 0),
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(labelText: 'Enter Price'),
+                        onChanged: (value) {
+                          final enteredPrice = int.tryParse(value) ?? 0;
+                          setStateDialog(() {
+                            dialogDiscount = (enteredPrice * 0.05).toInt();
+                            dialogCommission = (enteredPrice * 0.03).toInt();
+                          });
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Selected Package: $pkg',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkTextColor,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Price: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
+                        style: style,
+                      ),
+                      Text(
+                        'Discount: UGX${currencyFormatter.format(dialogDiscount)}',
+                        style: style,
+                      ),
+                      Text(
+                        'Commission: UGX${currencyFormatter.format(dialogCommission)}',
+                        style: style,
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        final enteredPrice =
+                            int.tryParse(priceController.text) ?? 0;
+                        setState(() {
+                          selectedPackage = pkg;
+                          price = enteredPrice;
+                          discount = (enteredPrice * 0.05).toInt();
+                          commission = (enteredPrice * 0.03).toInt();
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Text('Done'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  // Package List View Widget
+  Widget buildPackageCard(String pkg) {
+    return GestureDetector(
+      onTap: () => showPriceDialog(pkg),
+      child: Card(
+        elevation: 8,
+        color:
+            selectedPackage == pkg
+                ? AppColors.iconColor.withOpacity(0.6)
+                : Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                pkg,
+                style: TextStyle(
+                  color: selectedPackage == pkg ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Icon(Icons.key_sharp, color: AppColors.darkBg),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Selected Package Info Widget
+  Widget buildSelectedInfo() {
+    if (selectedPackage == null) return SizedBox();
+
+    return Card(
+      margin: EdgeInsets.only(top: 16),
+      elevation: 20,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Selected Package: $selectedPackage',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('Price: UGX${currencyFormatter.format(price ?? 0)}'),
+            Text('Discount: UGX${currencyFormatter.format(discount ?? 0)}'),
+            Text('Commission: UGX${currencyFormatter.format(commission ?? 0)}'),
+          ],
+        ),
+      ),
+    );
+  }
+
   final TextEditingController _priceController = TextEditingController(
     text: '20',
   );
@@ -36,12 +206,12 @@ class _AddPostState extends State<AddPost> {
   String _propertyType = 'House'; // Fixed case
   String _location = 'Kampala';
 
-  bool _hasParking = true;
-  bool _isFurnished = true;
-  bool _hasAC = true;
-  bool _hasInternet = true;
-  bool _hasSecurity = true;
-  bool _isPetFriendly = true;
+  bool _hasParking = false;
+  bool _isFurnished = false;
+  bool _hasAC = false;
+  bool _hasInternet = false;
+  bool _hasSecurity = false;
+  bool _isPetFriendly = false;
   int _photosCount = 0;
 
   @override
@@ -53,6 +223,7 @@ class _AddPostState extends State<AddPost> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         leading: const BackButton(),
         title: Text(
           'Post Your Rental',
@@ -62,15 +233,6 @@ class _AddPostState extends State<AddPost> {
             color: AppColors.darkTextColor,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {},
-            child: const Text(
-              'Preview',
-              style: TextStyle(color: Colors.deepOrange),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -84,8 +246,18 @@ class _AddPostState extends State<AddPost> {
               _buildSectionTitle('Location'),
               _buildLocationDropdown(),
               const SizedBox(height: 20),
-              _buildSectionTitle('Rental Price'),
-              _buildPriceField(),
+              _buildSectionTitle('Set Rental Price Package'),
+              //Package List View Goes Here
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: packages.map(buildPackageCard).toList(),
+                ),
+              ),
+              SizedBox(height: 10),
+              //Selected Package Container goes Here
+              buildSelectedInfo(),
               const SizedBox(height: 20),
 
               if (showHouseSections) ...[
@@ -463,22 +635,6 @@ class _AddPostState extends State<AddPost> {
     );
   }
 
-  Widget _buildUseCurrentLocation() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
-      child: Row(
-        children: [
-          const Icon(Icons.my_location, color: Colors.deepOrange, size: 18),
-          const SizedBox(width: 4),
-          Text(
-            'Use current location',
-            style: TextStyle(color: Colors.deepOrange, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAmenitiesGrid() {
     return GridView.count(
       crossAxisCount: 2,
@@ -503,7 +659,7 @@ class _AddPostState extends State<AddPost> {
         _buildAmenityItem(Icons.security, 'Security', _hasSecurity, (val) {
           setState(() => _hasSecurity = val);
         }),
-        _buildAmenityItem(Icons.pets, 'Pet Friendly', _isPetFriendly, (val) {
+        _buildAmenityItem(Icons.grass, 'Big Compound', _isPetFriendly, (val) {
           setState(() => _isPetFriendly = val);
         }),
       ],
@@ -522,7 +678,10 @@ class _AddPostState extends State<AddPost> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           border: Border.all(
-            color: value ? Colors.blue.shade200 : Colors.grey.shade300,
+            color:
+                value
+                    ? const Color.fromARGB(207, 255, 94, 0)
+                    : Colors.grey.shade300,
           ),
           borderRadius: BorderRadius.circular(8),
           color: value ? Colors.blue.shade50 : Colors.white,
@@ -532,14 +691,20 @@ class _AddPostState extends State<AddPost> {
             Icon(
               icon,
               size: 20,
-              color: value ? Colors.blue.shade700 : Colors.grey.shade600,
+              color:
+                  value
+                      ? const Color.fromARGB(207, 255, 94, 0)
+                      : Colors.grey.shade600,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: value ? Colors.blue.shade700 : Colors.grey.shade600,
+                  color:
+                      value
+                          ? const Color.fromARGB(207, 255, 94, 0)
+                          : Colors.grey.shade600,
                 ),
               ),
             ),

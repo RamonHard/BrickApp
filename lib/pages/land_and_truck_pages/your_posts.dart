@@ -22,6 +22,17 @@ class ViewYourPosts extends ConsumerWidget {
     final moreProductiewList = ref.watch(viewMoreProductProvider);
     return SafeArea(
       child: Scaffold(
+        floatingActionButton: MaterialButton(
+          color: AppColors.iconColor,
+          minWidth: 50,
+          height: 50,
+
+          shape: CircleBorder(side: BorderSide(color: AppColors.iconColor)),
+          onPressed: () {
+            MainNavigation.navigateToRoute(MainNavigation.postTruckRoute);
+          },
+          child: Icon(Icons.add, color: Colors.white),
+        ),
         appBar: AppBar(
           centerTitle: true,
           elevation: 0,

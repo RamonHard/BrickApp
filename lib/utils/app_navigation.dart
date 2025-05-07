@@ -15,6 +15,7 @@ import 'package:brickapp/pages/client_pages/view_selected_product.dart';
 import 'package:brickapp/pages/land_and_truck_pages/add_post.dart';
 import 'package:brickapp/pages/land_and_truck_pages/edit_post.dart';
 import 'package:brickapp/pages/land_and_truck_pages/post_truck.dart';
+import 'package:brickapp/pages/land_and_truck_pages/price_demo.dart';
 import 'package:brickapp/pages/land_and_truck_pages/profile.dart';
 import 'package:brickapp/pages/land_and_truck_pages/requests_for_t_and_l.dart';
 import 'package:brickapp/pages/land_and_truck_pages/your_posts.dart';
@@ -69,7 +70,7 @@ class MainNavigation {
   static String viewFavouritePageRoute = "/viewFavouritePageRoute";
   static String changePasswordRoute = "/changePasswordRoute";
 
-  // static String bookingPageRoute = "/bookingPageRoute";
+  static String priceDemoRoute = "/priceDemoRoute";
   static String bookingPageForMoreRoute = "/bookingPageForMoreRoute";
   // static String truckPageRoute = "/truckPageRoute";
   static String viewSelectedProductRoute = "/viewSelectedProductRoute";
@@ -141,6 +142,9 @@ class MainNavigation {
               selectedItem: settings.arguments as MoreProductViewModel,
             ),
       );
+    }
+    if (settings.name == priceDemoRoute) {
+      return MaterialPageRoute(builder: (context) => PriceDemo());
     }
     if (settings.name == paymentMethodRoute) {
       return MaterialPageRoute(
