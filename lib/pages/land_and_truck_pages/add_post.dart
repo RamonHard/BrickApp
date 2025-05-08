@@ -212,6 +212,7 @@ class _AddPostState extends State<AddPost> {
   bool _hasInternet = false;
   bool _hasSecurity = false;
   bool _isPetFriendly = false;
+  bool _isActive = false;
   int _photosCount = 0;
 
   @override
@@ -248,13 +249,15 @@ class _AddPostState extends State<AddPost> {
               const SizedBox(height: 20),
               _buildSectionTitle('Set Rental Price Package'),
               //Package List View Goes Here
-              SizedBox(
-                height: 100,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: packages.map(buildPackageCard).toList(),
-                ),
-              ),
+              showHouseSections
+                  ? SizedBox(
+                    height: 100,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: packages.map(buildPackageCard).toList(),
+                    ),
+                  )
+                  : _buildPriceField(),
               SizedBox(height: 10),
               //Selected Package Container goes Here
               buildSelectedInfo(),
@@ -552,44 +555,106 @@ class _AddPostState extends State<AddPost> {
 
   // Added field for Units
   Widget _buildUnitsField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final width = MediaQuery.of(context).size.width;
+    return Row(
       children: [
-        Padding(
-          padding: EdgeInsets.only(bottom: 8.0, top: 16.0),
-          child: Text(
-            'Number of Units',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.lightGrey,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(bottom: 8.0, top: 16.0),
+              child: Text(
+                'Number of Units',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.lightGrey,
+                ),
+              ),
             ),
-          ),
-        ),
-        SizedBox(
-          height: 35,
-          width: 150,
-          child: TextField(
-            controller: _unitsController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(5),
-                borderSide: const BorderSide(color: Colors.grey),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(5),
-                borderSide: const BorderSide(color: Colors.grey),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              hintText: 'Number of rental units',
+            Row(
+              children: [
+                SizedBox(
+                  height: 35,
+                  width: 65,
+                  child: TextField(
+                    controller: _unitsController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5),
+                        borderSide: const BorderSide(color: Colors.grey),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5),
+                        borderSide: const BorderSide(color: Colors.grey),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      hintText: 'Units',
+                    ),
+                  ),
+                ),
+                SizedBox(width: width / 10),
+                // Active Button
+                MaterialButton(
+                  height: 40,
+                  onPressed: () {
+                    setState(() {
+                      _isActive = true;
+                    });
+                  },
+                  color:
+                      _isActive
+                          ? Colors.green
+                          : const Color.fromARGB(117, 43, 43, 43),
+                  padding: EdgeInsets.all(8.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    "Active",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 5.0),
+                // Pending Button
+                MaterialButton(
+                  height: 40,
+                  onPressed: () {
+                    setState(() {
+                      _isActive = false;
+                    });
+                  },
+                  color:
+                      !_isActive
+                          ? Colors.orange
+                          : const Color.fromARGB(117, 43, 43, 43),
+
+                  padding: EdgeInsets.all(8.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    "Pending",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+          ],
         ),
       ],
     );
