@@ -20,6 +20,7 @@ class _AddPostState extends State<AddPost> {
     fontWeight: FontWeight.w600,
     color: AppColors.darkTextColor,
   );
+
   final List<String> packages = ['1 Month', '2 Months', '3 Months'];
   String? selectedPackage;
   int? price;
@@ -212,7 +213,11 @@ class _AddPostState extends State<AddPost> {
   bool _hasInternet = false;
   bool _hasSecurity = false;
   bool _isPetFriendly = false;
-  bool _isActive = false;
+  bool _isActive = true;
+  bool _isRentSelected = false;
+  bool _isSaleSelected = false;
+  final TextEditingController _pendingReasonController =
+      TextEditingController();
   int _photosCount = 0;
 
   @override
@@ -275,7 +280,72 @@ class _AddPostState extends State<AddPost> {
                 _buildAmenitiesGrid(),
                 const SizedBox(height: 20),
               ],
-
+              SizedBox(height: 20),
+              Text(
+                "Listing Type",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.lightGrey,
+                ),
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  // Rent Button
+                  MaterialButton(
+                    height: 40,
+                    onPressed: () {
+                      setState(() {
+                        _isRentSelected = !_isRentSelected; // toggle
+                      });
+                    },
+                    color:
+                        _isRentSelected
+                            ? Colors.green
+                            : const Color.fromARGB(117, 43, 43, 43),
+                    padding: EdgeInsets.all(8.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Text(
+                      "Rent",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 5.0),
+                  // Sale Button
+                  MaterialButton(
+                    height: 40,
+                    onPressed: () {
+                      setState(() {
+                        _isSaleSelected = !_isSaleSelected; // toggle
+                      });
+                    },
+                    color:
+                        _isSaleSelected
+                            ? Colors.green
+                            : const Color.fromARGB(117, 43, 43, 43),
+                    padding: EdgeInsets.all(8.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Text(
+                      "Sale",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
               _buildSectionTitle('Description'),
               _buildDescriptionField(),
               const SizedBox(height: 20),
@@ -556,6 +626,7 @@ class _AddPostState extends State<AddPost> {
   // Added field for Units
   Widget _buildUnitsField() {
     final width = MediaQuery.of(context).size.width;
+
     return Row(
       children: [
         Column(
@@ -638,7 +709,6 @@ class _AddPostState extends State<AddPost> {
                       !_isActive
                           ? Colors.orange
                           : const Color.fromARGB(117, 43, 43, 43),
-
                   padding: EdgeInsets.all(8.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),
@@ -654,6 +724,36 @@ class _AddPostState extends State<AddPost> {
                 ),
               ],
             ),
+
+            // ✅ Reveal this TextField only when status is "Pending"
+            if (!_isActive) ...[
+              SizedBox(height: 10),
+              Text(
+                'Reason for Pending',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.lightGrey,
+                ),
+              ),
+              SizedBox(height: 5),
+              SizedBox(
+                width: width * 0.8,
+                child: TextField(
+                  controller:
+                      _pendingReasonController, // Add this controller in your State
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -715,7 +815,7 @@ class _AddPostState extends State<AddPost> {
         _buildAmenityItem(Icons.chair, 'Furnished', _isFurnished, (val) {
           setState(() => _isFurnished = val);
         }),
-        _buildAmenityItem(Icons.ac_unit, 'Air Conditioning', _hasAC, (val) {
+        _buildAmenityItem(Icons.ac_unit, 'AC', _hasAC, (val) {
           setState(() => _hasAC = val);
         }),
         _buildAmenityItem(Icons.wifi, 'Internet', _hasInternet, (val) {
@@ -724,7 +824,7 @@ class _AddPostState extends State<AddPost> {
         _buildAmenityItem(Icons.security, 'Security', _hasSecurity, (val) {
           setState(() => _hasSecurity = val);
         }),
-        _buildAmenityItem(Icons.grass, 'Big Compound', _isPetFriendly, (val) {
+        _buildAmenityItem(Icons.grass, 'Compound', _isPetFriendly, (val) {
           setState(() => _isPetFriendly = val);
         }),
       ],
@@ -941,6 +1041,7 @@ class _AddPostState extends State<AddPost> {
     _bathsController.dispose();
     _sqftController.dispose();
     _unitsController.dispose();
+    _pendingReasonController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
