@@ -1,4 +1,5 @@
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
@@ -15,7 +16,14 @@ class ViewSelectedProduct extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final featuredImages = ref.watch(feauturedImagesProvider);
-
+    final isFavorite = ref.watch(
+      favoriteItemListProvider.select(
+        (favorites) => favorites.contains(selectedProduct),
+      ),
+    );
+    final favoriteHouseListNotifier = ref.read(
+      favoriteItemListProvider.notifier,
+    );
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -57,7 +65,23 @@ class ViewSelectedProduct extends ConsumerWidget {
                   top: 10,
                   child: CircleAvatar(
                     backgroundColor: Colors.white,
-                    child: Icon(Icons.favorite_border, color: Colors.red),
+                    child: IconButton(
+                      onPressed: () {
+                        if (isFavorite) {
+                          favoriteHouseListNotifier.removeFromFavorites(
+                            selectedProduct,
+                          );
+                        } else {
+                          favoriteHouseListNotifier.addToFavorites(
+                            selectedProduct,
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : null,
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(

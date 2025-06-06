@@ -135,6 +135,7 @@ class ViewMoreProducts extends ConsumerWidget {
                           ),
                         );
                       },
+                      showDelete: false,
                     );
                     // ProductCard(
                     //   price: moreProductViewModel.price,

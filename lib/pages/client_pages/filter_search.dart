@@ -19,10 +19,11 @@ class _FilterSearchState extends State<FilterSearch> {
     "Self Contained",
     "Business Shop",
     "Flat Apartments",
-    "Events",
+    "Event Grounds",
     "Hostels",
     "Offices",
     "Lounges",
+    "Storage House",
   ];
 
   List<String> selectedDescriptions = [];

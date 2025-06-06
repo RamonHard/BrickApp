@@ -11,7 +11,9 @@ class HouseCard extends StatelessWidget {
     required this.productimage,
     required this.location,
     required this.price,
+    required this.showDelete,
     required this.onTap,
+    this.favOnpress,
     required this.unitsNum,
     this.sqft,
     required this.id,
@@ -33,11 +35,14 @@ class HouseCard extends StatelessWidget {
   final int unitsNum;
   final String uploaderName;
   final int bedroomNum;
+  final bool showDelete;
   double? sqft;
   final double starRating;
   final bool isActive;
   final double reviews;
   final Function() onTap;
+  final Function()? favOnpress;
+
   TextStyle textStyle = GoogleFonts.oxygen(
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -79,21 +84,22 @@ class HouseCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white.withOpacity(0.7),
-                        child: IconButton(
-                          icon: Icon(Icons.favorite, color: Colors.white),
-                          highlightColor: AppColors.iconColor,
-                          onPressed: () {
-                            // TODO: Add your like functionality here
-                          },
+                    if (showDelete == true)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.white.withOpacity(0.7),
+                          child: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            highlightColor: AppColors.iconColor,
+                            onPressed: favOnpress,
+                          ),
                         ),
-                      ),
-                    ),
+                      )
+                    else
+                      Container(),
                     Positioned(
                       bottom: 10,
                       right: 10,

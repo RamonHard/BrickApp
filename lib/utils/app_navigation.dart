@@ -4,6 +4,7 @@ import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_pag
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
 import 'package:brickapp/pages/client_pages/change_password.dart';
+import 'package:brickapp/pages/client_pages/fave_items.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
 import 'package:brickapp/pages/client_pages/history_page.dart';
@@ -68,6 +69,7 @@ class MainNavigation {
   static String clientHistoryPageRoute = "/clientHistoryPageRoute";
   static String clientEditProfilePageRoute = "/clientEditProfilePageRoute";
   static String viewFavouritePageRoute = "/viewFavouritePageRoute";
+  static String viewFavItemPage = "/viewFavItemPage";
   static String changePasswordRoute = "/changePasswordRoute";
 
   static String priceDemoRoute = "/priceDemoRoute";
@@ -100,6 +102,9 @@ class MainNavigation {
     }
     if (settings.name == viewFavouritePageRoute) {
       return MaterialPageRoute(builder: (context) => ViewFavourite());
+    }
+    if (settings.name == viewFavItemPage) {
+      return MaterialPageRoute(builder: (context) => FavouriteItemList());
     }
     if (settings.name == changePasswordRoute) {
       return MaterialPageRoute(builder: (context) => ChangeClientPassword());

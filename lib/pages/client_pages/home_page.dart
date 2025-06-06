@@ -125,6 +125,7 @@ class HomePage extends ConsumerWidget {
                             data: productModel,
                           );
                         },
+                        showDelete: false,
                       ),
                     );
                   },

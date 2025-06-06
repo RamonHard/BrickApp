@@ -119,7 +119,35 @@ class ClientProfile extends StatelessWidget {
                               color: AppColors.iconColor,
                             ),
                             title: Text(
-                              "View Favourites",
+                              "View Favourites Driver",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              MainNavigation.navigateToRoute(
+                                MainNavigation.viewFavItemPage,
+                              );
+                            },
+                            leading: Icon(
+                              Icons.favorite,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "View Favourites Item",
                               style: GoogleFonts.actor(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
