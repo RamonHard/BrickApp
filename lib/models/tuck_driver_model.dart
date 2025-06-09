@@ -1,4 +1,4 @@
-class TruckDriverModel {
+class SProviderDriverModel {
   final String name;
   final String email;
   final String phone;
@@ -9,7 +9,7 @@ class TruckDriverModel {
   final int starRating;
   final int trips;
   bool? isFavorite;
-  TruckDriverModel({
+  SProviderDriverModel({
     required this.name,
     required this.email,
     required this.phone,

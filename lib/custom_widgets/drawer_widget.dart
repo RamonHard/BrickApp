@@ -1,5 +1,5 @@
 import 'package:brickapp/pages/client_pages/transporter.dart';
-import 'package:brickapp/pages/land_and_truck_pages/subscription.dart';
+import 'package:brickapp/pages/sProviderPages/subscription.dart';
 import 'package:brickapp/pages/onboardingPages/change_passward.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

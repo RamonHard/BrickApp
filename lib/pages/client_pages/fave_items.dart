@@ -2,6 +2,7 @@ import 'package:brickapp/custom_widgets/house_card.dart';
 import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -23,25 +24,6 @@ class FavouriteItemList extends HookConsumerWidget {
       final favList = favData;
       if (favList.isNotEmpty) {
         return Scaffold(
-          appBar: AppBar(
-            elevation: 0,
-            leading: IconButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: Icon(Icons.arrow_back, color: AppColors.iconColor),
-            ),
-            centerTitle: true,
-            title: Text(
-              "Your Efficient Truck Driver",
-              style: GoogleFonts.actor(
-                fontSize: 18,
-                color: Colors.black,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            backgroundColor: AppColors.backgroundColor,
-          ),
           body: ListView.builder(
             itemCount: favList.length,
             itemBuilder: (context, index) {
@@ -51,7 +33,12 @@ class FavouriteItemList extends HookConsumerWidget {
                 productimage: product.productIMG,
                 location: product.location,
                 price: product.price,
-                onTap: () {},
+                onTap: () {
+                  MainNavigation.navigateToRoute(
+                    MainNavigation.viewSelectedProductRoute,
+                    data: product,
+                  );
+                },
                 favOnpress: () {
                   favoriteItemListNotifier.removeFromFavorites(product);
                 },

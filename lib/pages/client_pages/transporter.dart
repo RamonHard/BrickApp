@@ -47,8 +47,9 @@ class Transporter extends ConsumerWidget {
               child: ListView.builder(
                 itemCount: truckDriverList.length,
                 itemBuilder: (BuildContext context, int index) {
-                  TruckDriverModel truckDriverModel = truckDriverList[index];
-                  return TruckWidget(
+                  SProviderDriverModel truckDriverModel =
+                      truckDriverList[index];
+                  return SProviderWidget(
                     name: truckDriverModel.name,
                     truckImg: truckDriverModel.truckImg,
                     profileImg: truckDriverModel.profileImg,

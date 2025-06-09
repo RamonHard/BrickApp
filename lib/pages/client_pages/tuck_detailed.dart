@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DriverProfilePage extends ConsumerWidget {
-  final TruckDriverModel driverModel;
+  final SProviderDriverModel driverModel;
 
   const DriverProfilePage({super.key, required this.driverModel});
   @override

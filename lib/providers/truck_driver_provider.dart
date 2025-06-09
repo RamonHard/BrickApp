@@ -8,7 +8,7 @@ final userProvider = StateProvider<UserModel?>((ref) {
 
 final truckProvider = Provider((ref) {
   return [
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Ramon HL',
       email: 'ramon@gmail.com',
       phone: '074085674',
@@ -21,7 +21,7 @@ final truckProvider = Provider((ref) {
       truckImg:
           'https://media.wired.com/photos/590951f9d8c8646f38eef333/16:9/w_929,h_523,c_limit/walmart-advanced-vehicle-experience-wave-concept-truck.jpg',
     ),
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Recado Glimps',
       email: 'glimps@gmail.com',
       phone: '074085674',
@@ -34,7 +34,7 @@ final truckProvider = Provider((ref) {
       truckImg:
           'https://udtrucks.com.au/sites/default/files/styles/truck_specification_images_main/public/2022-12/Quester-CKE_512x446_2.jpg',
     ),
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Tresure Bondy',
       email: 'tresure@gmail.com',
       phone: '074085674',
@@ -46,7 +46,7 @@ final truckProvider = Provider((ref) {
       truckImg:
           'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3Pa8vRIly1RjGD57f9MH2TfAufAH14r9ppQ&usqp=CAU',
     ),
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Andrea Enidy',
       email: 'andrea@gmail.com',
       phone: '074085674',
@@ -59,7 +59,7 @@ final truckProvider = Provider((ref) {
       truckImg:
           'https://www.hilldrup.com/wp-content/uploads/2018/01/truck-6.jpg',
     ),
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Kazibwe Apuli',
       email: 'apuli@gmail.com',
       phone: '074085674',
@@ -72,7 +72,7 @@ final truckProvider = Provider((ref) {
       truckImg:
           'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7VZAi1ikg_m96LDric7X_lI6MVMDC_ZmKIWy9V3PzbcR0rPRNzFOG0yF6EzhAzv7uwUU&usqp=CAU',
     ),
-    TruckDriverModel(
+    SProviderDriverModel(
       name: 'Robert Kiyosaki',
       email: 'kiyosaki@gmail.com',
       phone: '074085674',

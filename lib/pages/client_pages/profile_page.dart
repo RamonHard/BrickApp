@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'package:brickapp/custom_widgets/custom_expansion_list.dart';
+import 'package:brickapp/custom_widgets/profile_transparent_widget.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
@@ -8,9 +10,14 @@ import 'package:hexcolor/hexcolor.dart';
 import '../../utils/app_images.dart' as backImg;
 
 class ClientProfile extends StatelessWidget {
-  const ClientProfile({super.key});
+  ClientProfile({super.key});
   final double _sigmax = 4.0;
   final double _sigmay = 4.0;
+  final TextStyle style = GoogleFonts.oxygen(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: HexColor("#050607"),
+  );
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size.width;
@@ -71,7 +78,29 @@ class ClientProfile extends StatelessWidget {
                           color: AppColors.lightTextColor,
                         ),
                       ),
+
                       SizedBox(height: screenSize / 10),
+                      ExpansionTileWidget(
+                        icon: Icons.document_scanner,
+                        text: "User ID Info",
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text("Name", style: style),
+                          ),
+                          Text("Ramon Hard", style: style),
+                          Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text("Phone Number", style: style),
+                          ),
+                          Text("070 578 2809", style: style),
+                          Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text("Gender", style: style),
+                          ),
+                          Text("Male", style: style),
+                        ],
+                      ),
                       Container(
                         alignment: Alignment.center,
                         child: Card(
@@ -100,6 +129,15 @@ class ClientProfile extends StatelessWidget {
                           ),
                         ),
                       ),
+                      ProfileTransparentButton(
+                        buttonDescription: "Add Post",
+                        icon: Icons.add,
+                        onTap: () {
+                          MainNavigation.navigateToRoute(
+                            MainNavigation.addPostRoute,
+                          );
+                        },
+                      ),
                       SizedBox(height: screenSize / 20),
                       Container(
                         alignment: Alignment.center,
@@ -111,7 +149,7 @@ class ClientProfile extends StatelessWidget {
                           child: ListTile(
                             onTap: () {
                               MainNavigation.navigateToRoute(
-                                MainNavigation.viewFavouritePageRoute,
+                                MainNavigation.mainFavouriteDisplayRoute,
                               );
                             },
                             leading: Icon(
@@ -119,7 +157,7 @@ class ClientProfile extends StatelessWidget {
                               color: AppColors.iconColor,
                             ),
                             title: Text(
-                              "View Favourites Driver",
+                              "View Favourites",
                               style: GoogleFonts.actor(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
@@ -129,34 +167,7 @@ class ClientProfile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Container(
-                        alignment: Alignment.center,
-                        child: Card(
-                          color: HexColor("FFFFFF").withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.viewFavItemPage,
-                              );
-                            },
-                            leading: Icon(
-                              Icons.favorite,
-                              color: AppColors.iconColor,
-                            ),
-                            title: Text(
-                              "View Favourites Item",
-                              style: GoogleFonts.actor(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.darkTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+
                       SizedBox(height: screenSize / 20),
                       Container(
                         alignment: Alignment.center,

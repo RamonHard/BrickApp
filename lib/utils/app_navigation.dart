@@ -8,18 +8,19 @@ import 'package:brickapp/pages/client_pages/fave_items.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
 import 'package:brickapp/pages/client_pages/history_page.dart';
+import 'package:brickapp/pages/client_pages/main_favourite.dart';
 import 'package:brickapp/pages/client_pages/profile_page.dart';
 import 'package:brickapp/pages/client_pages/transporter.dart';
-import 'package:brickapp/pages/client_pages/view_favourite.dart';
+import 'package:brickapp/pages/client_pages/favorite_s_provider.dart';
 import 'package:brickapp/pages/client_pages/view_more_products.dart';
 import 'package:brickapp/pages/client_pages/view_selected_product.dart';
-import 'package:brickapp/pages/land_and_truck_pages/add_post.dart';
-import 'package:brickapp/pages/land_and_truck_pages/edit_post.dart';
-import 'package:brickapp/pages/land_and_truck_pages/post_truck.dart';
-import 'package:brickapp/pages/land_and_truck_pages/price_demo.dart';
-import 'package:brickapp/pages/land_and_truck_pages/profile.dart';
-import 'package:brickapp/pages/land_and_truck_pages/requests_for_t_and_l.dart';
-import 'package:brickapp/pages/land_and_truck_pages/your_posts.dart';
+import 'package:brickapp/pages/sProviderPages/add_post.dart';
+import 'package:brickapp/pages/sProviderPages/edit_post.dart';
+import 'package:brickapp/pages/sProviderPages/post_truck.dart';
+import 'package:brickapp/pages/sProviderPages/price_demo.dart';
+import 'package:brickapp/pages/sProviderPages/profile.dart';
+import 'package:brickapp/pages/sProviderPages/requests_for_t_and_l.dart';
+import 'package:brickapp/pages/sProviderPages/your_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:flutter/material.dart';
@@ -69,6 +70,8 @@ class MainNavigation {
   static String clientHistoryPageRoute = "/clientHistoryPageRoute";
   static String clientEditProfilePageRoute = "/clientEditProfilePageRoute";
   static String viewFavouritePageRoute = "/viewFavouritePageRoute";
+  static String mainFavouriteDisplayRoute = "/mainFavouriteDisplayRoute";
+
   static String viewFavItemPage = "/viewFavItemPage";
   static String changePasswordRoute = "/changePasswordRoute";
 
@@ -101,7 +104,10 @@ class MainNavigation {
       return MaterialPageRoute(builder: (context) => EditProfile());
     }
     if (settings.name == viewFavouritePageRoute) {
-      return MaterialPageRoute(builder: (context) => ViewFavourite());
+      return MaterialPageRoute(builder: (context) => FavoriteSProvider());
+    }
+    if (settings.name == mainFavouriteDisplayRoute) {
+      return MaterialPageRoute(builder: (context) => MainFavoriteDisplay());
     }
     if (settings.name == viewFavItemPage) {
       return MaterialPageRoute(builder: (context) => FavouriteItemList());

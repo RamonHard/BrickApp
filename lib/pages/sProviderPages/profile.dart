@@ -29,12 +29,6 @@ class LandAndTruckProfilePage extends StatefulWidget {
 }
 
 class _LandAndTruckProfilePageState extends State<LandAndTruckProfilePage> {
-  final TextStyle style = GoogleFonts.oxygen(
-    fontSize: 15,
-    fontWeight: FontWeight.w600,
-    color: HexColor("#050607"),
-  );
-
   TextStyle userInfoStyle = GoogleFonts.actor(
     fontSize: 16,
     color: HexColor("#d8e2dc"),
@@ -140,43 +134,8 @@ class _LandAndTruckProfilePageState extends State<LandAndTruckProfilePage> {
                     shrinkWrap: true,
                     primary: false,
                     children: [
-                      ExpansionTileWidget(
-                        icon: Icons.document_scanner,
-                        text: "User ID Info",
-                        children: [
-                          Padding(
-                            padding: padding,
-                            child: Text("Name", style: style),
-                          ),
-                          Text(
-                            "${widget.userNameController?.text}",
-                            style: userInfoStyle,
-                          ),
-                          Padding(
-                            padding: padding,
-                            child: Text("Phone Number", style: style),
-                          ),
-                          Text(
-                            "${widget.phoneNumController?.text}",
-                            style: userInfoStyle,
-                          ),
-                          Padding(
-                            padding: padding,
-                            child: Text("Gender", style: style),
-                          ),
-                          Text("${getSelectedGenger()}", style: userInfoStyle),
-                        ],
-                      ),
                       SizedBox(height: deviceSize / 30),
-                      ProfileTransparentButton(
-                        buttonDescription: "Add Post",
-                        icon: Icons.add,
-                        onTap: () {
-                          MainNavigation.navigateToRoute(
-                            MainNavigation.addPostRoute,
-                          );
-                        },
-                      ),
+
                       SizedBox(height: deviceSize / 30),
                       ProfileTransparentButton(
                         buttonDescription: "Edit Profile",
