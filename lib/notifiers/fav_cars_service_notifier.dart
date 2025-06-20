@@ -1,4 +1,4 @@
-import 'package:brickapp/models/tuck_driver_model.dart';
+import 'package:brickapp/models/s_provider_model.dart.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final favoriteListProvider =

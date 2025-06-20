@@ -4,6 +4,7 @@ import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_pag
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
 import 'package:brickapp/pages/client_pages/change_password.dart';
+import 'package:brickapp/pages/client_pages/client_book_tuck_Services/Home.dart';
 import 'package:brickapp/pages/client_pages/fave_items.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
@@ -14,10 +15,10 @@ import 'package:brickapp/pages/client_pages/transporter.dart';
 import 'package:brickapp/pages/client_pages/favorite_s_provider.dart';
 import 'package:brickapp/pages/client_pages/view_more_products.dart';
 import 'package:brickapp/pages/client_pages/view_selected_product.dart';
-import 'package:brickapp/pages/sProviderPages/add_post.dart';
-import 'package:brickapp/pages/sProviderPages/edit_post.dart';
+import 'package:brickapp/pages/pManagerPages/add_post.dart';
+import 'package:brickapp/pages/pManagerPages/edit_post.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
-import 'package:brickapp/pages/sProviderPages/price_demo.dart';
+import 'package:brickapp/pages/pManagerPages/price_demo.dart';
 import 'package:brickapp/pages/sProviderPages/profile.dart';
 import 'package:brickapp/pages/sProviderPages/requests_for_t_and_l.dart';
 import 'package:brickapp/pages/sProviderPages/your_posts.dart';
@@ -55,7 +56,7 @@ class MainNavigation {
   // static String homePageRoute = "/homePageRoute";
   static String logOutRoute = "/logOutRoute";
 
-  static String homeTruckAndLandRoute = "/homeTruckAndLandRoute";
+  static String requestsRoute = "/requestsRoute";
   static String mainContent = "/mainContent";
 
   static String sortByRoute = "/sortByRoute";
@@ -94,7 +95,7 @@ class MainNavigation {
       return MaterialPageRoute(builder: (context) => HomePage());
     }
     if (settings.name == transporterRoute) {
-      return MaterialPageRoute(builder: (context) => Transporter());
+      return MaterialPageRoute(builder: (context) => FindTransporterPage());
     }
 
     if (settings.name == clientprofilePageRoute) {
@@ -128,7 +129,7 @@ class MainNavigation {
       return MaterialPageRoute(builder: (context) => LandAndTruckProfilePage());
     }
 
-    if (settings.name == homeTruckAndLandRoute) {
+    if (settings.name == requestsRoute) {
       return MaterialPageRoute(builder: (context) => LandAndTruckRequestPage());
     }
     // if (settings.name == bookingPageRoute) {

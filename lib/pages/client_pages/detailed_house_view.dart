@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:brickapp/models/destination_model.dart';
+import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/house_view_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
@@ -12,15 +14,21 @@ import '../../utils/app_colors.dart';
 class DetailedHouseView extends ConsumerWidget {
   DetailedHouseView({super.key, required this.selectedProduct});
 
-  final MoreProductViewModel selectedProduct;
+  final ProductModel selectedProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
-    final houseViewImageList = ref.watch(houseViewProvider);
     final featuredImages = ref.watch(feauturedImagesProvider);
-
+    final isFavorite = ref.watch(
+      favoriteItemListProvider.select(
+        (favorites) => favorites.contains(selectedProduct),
+      ),
+    );
+    final favoriteHouseListNotifier = ref.read(
+      favoriteItemListProvider.notifier,
+    );
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -52,7 +60,7 @@ class DetailedHouseView extends ConsumerWidget {
             Stack(
               children: [
                 Image.network(
-                  selectedProduct.img,
+                  selectedProduct.productIMG,
                   width: width,
                   height: 250,
                   fit: BoxFit.cover,
@@ -61,7 +69,7 @@ class DetailedHouseView extends ConsumerWidget {
                     ? Container()
                     : Positioned(
                       right: 10,
-                      top: 10,
+                      bottom: 10,
                       child: MaterialButton(
                         height: 35,
                         color: AppColors.iconColor,
@@ -79,6 +87,30 @@ class DetailedHouseView extends ConsumerWidget {
                         ),
                       ),
                     ),
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: IconButton(
+                      onPressed: () {
+                        if (isFavorite) {
+                          favoriteHouseListNotifier.removeFromFavorites(
+                            selectedProduct,
+                          );
+                        } else {
+                          favoriteHouseListNotifier.addToFavorites(
+                            selectedProduct,
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : null,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
 

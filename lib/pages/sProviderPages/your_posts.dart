@@ -37,7 +37,12 @@ class ViewYourPosts extends ConsumerWidget {
           centerTitle: true,
           elevation: 0,
           backgroundColor: AppColors.backgroundColor,
-          leading: Container(),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: AppColors.iconColor),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
           title: Text("Posts", style: style),
         ),
         backgroundColor: AppColors.backgroundColor,
@@ -46,7 +51,7 @@ class ViewYourPosts extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(bottom: 8.0),
                 child: SearchCard(hintText: 'Search house'),
               ),

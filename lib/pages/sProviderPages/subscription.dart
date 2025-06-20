@@ -1,4 +1,4 @@
-import 'package:brickapp/pages/sProviderPages/add_post.dart';
+import 'package:brickapp/pages/pManagerPages/add_post.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';

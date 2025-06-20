@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 
 class SearchCard extends StatelessWidget {
-  const SearchCard({Key? key, required this.hintText}) : super(key: key);
+  SearchCard({Key? key, required this.hintText, this.onChanged})
+    : super(key: key);
   final String hintText;
+  dynamic Function(String)? onChanged;
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -22,6 +24,7 @@ class SearchCard extends StatelessWidget {
             fontWeight: FontWeight.w800,
             color: Colors.black,
           ),
+          onChanged: onChanged,
           decoration: InputDecoration(
             contentPadding: EdgeInsets.all(8.0),
             enabledBorder: const OutlineInputBorder(

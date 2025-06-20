@@ -16,7 +16,12 @@ class LandAndTruckRequestPage extends ConsumerWidget {
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
         centerTitle: true,
-        leading: Container(),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.iconColor),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: Text(
           "Requests",
           style: GoogleFonts.actor(

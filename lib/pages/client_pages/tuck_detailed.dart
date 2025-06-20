@@ -1,4 +1,4 @@
-import 'package:brickapp/models/tuck_driver_model.dart';
+import 'package:brickapp/models/s_provider_model.dart.dart';
 import 'package:brickapp/notifiers/fav_cars_service_notifier.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';

@@ -129,6 +129,62 @@ class ClientProfile extends StatelessWidget {
                           ),
                         ),
                       ),
+                      Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              MainNavigation.navigateToRoute(
+                                MainNavigation.requestsRoute,
+                              );
+                            },
+                            leading: Icon(
+                              Icons.camera_alt_outlined,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "Requests",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              MainNavigation.navigateToRoute(
+                                MainNavigation.postViewRoute,
+                              );
+                            },
+                            leading: Icon(
+                              Icons.camera_alt_outlined,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "Your Posts",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       ProfileTransparentButton(
                         buttonDescription: "Add Post",
                         icon: Icons.add,

@@ -6,6 +6,7 @@ class ProductModel {
   final String productIMG;
   final int id;
   final int unitsNum;
+  final List<String> amenities;
   final String uploaderIMG;
   final String uploaderName;
   final String uploaderEmail;
@@ -24,6 +25,7 @@ class ProductModel {
     required this.productIMG,
     required this.uploaderIMG,
     required this.id,
+    required this.amenities,
     required this.unitsNum,
     required this.uploaderName,
     required this.uploaderEmail,

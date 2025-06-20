@@ -149,7 +149,7 @@ class LandAndTruckNavBar extends StatelessWidget {
 
   void onItemTapped(int index) {
     if (index == 0) {
-      MainNavigation.navigateToRoute(MainNavigation.homeTruckAndLandRoute);
+      MainNavigation.navigateToRoute(MainNavigation.requestsRoute);
     }
 
     if (index == 1) {

@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:brickapp/custom_widgets/house_card.dart';
 import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/pages/client_pages/detailed_house_view.dart';
+import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +25,7 @@ class ViewMoreProducts extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
-    final moreProductViewList = ref.watch(viewMoreProductProvider);
+    final moreProductViewList = ref.watch(productProvider);
     return SafeArea(
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -107,14 +108,14 @@ class ViewMoreProducts extends ConsumerWidget {
                   shrinkWrap: true,
                   itemCount: moreProductViewList.length,
                   itemBuilder: (BuildContext context, int index) {
-                    MoreProductViewModel moreProductViewModel =
+                    ProductModel moreProductViewModel =
                         moreProductViewList[index];
                     return HouseCard(
                       profileIMG: productModel.uploaderIMG,
                       price: moreProductViewModel.price,
                       location: moreProductViewModel.location,
                       description: moreProductViewModel.description,
-                      productimage: moreProductViewModel.img,
+                      productimage: moreProductViewModel.productIMG,
                       houseType: moreProductViewModel.houseType,
                       isActive: moreProductViewModel.isActive,
                       id: 1,

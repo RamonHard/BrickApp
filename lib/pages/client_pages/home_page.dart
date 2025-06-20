@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:brickapp/pages/client_pages/filter_search.dart';
+import 'package:brickapp/providers/filter_product_list_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_images.dart';
 import 'package:brickapp/utils/app_navigation.dart';
@@ -23,7 +24,7 @@ class HomePage extends ConsumerWidget {
   );
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productList = ref.watch(productProvider);
+    final productList = ref.watch(filteredProductProvider);
     final feauturedImageList = ref.watch(feauturedImagesProvider);
     return SafeArea(
       child: Scaffold(
@@ -32,28 +33,14 @@ class HomePage extends ConsumerWidget {
         drawerEnableOpenDragGesture: true,
         backgroundColor: Colors.transparent,
         body: NestedScrollView(
-          headerSliverBuilder:
-              ((hcontext, innerBoxIsScrolled) => [
-                // SliverAppBar(
-                //   floating: false,
-                //   centerTitle: true,
-                //   surfaceTintColor: Colors.transparent,
-                //   elevation: 0,
-                //   backgroundColor: Colors.transparent,
-                //   leading: Container(),
-                //   title: Text(
-                //     "Brick App",
-                //     style: style,
-                //   ),
-                // ),
-              ]),
+          headerSliverBuilder: ((hcontext, innerBoxIsScrolled) => []),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
               Center(child: Text("Brick App", style: style)),
               const SizedBox(height: 10),
-              const SearchCard(
+              SearchCard(
                 hintText: 'Search house by price,description.eg.selfcontained',
               ),
               Padding(

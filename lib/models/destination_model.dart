@@ -1,33 +1,27 @@
+import 'package:brickapp/models/product_model.dart';
+
 class MoreProductViewModel {
+  final ProductModel product;
   final String img;
   final String destinationTitle;
-  final double price;
-  final int id;
-  final String description;
-  final String location;
-  final int contact;
-  final String houseType;
-  final int bedRoomNum;
-  final double starRating;
-  final double reviews;
-  final double sqft;
-  final int unitsNum;
-  final bool isActive;
 
   MoreProductViewModel({
+    required this.product,
     required this.img,
     required this.destinationTitle,
-    required this.price,
-    required this.id,
-    required this.description,
-    required this.location,
-    required this.contact,
-    required this.houseType,
-    required this.bedRoomNum,
-    required this.starRating,
-    required this.reviews,
-    required this.sqft,
-    required this.unitsNum,
-    required this.isActive,
   });
+
+  // You can create getters for easier access to frequently used fields
+  double get price => product.price;
+  int get id => product.id;
+  String get description => product.description;
+  String get location => product.location;
+  int get contact => product.uploaderPhoneNumber;
+  String get houseType => product.houseType;
+  int get bedRoomNum => product.bedRoomNum;
+  double get starRating => product.starRating;
+  double get reviews => product.reviews;
+  double get sqft => product.sqft;
+  int get unitsNum => product.unitsNum;
+  bool get isActive => product.isActive;
 }

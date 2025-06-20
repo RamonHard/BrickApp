@@ -17,6 +17,7 @@ final productProvider = StateProvider((ref) {
       sqft: 3200,
       reviews: 24,
       starRating: 4.0,
+      amenities: ['Security', 'Compound', 'AC'],
       isActive: true,
       uploaderPhoneNumber: 075356556587,
       productIMG:
@@ -34,6 +35,8 @@ final productProvider = StateProvider((ref) {
       location: 'Muyenga',
       price: 200,
       houseType: 'Modern Family Villa',
+      amenities: ['Security', 'Compound'],
+
       bedRoomNum: 8,
       sqft: 5200,
       reviews: 50,
@@ -56,6 +59,8 @@ final productProvider = StateProvider((ref) {
       houseType: 'Dark Luxury Home',
       bedRoomNum: 10,
       unitsNum: 8,
+      amenities: ['Security'],
+
       sqft: 8300,
       reviews: 100,
       starRating: 4.0,
@@ -76,6 +81,8 @@ final productProvider = StateProvider((ref) {
       houseType: 'Modern Luxury Villa',
       bedRoomNum: 8,
       unitsNum: 6,
+      amenities: ['Parking'],
+
       sqft: 3200,
       reviews: 24,
       starRating: 4.0,
@@ -96,6 +103,8 @@ final productProvider = StateProvider((ref) {
       houseType: 'Contemporary Forest House',
       bedRoomNum: 5,
       unitsNum: 3,
+      amenities: ['Furnished', 'Security'],
+
       sqft: 3200,
       reviews: 24,
       starRating: 4.0,
@@ -115,6 +124,8 @@ final productProvider = StateProvider((ref) {
       price: 200,
       houseType: 'Modern Luxury Villa',
       bedRoomNum: 12,
+      amenities: ['Furnished'],
+
       unitsNum: 1,
       sqft: 3200,
       reviews: 24,

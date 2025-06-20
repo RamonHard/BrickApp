@@ -5,6 +5,7 @@ class SProviderDriverModel {
   final String profileImg;
   final String location;
   final String truckImg;
+  final String? truckType;
   final int startingPrice;
   final int starRating;
   final int trips;
@@ -16,6 +17,7 @@ class SProviderDriverModel {
     required this.profileImg,
     required this.location,
     required this.truckImg,
+    this.truckType,
     required this.startingPrice,
     required this.starRating,
     required this.trips,
