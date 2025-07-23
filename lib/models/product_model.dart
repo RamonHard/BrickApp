@@ -1,5 +1,6 @@
 class ProductModel {
   final double price;
+  final double discount;
   final int uploaderPhoneNumber;
   final String location;
   final String description;
@@ -10,6 +11,7 @@ class ProductModel {
   final String uploaderIMG;
   final String uploaderName;
   final String uploaderEmail;
+
   final String houseType;
   final int bedRoomNum;
   final double starRating;
@@ -19,6 +21,7 @@ class ProductModel {
 
   ProductModel({
     required this.price,
+    required this.discount,
     required this.uploaderPhoneNumber,
     required this.location,
     required this.description,

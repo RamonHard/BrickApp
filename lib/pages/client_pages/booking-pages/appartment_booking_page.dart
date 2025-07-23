@@ -1,15 +1,15 @@
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/providers/discount_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class ApartmentBookingPage extends StatelessWidget {
+class ApartmentBookingPage extends HookConsumerWidget {
   const ApartmentBookingPage({super.key, required this.productModel});
   final ProductModel productModel;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -81,22 +81,37 @@ class ApartmentBookingPage extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Features Grid
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 4,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      FeatureItem(
-                        icon: Icons.bed,
-                        text: '${productModel.bedRoomNum} bedrooms',
+                      Text(
+                        'UGX ${productModel.price.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
                       ),
-                      FeatureItem(
-                        icon: Icons.attach_money,
-                        text: '\$${productModel.price}/month',
+                      Text(
+                        'UGX ${(productModel.price - productModel.discount).toStringAsFixed(0)} /month',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'You save UGX ${(productModel.discount).toStringAsFixed(0)}!',
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 16),
 
                   const Divider(),

@@ -1,7 +1,9 @@
+import 'package:brickapp/pages/client_pages/location_picker_page.dart';
 import 'package:brickapp/providers/p_filter_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../models/property_filter_model.dart' show FilterModel;
@@ -14,6 +16,8 @@ class FilterSearch extends ConsumerStatefulWidget {
 class _FilterSearchState extends ConsumerState<FilterSearch> {
   final TextEditingController fromPriceController = TextEditingController();
   final TextEditingController toPriceController = TextEditingController();
+  LatLng? pickedLocation;
+  String locationDisplay = '';
 
   List<String> descriptions = [
     "Self Contained",
@@ -76,6 +80,54 @@ class _FilterSearchState extends ConsumerState<FilterSearch> {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
+            Text(
+              "Location",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LocationPickerPage()),
+                );
+
+                if (result != null && result is LatLng) {
+                  setState(() {
+                    pickedLocation = result;
+                    locationDisplay =
+                        "Lat: ${result.latitude}, Lng: ${result.longitude}";
+                  });
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Color.fromARGB(179, 235, 246, 250),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        locationDisplay.isEmpty
+                            ? "Select from map"
+                            : locationDisplay,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.darkTextColor,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.map, color: Colors.orange),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             Text(
               "Select Description",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
