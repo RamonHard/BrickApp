@@ -1,6 +1,7 @@
 class PostData {
   final String propertyType;
   final String location;
+  final String? videoPath;
   final int? price;
   final int? discount;
   final int? commission;
@@ -40,6 +41,7 @@ class PostData {
     required this.hasParking,
     required this.isFurnished,
     required this.hasAC,
+    this.videoPath,
     required this.hasInternet,
     required this.hasSecurity,
     required this.isPetFriendly,
@@ -65,6 +67,7 @@ class PostData {
     bool? hasParking,
     bool? isFurnished,
     bool? hasAC,
+    String? videoPath,
     bool? hasInternet,
     bool? hasSecurity,
     bool? isPetFriendly,
@@ -80,6 +83,7 @@ class PostData {
       currency: currency ?? this.currency,
       bedrooms: bedrooms ?? this.bedrooms,
       baths: baths ?? this.baths,
+      videoPath: videoPath ?? this.videoPath,
       sqft: sqft ?? this.sqft,
       units: units ?? this.units,
       isActive: isActive ?? this.isActive,

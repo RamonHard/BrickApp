@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:brickapp/models/destination_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ import 'package:intl/intl.dart';
 
 class EditPManager extends StatefulWidget {
   EditPManager({super.key, required this.editPostModel});
-  final MoreProductViewModel editPostModel;
+  final PropertyModel editPostModel;
 
   @override
   State<EditPManager> createState() => _EditPManagerState();
@@ -33,7 +34,7 @@ class _EditPManagerState extends State<EditPManager> {
 
   void showPriceDialog(String pkg) {
     final priceController = TextEditingController(
-      text: price?.toString() ?? '600000',
+      text: widget.editPostModel.price?.toString() ?? '600000',
     );
 
     int dialogDiscount = discount ?? 30000; // default 5% of 600,000
@@ -177,7 +178,9 @@ class _EditPManagerState extends State<EditPManager> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
-            Text('Price: UGX${currencyFormatter.format(price ?? 0)}'),
+            Text(
+              'Price: UGX${currencyFormatter.format(widget.editPostModel.price ?? 0)}',
+            ),
             Text('Discount: UGX${currencyFormatter.format(discount ?? 0)}'),
             Text('Commission: UGX${currencyFormatter.format(commission ?? 0)}'),
           ],
@@ -198,12 +201,8 @@ class _EditPManagerState extends State<EditPManager> {
   final TextEditingController _sqftController = TextEditingController(
     text: '1200',
   );
-  final TextEditingController _unitsController = TextEditingController(
-    text: '1',
-  );
-  final TextEditingController _descriptionController = TextEditingController(
-    text: 'e.g Three bed rooms, Parking space, Self contained,',
-  );
+  final TextEditingController _unitsController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
 
   String _currency = 'USD';
   String _propertyType = 'House'; // Fixed case
@@ -653,7 +652,9 @@ class _EditPManagerState extends State<EditPManager> {
                   child: TextField(
                     controller: _unitsController,
                     keyboardType: TextInputType.number,
+
                     decoration: InputDecoration(
+                      hint: Text("${widget.editPostModel.units}"),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
@@ -886,6 +887,7 @@ class _EditPManagerState extends State<EditPManager> {
       controller: _descriptionController,
       maxLines: 5,
       decoration: InputDecoration(
+        hint: Text("${widget.editPostModel.description}"),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,

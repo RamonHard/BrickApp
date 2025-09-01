@@ -3,6 +3,7 @@ import 'package:brickapp/custom_widgets/description_card.dart';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/edit_post_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
@@ -17,7 +18,7 @@ import 'package:intl/intl.dart';
 
 class EditPostPage extends ConsumerStatefulWidget {
   const EditPostPage({super.key, required this.editPostModel});
-  final MoreProductViewModel editPostModel;
+  final PropertyModel editPostModel;
   @override
   ConsumerState<EditPostPage> createState() => _EditPostPageState();
 }
@@ -29,7 +30,7 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
     color: AppColors.darkTextColor,
   );
 
-  final List<String> packages = ['1 Month', '2 Months', '3 Months'];
+  // final List<String> packages = ['1 Month', '2 Months', '3 Months'];
   String? selectedPackage;
   int? price;
   int? discount;
@@ -260,7 +261,14 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                     height: 100,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      children: packages.map(buildPackageCard).toList(),
+                      children:
+                          (widget.editPostModel.package != null
+                              ? widget.editPostModel.package!
+                                  .split(',')
+                                  .map((pkg) => pkg.trim())
+                                  .map(buildPackageCard)
+                                  .toList()
+                              : []),
                     ),
                   )
                   : _buildPriceField(),
@@ -299,11 +307,11 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                     onPressed: () {
                       setState(() {
                         _isRentSelected =
-                            !widget.editPostModel.product.isActive; // toggle
+                            !widget.editPostModel.isActive; // toggle
                       });
                     },
                     color:
-                        widget.editPostModel.product.isActive
+                        widget.editPostModel.isActive
                             ? Colors.green
                             : const Color.fromARGB(117, 43, 43, 43),
                     padding: EdgeInsets.all(8.0),
@@ -326,11 +334,11 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                     onPressed: () {
                       setState(() {
                         _isSaleSelected =
-                            !widget.editPostModel.product.isActive; // toggle
+                            !widget.editPostModel.isActive; // toggle
                       });
                     },
                     color:
-                        widget.editPostModel.product.isActive
+                        widget.editPostModel.isActive
                             ? Colors.green
                             : const Color.fromARGB(117, 43, 43, 43),
                     padding: EdgeInsets.all(8.0),

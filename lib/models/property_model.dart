@@ -9,7 +9,7 @@ class PropertyModel {
   final double? commission;
   final String currency;
   final String thumbnail;
-
+  String? videoPath;
   // Structure
   final int bedrooms;
   final int baths;
@@ -62,6 +62,7 @@ class PropertyModel {
     required this.discount,
     required this.thumbnail,
     this.commission,
+    this.videoPath,
     required this.currency,
     required this.bedrooms,
     required this.baths,
@@ -103,6 +104,7 @@ class PropertyModel {
     double? commission,
     String? currency,
     String? thumbnail,
+    String? videoPath,
     int? bedrooms,
     int? baths,
     double? sqft,
@@ -158,6 +160,7 @@ class PropertyModel {
       amenities: amenities ?? this.amenities,
       productIMG: productIMG ?? this.productIMG,
       photoPaths: photoPaths ?? this.photoPaths,
+      videoPath: videoPath ?? this.videoPath,
       insideViews: insideViews ?? this.insideViews,
       starRating: starRating ?? this.starRating,
       reviews: reviews ?? this.reviews,

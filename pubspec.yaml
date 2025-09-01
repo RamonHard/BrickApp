@@ -52,6 +52,7 @@ dependencies:
   geolocator: ^9.0.2
   geocoding: ^4.0.0
   go_router: ^16.2.0
+  video_player: ^2.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,11 +14,13 @@ class ViewPostsCard extends StatelessWidget {
     required this.price,
     required this.editBtn,
   }) : super(key: key);
+
   final String description;
-  final String productimage;
+  final String productimage; // can be network url OR local path
   final String location;
   final Function() editBtn;
   final double price;
+
   TextStyle textStyle = GoogleFonts.actor(
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -27,6 +30,7 @@ class ViewPostsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deviceWidth = MediaQuery.of(context).size.width;
+
     return Stack(
       children: [
         Container(
@@ -43,12 +47,15 @@ class ViewPostsCard extends StatelessWidget {
                         topLeft: Radius.circular(10.0),
                         bottomLeft: Radius.circular(10.0),
                       ),
-                      image: DecorationImage(
-                        image: NetworkImage(productimage),
-                        fit: BoxFit.cover,
-                      ),
                     ),
                     height: double.infinity,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(10.0),
+                        bottomLeft: Radius.circular(10.0),
+                      ),
+                      child: _buildImage(productimage),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -82,7 +89,7 @@ class ViewPostsCard extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              'Locatin: ',
+                              'Location: ',
                               style: GoogleFonts.actor(
                                 fontSize: deviceWidth / 25,
                                 fontWeight: FontWeight.w600,
@@ -90,7 +97,7 @@ class ViewPostsCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '$location',
+                              location,
                               style: GoogleFonts.ptSerif(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -100,7 +107,7 @@ class ViewPostsCard extends StatelessWidget {
                           ],
                         ),
                         Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Description:',
@@ -110,16 +117,17 @@ class ViewPostsCard extends StatelessWidget {
                                 color: AppColors.darkTextColor,
                               ),
                             ),
+                            Text(
+                              description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.actor(
+                                fontSize: deviceWidth / 30,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
                           ],
-                        ),
-                        Text(
-                          '${description}',
-                          maxLines: 2,
-                          style: GoogleFonts.actor(
-                            fontSize: deviceWidth / 30,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.darkTextColor,
-                          ),
                         ),
                         Container(
                           alignment: Alignment.bottomRight,
@@ -154,11 +162,35 @@ class ViewPostsCard extends StatelessWidget {
           right: 0,
           child: IconButton(
             onPressed: () {},
-            icon: Icon(Icons.cancel, color: Colors.red, size: 20),
+            icon: const Icon(Icons.cancel, color: Colors.red, size: 20),
             tooltip: 'Remove',
           ),
         ),
       ],
     );
   }
+
+  /// Helper to display local or network image safely
+  Widget _buildImage(String path) {
+    if (path.startsWith('http')) {
+      // Network image
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _errorPlaceholder(),
+      );
+    } else {
+      // Local image
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _errorPlaceholder(),
+      );
+    }
+  }
+
+  Widget _errorPlaceholder() => Container(
+    color: Colors.grey.shade300,
+    child: const Icon(Icons.broken_image, color: Colors.red),
+  );
 }

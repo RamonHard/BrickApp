@@ -1,9 +1,11 @@
 import 'package:brickapp/custom_widgets/view_posts_card.dart';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/destination_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
+import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +26,7 @@ class ViewYourPosts extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final moreProductiewList = ref.watch(viewMoreProductProvider);
+    final moreProductiewList = ref.watch(productProvider);
     return SafeArea(
       child: Scaffold(
         floatingActionButton: MaterialButton(
@@ -69,13 +71,13 @@ class ViewYourPosts extends ConsumerWidget {
                   shrinkWrap: true,
                   itemCount: moreProductiewList.length,
                   itemBuilder: (BuildContext context, int indnex) {
-                    MoreProductViewModel moreProductViewModel =
+                    PropertyModel moreProductViewModel =
                         moreProductiewList[indnex];
                     return ViewPostsCard(
                       price: moreProductViewModel.price,
                       location: moreProductViewModel.location,
                       description: moreProductViewModel.description,
-                      productimage: moreProductViewModel.img,
+                      productimage: moreProductViewModel.thumbnail,
                       editBtn: () {
                         MainNavigation.navigateToRoute(
                           MainNavigation.editPostPae,

@@ -145,7 +145,7 @@ class MainNavigation {
       return MaterialPageRoute(
         builder:
             (context) => EditPostPage(
-              editPostModel: settings.arguments as MoreProductViewModel,
+              editPostModel: settings.arguments as PropertyModel,
             ),
       );
     }

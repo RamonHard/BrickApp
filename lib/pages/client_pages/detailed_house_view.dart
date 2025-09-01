@@ -291,7 +291,7 @@ class DetailedHouseView extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GalleryView(imageUrls: urls),
+                    builder: (_) => GalleryView(mediaUrls: urls),
                   ),
                 );
               },

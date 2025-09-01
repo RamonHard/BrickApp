@@ -111,7 +111,7 @@ class ViewSelectedProduct extends ConsumerWidget {
             Stack(
               children: [
                 buildImage(
-                  selectedProduct.productIMG,
+                  selectedProduct.thumbnail,
                   width: width,
                   height: 250,
                 ),
@@ -292,7 +292,7 @@ class ViewSelectedProduct extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Featured Images',
+                'Featured Media', // Changed from 'Featured Images'
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -302,46 +302,119 @@ class ViewSelectedProduct extends ConsumerWidget {
 
             SizedBox(height: 8),
 
-            // Featured Images
-            selectedProduct.insideViews.isNotEmpty
+            // Featured Media (Images & Videos)
+            selectedProduct.insideViews.isNotEmpty ||
+                    selectedProduct.videoPath != null
                 ? SizedBox(
                   height: 100,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: selectedProduct.insideViews.length,
+                    itemCount: _getMediaCount(
+                      selectedProduct,
+                    ), // Updated method
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
-                      final imgPath = selectedProduct.insideViews[i];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => FullScreenGallery(
-                                    imageUrls: selectedProduct.insideViews,
-                                    initialIndex: i,
+                      // Check if this is a video or image
+                      if (selectedProduct.videoPath != null && i == 0) {
+                        // Video thumbnail as first item
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => FullScreenGallery(
+                                      mediaUrls: _getAllMedia(
+                                        selectedProduct,
+                                      ), // Updated method
+                                      initialIndex: i,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              children: [
+                                // Video thumbnail with play icon overlay
+                                buildImage(
+                                  selectedProduct.videoPath!,
+                                  width: 120,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                                Container(
+                                  color: Colors.black.withOpacity(0.3),
+                                  width: 120,
+                                  height: 100,
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(10),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.videocam,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
                                   ),
+                                ),
+                                Center(
+                                  child: Icon(
+                                    Icons.play_circle_fill,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: buildImage(
-                            imgPath,
-                            width: 120,
-                            height: 100,
-                            fit: BoxFit.cover,
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        // Regular image
+                        final imgIndex =
+                            selectedProduct.videoPath != null ? i - 1 : i;
+                        final imgPath = selectedProduct.insideViews[imgIndex];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => FullScreenGallery(
+                                      mediaUrls: _getAllMedia(
+                                        selectedProduct,
+                                      ), // Updated method
+                                      initialIndex: i,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: buildImage(
+                              imgPath,
+                              width: 120,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                 )
                 : Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    "No featured images available",
+                    "No featured media available", // Changed text
                     style: TextStyle(
                       color: Colors.grey,
                       fontStyle: FontStyle.italic,
@@ -349,14 +422,16 @@ class ViewSelectedProduct extends ConsumerWidget {
                   ),
                 ),
 
-            // Show "View All Photos" button only if there are inside views
-            (selectedProduct.insideViews.isNotEmpty)
+            // Show "View All Media" button only if there are media items
+            (selectedProduct.insideViews.isNotEmpty ||
+                    selectedProduct.videoPath != null)
                 ? TextButton(
                   onPressed: () {
                     // Debug print to verify the data
                     print("Inside views: ${selectedProduct.insideViews}");
+                    print("Video path: ${selectedProduct.videoPath}");
                     print(
-                      "Number of images: ${selectedProduct.insideViews.length}",
+                      "Number of media items: ${_getMediaCount(selectedProduct)}",
                     );
 
                     Navigator.push(
@@ -364,7 +439,9 @@ class ViewSelectedProduct extends ConsumerWidget {
                       MaterialPageRoute(
                         builder:
                             (_) => GalleryView(
-                              imageUrls: selectedProduct.insideViews,
+                              mediaUrls: _getAllMedia(
+                                selectedProduct,
+                              ), // Updated method
                             ),
                       ),
                     );
@@ -375,7 +452,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                       Icon(Icons.photo_library_outlined),
                       SizedBox(width: 4),
                       Text(
-                        'View All Photos (${selectedProduct.insideViews.length})',
+                        'View All Media (${_getMediaCount(selectedProduct)})', // Updated text
                       ),
                     ],
                   ),
@@ -471,53 +548,40 @@ class ViewSelectedProduct extends ConsumerWidget {
     );
   }
 
-  Widget buildImage(
-    String path, {
-    double? width,
-    double? height,
-    BoxFit fit = BoxFit.cover,
-  }) {
-    if (path.isEmpty) {
-      return _errorPlaceholder(width, height);
-    }
-
-    try {
-      if (path.startsWith('http')) {
-        return Image.network(
-          path,
-          width: width,
-          height: height,
-          fit: fit,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: width,
-              height: height,
-              color: Colors.grey.shade300,
-              child: Center(
-                child: CircularProgressIndicator(
-                  value:
-                      loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                ),
-              ),
-            );
-          },
-          errorBuilder: (_, __, ___) => _errorPlaceholder(width, height),
-        );
-      } else {
-        return Image.file(
-          File(path),
-          width: width,
-          height: height,
-          fit: fit,
-          errorBuilder: (_, __, ___) => _errorPlaceholder(width, height),
-        );
-      }
-    } catch (e) {
-      return _errorPlaceholder(width, height);
+  Widget buildImage(String url, {double? width, double? height, BoxFit? fit}) {
+    if (_isVideo(url)) {
+      // Return a video thumbnail with play icon
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey[300],
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // You might want to use a video thumbnail package here
+            // For now, just show a placeholder with play icon
+            Icon(Icons.videocam, size: 30, color: Colors.grey[600]),
+            Icon(Icons.play_circle_outline, size: 40, color: Colors.white),
+          ],
+        ),
+      );
+    } else {
+      // Regular image handling
+      return url.startsWith('http')
+          ? Image.network(
+            url,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (_, __, ___) => Icon(Icons.broken_image),
+          )
+          : Image.file(
+            File(url),
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (_, __, ___) => Icon(Icons.broken_image),
+          );
     }
   }
 
@@ -527,4 +591,34 @@ class ViewSelectedProduct extends ConsumerWidget {
     color: Colors.grey.shade300,
     child: const Icon(Icons.broken_image, color: Colors.red),
   );
+
+  // Helper method to get total count of media (images + video)
+  int _getMediaCount(PropertyModel product) {
+    int count = product.insideViews.length;
+    if (product.videoPath != null && product.videoPath!.isNotEmpty) {
+      count += 1;
+    }
+    return count;
+  }
+
+  // Helper method to combine images and video into a single list
+  List<String> _getAllMedia(PropertyModel product) {
+    List<String> allMedia = [];
+
+    // Add video first if exists
+    if (product.videoPath != null && product.videoPath!.isNotEmpty) {
+      allMedia.add(product.videoPath!);
+    }
+
+    // Add all images
+    allMedia.addAll(product.insideViews);
+
+    return allMedia;
+  }
+
+  // Helper method to check if a URL is a video
+  bool _isVideo(String url) {
+    final ext = url.split('.').last.toLowerCase();
+    return ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].contains(ext);
+  }
 }
