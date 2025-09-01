@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/filter_search.dart';
 import 'package:brickapp/providers/filter_product_list_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
@@ -25,7 +26,6 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productList = ref.watch(filteredProductProvider);
-    final feauturedImageList = ref.watch(feauturedImagesProvider);
     return SafeArea(
       child: Scaffold(
         key: scaffoldState,
@@ -88,7 +88,7 @@ class HomePage extends ConsumerWidget {
                         ),
                       );
                     }
-                    ProductModel productModel = productList[indnex];
+                    PropertyModel productModel = productList[indnex];
                     return Padding(
                       padding: const EdgeInsets.only(left: 10.0, right: 10.0),
                       child: HouseCard(
@@ -96,13 +96,13 @@ class HomePage extends ConsumerWidget {
                         price: productModel.price,
                         location: productModel.location,
                         description: productModel.description,
-                        productimage: productModel.productIMG,
-                        houseType: productModel.houseType,
+                        thumbnail: productModel.thumbnail,
+                        houseType: productModel.propertyType,
                         isActive: productModel.isActive,
                         id: 1,
                         uploaderName: productModel.uploaderName,
-                        unitsNum: productModel.unitsNum,
-                        bedroomNum: productModel.bedRoomNum,
+                        unitsNum: productModel.units,
+                        bedroomNum: productModel.bedrooms,
                         starRating: productModel.starRating,
                         reviews: productModel.reviews,
                         sqft: productModel.sqft,

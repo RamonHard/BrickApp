@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/house_view_provider.dart';
@@ -14,13 +15,13 @@ import '../../utils/app_colors.dart';
 class DetailedHouseView extends ConsumerWidget {
   DetailedHouseView({super.key, required this.selectedProduct});
 
-  final ProductModel selectedProduct;
+  final PropertyModel selectedProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
-    final featuredImages = ref.watch(feauturedImagesProvider);
+    final featuredImages = ref.watch(productProvider);
     final isFavorite = ref.watch(
       favoriteItemListProvider.select(
         (favorites) => favorites.contains(selectedProduct),
@@ -174,7 +175,7 @@ class DetailedHouseView extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      selectedProduct.houseType,
+                      selectedProduct.propertyType,
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -221,7 +222,7 @@ class DetailedHouseView extends ConsumerWidget {
                 children: [
                   _buildFeatureIcon(
                     Icons.bed,
-                    '${selectedProduct.bedRoomNum} Beds',
+                    '${selectedProduct.bedrooms} Beds',
                   ),
                   _buildFeatureIcon(Icons.weekend, 'Living Room'),
                   _buildFeatureIcon(Icons.park, 'Compound'),
@@ -258,7 +259,8 @@ class DetailedHouseView extends ConsumerWidget {
                         MaterialPageRoute(
                           builder:
                               (_) => FullScreenView(
-                                imageUrl: featuredImages[index].insideView,
+                                imageUrl:
+                                    featuredImages[index].insideViews.first,
                               ),
                         ),
                       );
@@ -269,7 +271,7 @@ class DetailedHouseView extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          featuredImages[index].insideView,
+                          featuredImages[index].insideViews.first,
                           height: 100,
                           fit: BoxFit.cover,
                         ),
@@ -282,8 +284,9 @@ class DetailedHouseView extends ConsumerWidget {
 
             TextButton(
               onPressed: () {
-                final featuredImages = ref.read(feauturedImagesProvider);
-                final urls = featuredImages.map((e) => e.insideView).toList();
+                final featuredImages = ref.read(productProvider);
+                final urls =
+                    featuredImages.expand((e) => e.insideViews).toList();
 
                 Navigator.push(
                   context,

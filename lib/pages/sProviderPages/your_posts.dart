@@ -1,8 +1,13 @@
 import 'package:brickapp/custom_widgets/view_posts_card.dart';
+import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/destination_model.dart';
+import 'package:brickapp/pages/pManagerPages/edit_post.dart';
+import 'package:brickapp/pages/sProviderPages/post_truck.dart';
+import 'package:brickapp/providers/post_data_notifier.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../custom_widgets/house_card.dart';
@@ -29,7 +34,11 @@ class ViewYourPosts extends ConsumerWidget {
 
           shape: CircleBorder(side: BorderSide(color: AppColors.iconColor)),
           onPressed: () {
-            MainNavigation.navigateToRoute(MainNavigation.postTruckRoute);
+            // MainNavigation.navigateToRoute(MainNavigation.postTruckRoute);
+            GoRoute(
+              path: '/postTruck',
+              builder: (context, state) => PostTruckPage(),
+            );
           },
           child: Icon(Icons.add, color: Colors.white),
         ),
@@ -71,6 +80,13 @@ class ViewYourPosts extends ConsumerWidget {
                         MainNavigation.navigateToRoute(
                           MainNavigation.editPostPae,
                           data: moreProductViewModel,
+                        );
+                        GoRoute(
+                          path: '/editPost',
+                          builder:
+                              (context, state) => EditPostPage(
+                                editPostModel: moreProductViewModel,
+                              ),
                         );
                       },
                     );

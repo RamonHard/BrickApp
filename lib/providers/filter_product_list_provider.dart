@@ -1,9 +1,10 @@
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/providers/p_filter_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-final filteredProductProvider = Provider<List<ProductModel>>((ref) {
+final filteredProductProvider = Provider<List<PropertyModel>>((ref) {
   final productList = ref.watch(productProvider);
   final filter = ref.watch(filterProvider);
 

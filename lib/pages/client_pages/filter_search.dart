@@ -28,6 +28,7 @@ class _FilterSearchState extends ConsumerState<FilterSearch> {
     "Offices",
     "Lounges",
     "Storage House",
+    "Warehouse",
   ];
 
   List<String> selectedDescriptions = [];

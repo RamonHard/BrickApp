@@ -1,6 +1,8 @@
+// In your gallery_view.dart file
+import 'dart:io';
+
+import 'package:brickapp/pages/client_pages/full_screen_view.dart';
 import 'package:flutter/material.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 
 class GalleryView extends StatelessWidget {
   final List<String> imageUrls;
@@ -14,25 +16,62 @@ class GalleryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (imageUrls.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Gallery')),
+        body: const Center(child: Text('No images available')),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-      ),
-      body: PhotoViewGallery.builder(
+      appBar: AppBar(title: const Text('Gallery')),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
         itemCount: imageUrls.length,
-        pageController: PageController(initialPage: initialIndex),
-        builder: (context, index) {
-          return PhotoViewGalleryPageOptions(
-            imageProvider: NetworkImage(imageUrls[index]),
-            minScale: PhotoViewComputedScale.contained,
-            maxScale: PhotoViewComputedScale.covered * 2,
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => FullScreenGallery(
+                        imageUrls: imageUrls,
+                        initialIndex: index,
+                      ),
+                ),
+              );
+            },
+            child: buildGalleryImage(imageUrls[index]),
           );
         },
-        backgroundDecoration: BoxDecoration(color: Colors.black),
       ),
+    );
+  }
+
+  Widget buildGalleryImage(String imageUrl) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey[300],
+      ),
+      child:
+          imageUrl.startsWith('http')
+              ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              )
+              : Image.file(
+                File(imageUrl),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
     );
   }
 }

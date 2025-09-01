@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/forgot_passward.dart';
+import 'package:brickapp/pages/onboardingPages/sign_up.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/utils/app_images.dart';
 import 'package:flutter/material.dart';
@@ -149,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => UserOnboardOptions(),
+                                  builder: (context) => SignUpPage(),
                                 ),
                               );
                             },

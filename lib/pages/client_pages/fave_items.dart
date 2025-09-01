@@ -1,5 +1,6 @@
 import 'package:brickapp/custom_widgets/house_card.dart';
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
@@ -27,10 +28,10 @@ class FavouriteItemList extends HookConsumerWidget {
           body: ListView.builder(
             itemCount: favList.length,
             itemBuilder: (context, index) {
-              final ProductModel product = favList[index];
+              final PropertyModel product = favList[index];
               return HouseCard(
-                description: product.description,
-                productimage: product.productIMG,
+                description: product.thumbnail,
+                thumbnail: product.productIMG,
                 location: product.location,
                 price: product.price,
                 onTap: () {
@@ -42,12 +43,12 @@ class FavouriteItemList extends HookConsumerWidget {
                 favOnpress: () {
                   favoriteItemListNotifier.removeFromFavorites(product);
                 },
-                unitsNum: product.unitsNum,
+                unitsNum: product.units,
                 id: product.id,
                 profileIMG: product.uploaderIMG,
-                houseType: product.houseType,
+                houseType: product.propertyType,
                 uploaderName: product.uploaderName,
-                bedroomNum: product.bedRoomNum,
+                bedroomNum: product.bedrooms,
                 starRating: product.starRating,
                 reviews: product.reviews,
                 isActive: product.isActive,

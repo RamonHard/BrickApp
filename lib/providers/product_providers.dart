@@ -1,174 +1,152 @@
-import 'package:brickapp/models/house_views_model.dart';
-import 'package:brickapp/models/product_model.dart';
+// import 'package:brickapp/models/property_model.dart';
+// import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+// final productProvider = StateProvider((ref) {
+//   return [
+//     PropertyModel(
+//       id: 1,
+//       propertyType: 'Apartment',
+//       location: 'Kampala - City Center',
+//       description: 'A beautiful apartment in the heart of Kampala.',
+//       price: 200000,
+//       currency: 'UGX',
+//       bedrooms: 3,
+//       baths: 2,
+//       sqft: 1200,
+//       units: 1,
+//       isActive: true,
+//       isRent: false,
+//       isSale: true,
+//       hasParking: true,
+//       isFurnished: true,
+//       hasAC: true,
+//       hasInternet: true,
+//       hasSecurity: true,
+//       isPetFriendly: false,
+//       amenities: ['Gym', 'Pool', 'Security'],
+//       productIMG:
+//           'https://i.pinimg.com/736x/42/19/f9/4219f9548b8b61162e34dd99638ae04c.jpg',
+//       photoPaths: [
+//         'https://i.pinimg.com/736x/e0/38/a3/e038a3f80a7c.jpg',
+//         'https://i.pinimg.com/736x/6e/89/9d/6e899dba06e6.jpg',
+//       ],
+//       starRating: 4.5,
+//       reviews: 12,
+//       uploaderName: 'John Doe',
+//       uploaderEmail: 'john@example.com',
+//       uploaderIMG:
+//           'https://i.pinimg.com/736x/22/03/3e/22033e6449b11e71840b146e867d2229.jpg',
+//       uploaderPhoneNumber: 1234567890,
+//       insideViews: [
+//         'https://i.pinimg.com/736x/aa/c9/9f/aac99fdfd4.jpg',
+//         'https://i.pinimg.com/736x/46/e9/eb/46e9ebc1.jpg',
+//       ],
+//       pendingReason: '',
+//       discount: 50000,
+//       destinationTitle: 'Brick Apartments',
+//     ),
+
+//     PropertyModel(
+//       id: 2,
+//       propertyType: 'House',
+//       location: 'Entebbe',
+//       description:
+//           'Spacious family house near the airport with a large compound.',
+//       price: 350000,
+//       currency: 'UGX',
+//       bedrooms: 5,
+//       baths: 3,
+//       sqft: 2000,
+//       units: 1,
+//       isActive: true,
+//       isRent: true,
+//       isSale: false,
+//       hasParking: true,
+//       isFurnished: false,
+//       hasAC: false,
+//       hasInternet: true,
+//       hasSecurity: true,
+//       isPetFriendly: true,
+//       amenities: ['Security', 'Pet Friendly'],
+//       productIMG:
+//           'https://i.pinimg.com/1200x/23/72/dc/2372dc681f3198173e712cc581642a11.jpg',
+//       photoPaths: ['https://i.pinimg.com/736x/fa/e8/71/fae87126.jpg'],
+//       starRating: 4.8,
+//       reviews: 8,
+//       uploaderName: 'Jane Smith',
+//       uploaderEmail: 'jane@example.com',
+//       uploaderIMG: 'https://i.pravatar.cc/150?img=5',
+//       uploaderPhoneNumber: 987654321,
+//       insideViews: [
+//         'https://i.pinimg.com/1200x/85/e1/48/85e1480ec0071ad7eafdb9df46d542f9.jpg',
+//         'https://i.pinimg.com/736x/76/ba/86/76ba865429d764fffb8e0837bac24d7d.jpg',
+//         'https://i.pinimg.com/736x/58/72/b3/5872b392d36e8f20ae75c04489323a49.jpg',
+//         'https://i.pinimg.com/736x/e4/f6/6c/e4f66ceedd7ebab7b2036b941807f58d.jpg',
+//         'https://i.pinimg.com/736x/df/c3/78/dfc37851602e0c01c419b8d48c4a50c2.jpg',
+//       ],
+//       pendingReason: '',
+//       discount: 100000,
+//       destinationTitle: 'Lake View Villa',
+//     ),
+
+//     PropertyModel(
+//       id: 3,
+//       propertyType: 'House',
+//       location: 'Jinja',
+//       description: 'Modern riverside condo with a stunning view of the Nile.',
+//       price: 500000,
+//       currency: 'UGX',
+//       bedrooms: 2,
+//       baths: 2,
+//       sqft: 900,
+//       units: 10,
+//       isActive: false,
+//       isRent: true,
+//       isSale: true,
+//       hasParking: true,
+//       isFurnished: true,
+//       hasAC: true,
+//       hasInternet: true,
+//       hasSecurity: true,
+//       isPetFriendly: false,
+//       amenities: ['Furnished', 'Security', 'Gym', 'AC'],
+//       productIMG:
+//           'https://i.pinimg.com/1200x/72/e0/41/72e041cdc97711fd10e5352551fe7d7d.jpg',
+//       photoPaths: [
+//         'https://i.pinimg.com/1200x/6e/89/9d/6e899dba06e6d934c76c1145d656ae44.jpg',
+//         'https://i.pinimg.com/736x/e0/38/a3/e038a3f80a7c05bf40e9f9651587a1cc.jpg',
+//       ],
+//       starRating: 4.2,
+//       reviews: 5,
+//       uploaderName: 'David Kamau',
+//       uploaderEmail: 'david@example.com',
+//       uploaderIMG: 'https://i.pravatar.cc/150?img=8',
+//       uploaderPhoneNumber: 112233445,
+//       insideViews: [
+//         'https://i.pinimg.com/736x/aa/c9/9f/aac99fdfd422c2fcd384449e7a918f8d.jpg',
+//         'https://i.pinimg.com/1200x/46/e9/eb/46e9ebc108d48e523826b1f9fdda1ce1.jpg',
+//         'https://i.pinimg.com/736x/fa/e8/71/fae87126281a06519c0282caee3cbf90.jpg',
+//         'https://i.pinimg.com/736x/69/50/b3/6950b3d59c286968db4007e6be8eaa1d.jpg',
+//       ],
+//       pendingReason: '',
+//       discount: 20000,
+//       destinationTitle: 'Nile Condominiums',
+//     ),
+//   ];
+// });
+
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:brickapp/models/property_model.dart';
 
-final productProvider = StateProvider((ref) {
-  return [
-    ProductModel(
-      uploaderName: 'Ramon Wilson',
-      uploaderEmail: 'ramon@gmail.com',
-      id: 1,
-      description: 'Five bed rooms,seating room,compound',
-      location: 'Kampala',
-      price: 200000,
-      discount: 80000,
-      houseType: 'Modern Luxury Villa',
-      bedRoomNum: 5,
-      unitsNum: 4,
-      sqft: 3200,
-      reviews: 24,
-      starRating: 4.0,
-      amenities: ['Security', 'Compound', 'AC'],
-      isActive: true,
-      uploaderPhoneNumber: 075356556587,
-      productIMG:
-          'https://i.pinimg.com/736x/1a/45/09/1a4509d22b165852bc8115d5073a56ea.jpg',
-      uploaderIMG:
-          'https://c.pxhere.com/images/a2/27/664c2356da69a393253be7908838-1634236.jpg!d',
-    ),
-    ProductModel(
-      uploaderName: 'Diablo Lopez',
-      uploaderEmail: 'diablo@gmail.com',
-      uploaderIMG:
-          'https://st2.depositphotos.com/1719789/6697/i/600/depositphotos_66972237-stock-photo-pretty-vietnamese-girl-with-a.jpg',
-      id: 2,
-      description: 'Eight bed rooms,seating room,compound',
-      location: 'Muyenga',
-      price: 200000,
-      discount: 80000,
-      houseType: 'Modern Family Villa',
-      amenities: ['Security', 'Compound'],
+class ProductNotifier extends StateNotifier<List<PropertyModel>> {
+  ProductNotifier() : super([]);
 
-      bedRoomNum: 8,
-      sqft: 5200,
-      reviews: 50,
-      unitsNum: 2,
-      starRating: 8.0,
-      uploaderPhoneNumber: 3796360936,
-      isActive: false,
-      productIMG:
-          'https://i.pinimg.com/736x/46/9a/f7/469af73674363bdd1c5431f02254ab39.jpg',
-    ),
-    ProductModel(
-      uploaderName: 'Jack Dorreto',
-      uploaderEmail: 'dorreto@gmail.com',
-      uploaderIMG:
-          'https://thumbs.dreamstime.com/b/photo-curly-wavy-charming-cute-attractive-fascinating-nice-girlfriend-showing-you-to-stop-talking-isolated-over-yellow-160184733.jpg',
-      id: 3,
-      description: 'Ten bed rooms,seating room,compound',
-      location: 'Gayaza',
-      price: 200000,
-      discount: 80000,
-      houseType: 'Dark Luxury Home',
-      bedRoomNum: 10,
-      unitsNum: 8,
-      amenities: ['Security'],
+  void addProduct(PropertyModel product) {
+    state = [...state, product];
+  }
+}
 
-      sqft: 8300,
-      reviews: 100,
-      starRating: 4.0,
-      uploaderPhoneNumber: 86943705379,
-      isActive: true,
-      productIMG:
-          'https://i.pinimg.com/736x/6f/2b/5e/6f2b5e576db99eab1076061acae111dd.jpg',
-    ),
-    ProductModel(
-      uploaderName: 'Hardluck Hi',
-      uploaderEmail: 'hardluck@gmail.com',
-      uploaderIMG:
-          'https://www.incimages.com/uploaded_files/image/1920x1080/getty_624206636_200013332000928034_376810.jpg',
-      id: 4,
-      description: 'Eight bed rooms,seating room,compound',
-      location: 'Mukono',
-      price: 8000000,
-      discount: 80000,
-      houseType: 'Modern Luxury Villa',
-      bedRoomNum: 8,
-      unitsNum: 6,
-      amenities: ['Parking'],
-
-      sqft: 3200,
-      reviews: 24,
-      starRating: 4.0,
-      uploaderPhoneNumber: 4957953590,
-      isActive: true,
-      productIMG:
-          'https://i.pinimg.com/736x/84/54/cd/8454cdf4d678c5b7005b53b7d9401158.jpg',
-    ),
-    ProductModel(
-      uploaderName: 'Mars Light',
-      uploaderEmail: 'marslight@gmail.com',
-      uploaderIMG:
-          'https://i.pinimg.com/736x/ad/68/46/ad684665aa17d095acebb84557d072e2.jpg',
-      id: 5,
-      description: 'Five bed rooms,seating room,compound',
-      location: 'Jinja',
-      price: 400000,
-      discount: 80000,
-      houseType: 'Contemporary Forest House',
-      bedRoomNum: 5,
-      unitsNum: 3,
-      amenities: ['Furnished', 'Security'],
-
-      sqft: 3200,
-      reviews: 24,
-      starRating: 4.0,
-      uploaderPhoneNumber: 973587073,
-      isActive: true,
-      productIMG:
-          'https://i.pinimg.com/736x/ed/0a/1e/ed0a1e7c196b11ba4b24f3c9ff8d23b7.jpg',
-    ),
-    ProductModel(
-      uploaderName: 'Karz Hatz',
-      uploaderEmail: 'hatz@gmail.com',
-      uploaderIMG:
-          'https://image.cnbcfm.com/api/v1/image/106689818-1599150563582-musk.jpg?v=1653411695',
-      id: 6,
-      description: 'Twelve bed rooms,seating room,compound',
-      location: 'Butabika',
-      price: 200000,
-      discount: 80000,
-      houseType: 'Modern Luxury Villa',
-      bedRoomNum: 12,
-      amenities: ['Furnished'],
-
-      unitsNum: 1,
-      sqft: 3200,
-      reviews: 24,
-      starRating: 4.0,
-      uploaderPhoneNumber: 9743680946796,
-      isActive: false,
-      productIMG:
-          'https://i.pinimg.com/736x/33/2b/c7/332bc79ff66c0e9787c3b8b4cdf70080.jpg',
-    ),
-  ];
-});
-
-final feauturedImagesProvider = StateProvider((ref) {
-  return [
-    HouseViewsModel(
-      insideView:
-          'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?cs=srgb&dl=pexels-vecislavas-popa-1571460.jpg&fm=jpg',
-    ),
-    HouseViewsModel(
-      insideView:
-          'https://brabbu.com/blog/wp-content/uploads/2021/08/Modern-Contemporary-Dining-Rooms-Uncover-Timeless-and-Fierce-Design-1.jpg',
-    ),
-    HouseViewsModel(
-      insideView:
-          'https://evolveindia.co/wp-content/uploads/2021/07/3_Go-Bold-Or-Go-Home-Modern-Bedroom-Interior-Design.jpg',
-    ),
-    HouseViewsModel(
-      insideView:
-          'https://havenly.com/blog/wp-content/uploads/2021/05/99b42126-7f24-45ea-9c11-64f7a151069c-1710x970.jpg',
-    ),
-    HouseViewsModel(
-      insideView:
-          'https://images.livspace-cdn.com/plain/https://d3gq2merok8n5r.cloudfront.net/abhinav/ond-1634120396-Obfdc/jfm-1643351360-ZAORQ/bathroom-1646656868-6Yffq/lk-in-br-0144-1646656943-bNRdr.png',
-    ),
-    HouseViewsModel(
-      insideView:
-          'https://images.livspace-cdn.com/plain/https://d3gq2merok8n5r.cloudfront.net/abhinav/ond-1634120396-Obfdc/ond-2022-1664872805-f0ijv/ki-1664875090-K8xX9/kitchen-1-1-1-1667540333-NLMUz.jpg',
-    ),
-  ];
-});
+final productProvider =
+    StateNotifierProvider<ProductNotifier, List<PropertyModel>>((ref) {
+      return ProductNotifier();
+    });

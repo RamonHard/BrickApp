@@ -269,9 +269,7 @@ class _RegisterAddPostState extends State<RegisterAddPost> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    MainDisplay(isClient: widget.isClient),
+                            builder: (context) => MainDisplay(),
                           ),
                         );
                       },

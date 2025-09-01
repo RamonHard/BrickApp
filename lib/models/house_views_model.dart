@@ -1,6 +1,4 @@
 class HouseViewsModel {
   final String insideView;
-  HouseViewsModel({
-    required this.insideView,
-  });
+  HouseViewsModel({required this.insideView});
 }

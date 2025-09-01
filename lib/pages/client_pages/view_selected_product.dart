@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
+import 'package:brickapp/pages/client_pages/full_screen_view.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
@@ -12,56 +16,62 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class ViewSelectedProduct extends ConsumerWidget {
   const ViewSelectedProduct({super.key, required this.selectedProduct});
-  final ProductModel selectedProduct;
+  final PropertyModel selectedProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Future.microtask(() {
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text("🎉 Special Offer"),
-              content: Text.rich(
-                TextSpan(
-                  style: GoogleFonts.oxygen(
-                    color: AppColors.darkTextColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  children: [
-                    const TextSpan(
-                      text: "Get 8% discount on your first payment!\n\n",
+    final hasShownDialog = ref.watch(discountDialogShownProvider);
+
+    if (!hasShownDialog) {
+      Future.microtask(() {
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text("🎉 Special Offer"),
+                content: Text.rich(
+                  TextSpan(
+                    style: GoogleFonts.oxygen(
+                      color: AppColors.darkTextColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
                     ),
-                    const TextSpan(text: "Secure the property now at "),
-                    TextSpan(
-                      text:
-                          "UGX ${(selectedProduct.price - selectedProduct.discount).toStringAsFixed(2)}\n\n",
-                      style: GoogleFonts.oxygen(
-                        color: Colors.green, // Highlighted price color
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    children: [
+                      const TextSpan(
+                        text: "Get 8% discount on your first payment!\n\n",
                       ),
-                    ),
-                    const TextSpan(
-                      text:
-                          "You can cancel the transaction at any time after visiting the property and change your mind.\n\n"
-                          "Ensure to complete the transaction once you have visited the property to get a receipt.",
-                    ),
-                  ],
+                      const TextSpan(text: "Secure the property now at "),
+                      TextSpan(
+                        text:
+                            "UGX ${(selectedProduct.price - selectedProduct.discount).toStringAsFixed(2)}\n\n",
+                        style: GoogleFonts.oxygen(
+                          color: Colors.green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            "You can cancel the transaction at any time after visiting the property and change your mind.\n\n"
+                            "Ensure to complete the transaction once you have visited the property to get a receipt.",
+                      ),
+                    ],
+                  ),
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text("OK"),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text("OK"),
-                ),
-              ],
-            ),
-      );
-    });
+        );
+
+        // Mark dialog as shown
+        ref.read(discountDialogShownProvider.notifier).state = true;
+      });
+    }
     final width = MediaQuery.of(context).size.width;
-    final featuredImages = ref.watch(feauturedImagesProvider);
     final isFavorite = ref.watch(
       favoriteItemListProvider.select(
         (favorites) => favorites.contains(selectedProduct),
@@ -100,12 +110,12 @@ class ViewSelectedProduct extends ConsumerWidget {
           children: [
             Stack(
               children: [
-                Image.network(
+                buildImage(
                   selectedProduct.productIMG,
                   width: width,
                   height: 250,
-                  fit: BoxFit.cover,
                 ),
+
                 Positioned(
                   right: 10,
                   top: 10,
@@ -147,7 +157,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                       children: [
                         Icon(Icons.house, color: Colors.white),
                         Text(
-                          "${selectedProduct.unitsNum}",
+                          "${selectedProduct.units}",
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: AppColors.whiteTextColor,
@@ -191,7 +201,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                 : Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    'Currently Unavailable due to reasons like maintainance, under constraction, or renovations but you can book it ealier in advance.',
+                    "${selectedProduct.pendingReason}",
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 14,
@@ -207,7 +217,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      selectedProduct.houseType,
+                      selectedProduct.propertyType,
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -269,7 +279,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                 children: [
                   _buildFeatureIcon(
                     Icons.bed,
-                    '${selectedProduct.bedRoomNum} Beds',
+                    '${selectedProduct.bedrooms} Beds',
                   ),
                   _buildFeatureIcon(Icons.weekend, 'Living Room'),
                   _buildFeatureIcon(Icons.park, 'Compound'),
@@ -278,6 +288,7 @@ class ViewSelectedProduct extends ConsumerWidget {
               ),
             ),
 
+            // Replace your featured images section with this:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
@@ -291,64 +302,85 @@ class ViewSelectedProduct extends ConsumerWidget {
 
             SizedBox(height: 8),
 
-            // 🔥 Featured Images from Provider
-            Container(
-              height: 120,
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: featuredImages.length,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => FullScreenView(
-                                imageUrl: featuredImages[index].insideView,
-                              ),
+            // Featured Images
+            selectedProduct.insideViews.isNotEmpty
+                ? SizedBox(
+                  height: 100,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: selectedProduct.insideViews.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) {
+                      final imgPath = selectedProduct.insideViews[i];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => FullScreenGallery(
+                                    imageUrls: selectedProduct.insideViews,
+                                    initialIndex: i,
+                                  ),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: buildImage(
+                            imgPath,
+                            width: 120,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       );
                     },
-                    child: Container(
-                      width: 120,
-                      margin: EdgeInsets.only(right: 10),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          featuredImages[index].insideView,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            TextButton(
-              onPressed: () {
-                final featuredImages = ref.read(feauturedImagesProvider);
-                final urls = featuredImages.map((e) => e.insideView).toList();
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GalleryView(imageUrls: urls),
                   ),
-                );
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.photo_library_outlined),
-                  SizedBox(width: 4),
-                  Text('View All Photos'),
-                ],
-              ),
-            ),
+                )
+                : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    "No featured images available",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+
+            // Show "View All Photos" button only if there are inside views
+            (selectedProduct.insideViews.isNotEmpty)
+                ? TextButton(
+                  onPressed: () {
+                    // Debug print to verify the data
+                    print("Inside views: ${selectedProduct.insideViews}");
+                    print(
+                      "Number of images: ${selectedProduct.insideViews.length}",
+                    );
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => GalleryView(
+                              imageUrls: selectedProduct.insideViews,
+                            ),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.photo_library_outlined),
+                      SizedBox(width: 4),
+                      Text(
+                        'View All Photos (${selectedProduct.insideViews.length})',
+                      ),
+                    ],
+                  ),
+                )
+                : SizedBox.shrink(),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -438,23 +470,61 @@ class ViewSelectedProduct extends ConsumerWidget {
       ],
     );
   }
-}
 
-class FullScreenView extends StatelessWidget {
-  final String imageUrl;
+  Widget buildImage(
+    String path, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    if (path.isEmpty) {
+      return _errorPlaceholder(width, height);
+    }
 
-  const FullScreenView({super.key, required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-      ),
-      body: Center(child: InteractiveViewer(child: Image.network(imageUrl))),
-    );
+    try {
+      if (path.startsWith('http')) {
+        return Image.network(
+          path,
+          width: width,
+          height: height,
+          fit: fit,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: width,
+              height: height,
+              color: Colors.grey.shade300,
+              child: Center(
+                child: CircularProgressIndicator(
+                  value:
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => _errorPlaceholder(width, height),
+        );
+      } else {
+        return Image.file(
+          File(path),
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (_, __, ___) => _errorPlaceholder(width, height),
+        );
+      }
+    } catch (e) {
+      return _errorPlaceholder(width, height);
+    }
   }
+
+  Widget _errorPlaceholder(double? width, double? height) => Container(
+    width: width,
+    height: height,
+    color: Colors.grey.shade300,
+    child: const Icon(Icons.broken_image, color: Colors.red),
+  );
 }

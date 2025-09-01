@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:brickapp/custom_widgets/house_card.dart';
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/detailed_house_view.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
@@ -16,7 +17,7 @@ import '../../utils/app_colors.dart';
 class ViewMoreProducts extends ConsumerWidget {
   ViewMoreProducts({Key? key, required this.productModel}) : super(key: key);
 
-  final ProductModel productModel;
+  final PropertyModel productModel;
   TextStyle style = GoogleFonts.oxygen(
     fontSize: 16,
     fontWeight: FontWeight.w400,
@@ -108,20 +109,20 @@ class ViewMoreProducts extends ConsumerWidget {
                   shrinkWrap: true,
                   itemCount: moreProductViewList.length,
                   itemBuilder: (BuildContext context, int index) {
-                    ProductModel moreProductViewModel =
+                    PropertyModel moreProductViewModel =
                         moreProductViewList[index];
                     return HouseCard(
                       profileIMG: productModel.uploaderIMG,
                       price: moreProductViewModel.price,
                       location: moreProductViewModel.location,
                       description: moreProductViewModel.description,
-                      productimage: moreProductViewModel.productIMG,
-                      houseType: moreProductViewModel.houseType,
+                      thumbnail: moreProductViewModel.thumbnail,
+                      houseType: moreProductViewModel.propertyType,
                       isActive: moreProductViewModel.isActive,
                       id: 1,
                       uploaderName: productModel.uploaderName,
-                      unitsNum: moreProductViewModel.unitsNum,
-                      bedroomNum: moreProductViewModel.bedRoomNum,
+                      unitsNum: moreProductViewModel.units,
+                      bedroomNum: moreProductViewModel.bedrooms,
                       starRating: moreProductViewModel.starRating,
                       reviews: moreProductViewModel.reviews,
                       sqft: moreProductViewModel.sqft,
@@ -138,24 +139,6 @@ class ViewMoreProducts extends ConsumerWidget {
                       },
                       showDelete: false,
                     );
-                    // ProductCard(
-                    //   price: moreProductViewModel.price,
-                    //   location: moreProductViewModel.location,
-                    //   id: moreProductViewModel.id,
-                    //   img: moreProductViewModel.img,
-                    //   description: moreProductViewModel.description,
-                    //   onTap: () {
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder:
-                    //         (BuildContext context) => DetailedHouseView(
-                    //           selectedProduct: moreProductViewModel,
-                    //         ),
-                    //   ),
-                    // );
-                    //   },
-                    // );
                   },
                 ),
               ),

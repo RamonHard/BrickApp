@@ -1,4 +1,4 @@
-class EditPostModel {
+class PostData {
   final String propertyType;
   final String location;
   final int? price;
@@ -22,7 +22,7 @@ class EditPostModel {
   final String description;
   final List<String> photoPaths;
 
-  EditPostModel({
+  PostData({
     required this.propertyType,
     required this.location,
     this.price,
@@ -47,7 +47,7 @@ class EditPostModel {
     required this.photoPaths,
   });
 
-  EditPostModel copyWith({
+  PostData copyWith({
     String? propertyType,
     String? location,
     int? price,
@@ -71,7 +71,7 @@ class EditPostModel {
     String? description,
     List<String>? photoPaths,
   }) {
-    return EditPostModel(
+    return PostData(
       propertyType: propertyType ?? this.propertyType,
       location: location ?? this.location,
       price: price ?? this.price,

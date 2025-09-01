@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -8,7 +10,7 @@ class HouseCard extends StatelessWidget {
   HouseCard({
     Key? key,
     required this.description,
-    required this.productimage,
+    required this.thumbnail,
     required this.location,
     required this.price,
     required this.showDelete,
@@ -26,7 +28,7 @@ class HouseCard extends StatelessWidget {
     required this.isActive,
   }) : super(key: key);
   final String description;
-  final String productimage;
+  final String thumbnail;
   final String location;
   final String houseType;
   final double price;
@@ -78,7 +80,12 @@ class HouseCard extends StatelessWidget {
                             topRight: Radius.circular(10.0),
                           ),
                           image: DecorationImage(
-                            image: NetworkImage(productimage),
+                            image:
+                                thumbnail.startsWith("http") ||
+                                        thumbnail.startsWith("https")
+                                    ? NetworkImage(thumbnail)
+                                    : FileImage(File(thumbnail))
+                                        as ImageProvider,
                             fit: BoxFit.cover,
                           ),
                         ),

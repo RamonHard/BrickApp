@@ -1,69 +1,69 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hexcolor/hexcolor.dart';
-import '../../utils/app_colors.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 
-class FullScreenView extends StatelessWidget {
-  const FullScreenView({super.key, required this.imageUrl});
-  final String imageUrl;
+class FullScreenGallery extends StatelessWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const FullScreenGallery({
+    super.key,
+    required this.imageUrls,
+    this.initialIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
+    final controller = PageController(initialPage: initialIndex);
+
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        elevation: 0,
         backgroundColor: Colors.transparent,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(
-            Icons.arrow_back,
-            color: AppColors.iconColor,
-          ),
-        ),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: GestureDetector(
-        onVerticalDragUpdate: (details) {
-          if (details.delta.dy > 10) {
-            Navigator.pop(context);
-          }
+      body: PageView.builder(
+        controller: controller,
+        itemCount: imageUrls.length,
+        itemBuilder: (context, index) {
+          final path = imageUrls[index];
+          return InteractiveViewer(
+            child: buildImage(path, fit: BoxFit.contain),
+          );
         },
-        onTap: () {
-          Navigator.pop(context);
-        },
-        child: Container(
-          width: width,
-          height: height,
-          child: PhotoViewGallery.builder(
-            scrollPhysics: BouncingScrollPhysics(),
-            itemCount: imageUrl.length,
-            backgroundDecoration: BoxDecoration(color: Colors.black),
-            builder: (BuildContext context, int index) {
-              return PhotoViewGalleryPageOptions(
-                imageProvider: NetworkImage(
-                  imageUrl,
-                ),
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 2,
-              );
-            },
-            pageController: PageController(),
-            scrollDirection: Axis.horizontal,
-          ),
-          // Hero(
-          //   tag: imageUrl,
-          //   child: Image.network(
-          //     imageUrl,
-          //     fit: BoxFit.cover,
-          //   ),
-          // ),
-        ),
       ),
     );
   }
+
+  Widget buildImage(String path, {BoxFit fit = BoxFit.cover}) {
+    if (path.isEmpty) {
+      return Center(
+        child: Container(
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+        ),
+      );
+    }
+
+    if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: fit,
+        errorBuilder: (_, __, ___) => _errorPlaceholder(),
+      );
+    } else {
+      return Image.file(
+        File(path),
+        fit: fit,
+        errorBuilder: (_, __, ___) => _errorPlaceholder(),
+      );
+    }
+  }
+
+  Widget _errorPlaceholder() => Center(
+    child: Container(
+      color: Colors.grey.shade300,
+      child: const Icon(Icons.broken_image, color: Colors.red),
+    ),
+  );
 }

@@ -24,4 +24,5 @@ class MoreProductViewModel {
   double get sqft => product.sqft;
   int get unitsNum => product.unitsNum;
   bool get isActive => product.isActive;
+  double get discount => product.discount;
 }

@@ -1,5 +1,7 @@
+import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/product_model.dart';
+import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
@@ -174,7 +176,7 @@ class MainNavigation {
       return MaterialPageRoute(
         builder:
             (context) => ViewMoreProducts(
-              productModel: settings.arguments as ProductModel,
+              productModel: settings.arguments as PropertyModel,
             ),
       );
     }
@@ -190,7 +192,7 @@ class MainNavigation {
       return MaterialPageRoute(
         builder:
             (context) => ViewSelectedProduct(
-              selectedProduct: settings.arguments as ProductModel,
+              selectedProduct: settings.arguments as PropertyModel,
             ),
       );
     }
