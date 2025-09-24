@@ -195,6 +195,16 @@ class ClientProfile extends StatelessWidget {
                         },
                       ),
                       SizedBox(height: screenSize / 20),
+                      ProfileTransparentButton(
+                        buttonDescription: "Post Vehicle",
+                        icon: Icons.add,
+                        onTap: () {
+                          MainNavigation.navigateToRoute(
+                            MainNavigation.postTruckRoute,
+                          );
+                        },
+                      ),
+                      SizedBox(height: screenSize / 20),
                       Container(
                         alignment: Alignment.center,
                         child: Card(

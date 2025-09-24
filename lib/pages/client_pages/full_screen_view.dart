@@ -75,6 +75,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
             _isVideoPlaying = _videoController!.value.isPlaying;
           });
         }
+        _videoController!.play();
       });
     } catch (e) {
       if (mounted) {

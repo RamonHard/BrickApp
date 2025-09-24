@@ -5,6 +5,7 @@ import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/detailed_house_view.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/providers/view_more_product_provider.dart';
+import 'package:brickapp/utils/build_image_method.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -70,8 +71,10 @@ class ViewMoreProducts extends ConsumerWidget {
                           bottomLeft: Radius.circular(36.0),
                           bottomRight: Radius.circular(36.0),
                         ),
-                        child: Image.network(
-                          productModel.productIMG,
+                        child: buildImage(
+                          productModel.thumbnail,
+                          width: 120,
+                          height: 100,
                           fit: BoxFit.cover,
                         ),
                       ),

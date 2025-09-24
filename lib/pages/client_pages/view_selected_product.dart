@@ -9,6 +9,7 @@ import 'package:brickapp/providers/discount_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/build_image_method.dart';
 import 'package:brickapp/utils/discount_function.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -114,6 +115,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                   selectedProduct.thumbnail,
                   width: width,
                   height: 250,
+                  fit: BoxFit.cover,
                 ),
 
                 Positioned(
@@ -548,43 +550,6 @@ class ViewSelectedProduct extends ConsumerWidget {
     );
   }
 
-  Widget buildImage(String url, {double? width, double? height, BoxFit? fit}) {
-    if (_isVideo(url)) {
-      // Return a video thumbnail with play icon
-      return Container(
-        width: width,
-        height: height,
-        color: Colors.grey[300],
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // You might want to use a video thumbnail package here
-            // For now, just show a placeholder with play icon
-            Icon(Icons.videocam, size: 30, color: Colors.grey[600]),
-            Icon(Icons.play_circle_outline, size: 40, color: Colors.white),
-          ],
-        ),
-      );
-    } else {
-      // Regular image handling
-      return url.startsWith('http')
-          ? Image.network(
-            url,
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (_, __, ___) => Icon(Icons.broken_image),
-          )
-          : Image.file(
-            File(url),
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (_, __, ___) => Icon(Icons.broken_image),
-          );
-    }
-  }
-
   Widget _errorPlaceholder(double? width, double? height) => Container(
     width: width,
     height: height,
@@ -617,8 +582,4 @@ class ViewSelectedProduct extends ConsumerWidget {
   }
 
   // Helper method to check if a URL is a video
-  bool _isVideo(String url) {
-    final ext = url.split('.').last.toLowerCase();
-    return ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].contains(ext);
-  }
 }

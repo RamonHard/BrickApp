@@ -96,6 +96,7 @@ class _PostTruckPageState extends State<PostTruckPage> {
                 items: ['Per Mile', 'Per Hour', 'Flat Rate'],
                 onChanged: (_) {},
               ),
+
               buildTextField(
                 label: 'Rate Amount (USD)',
                 hint: 'Enter amount',

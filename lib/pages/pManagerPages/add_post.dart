@@ -1,15 +1,18 @@
 import 'dart:io';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
+import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
-import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AddPost extends ConsumerStatefulWidget {
   const AddPost({super.key});
@@ -24,6 +27,8 @@ class _AddPostState extends ConsumerState<AddPost> {
     fontWeight: FontWeight.w600,
     color: AppColors.darkTextColor,
   );
+  String _location = "Kampala, Uganda"; // Default text
+  bool _isLoadingLocation = false;
   List<XFile> _selectedVideos = [];
   XFile? _selectedVideo;
   bool _isVideo = false;
@@ -214,7 +219,6 @@ class _AddPostState extends ConsumerState<AddPost> {
   // Form fields
   String _currency = 'USD';
   String _propertyType = 'House';
-  String _location = 'Kampala';
   String _houseType = 'Residential'; // Added house type field
 
   bool _hasParking = false;
@@ -276,7 +280,7 @@ class _AddPostState extends ConsumerState<AddPost> {
               const SizedBox(height: 20),
 
               _buildSectionTitle('Location'),
-              _buildLocationDropdown(),
+              _buildLocationPicker(),
               const SizedBox(height: 20),
 
               _buildSectionTitle('Set Rental Price Package'),
@@ -416,8 +420,6 @@ class _AddPostState extends ConsumerState<AddPost> {
       ],
     );
   }
-
-  // ... (keep all your existing _build methods as they are, but ensure they use the updated fields)
 
   // Updated _updatePostData method
   void _updatePostData() {
@@ -1044,44 +1046,244 @@ class _AddPostState extends ConsumerState<AddPost> {
     );
   }
 
-  Widget _buildLocationDropdown() {
-    List<String> locations = [
-      'Kampala',
-      'Entebbe',
-      'Wakiso',
-      'Luzira',
-      'Bugolobi',
-    ];
-
-    return DropdownButtonFormField<String>(
-      value: _location,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
+  Widget _buildLocationPicker() {
+    return GestureDetector(
+      onTap: _showLocationOptions,
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+          color: Colors.white,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Icon(Icons.location_on_outlined, color: Colors.grey),
+              const SizedBox(width: 12),
+              Expanded(
+                child:
+                    _isLoadingLocation
+                        ? const Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              "Getting location...",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        )
+                        : Text(
+                          _location,
+                          style: TextStyle(
+                            color:
+                                _location == "Kampala"
+                                    ? Colors.grey
+                                    : Colors.black,
+                          ),
+                        ),
+              ),
+              const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            ],
+          ),
         ),
-        filled: true,
-        fillColor: Colors.white,
-        prefixIcon: const Icon(Icons.location_on_outlined, color: Colors.grey),
       ),
-      items:
-          locations.map((String value) {
-            return DropdownMenuItem<String>(value: value, child: Text(value));
-          }).toList(),
-      onChanged: (newValue) {
-        setState(() {
-          _location = newValue!;
-        });
-      },
     );
+  }
+
+  void _showLocationOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.my_location, color: Colors.blue),
+                  title: const Text('Use Current Location'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _getCurrentLocation();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.map, color: Colors.green),
+                  title: const Text('Choose from Map'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openMapPicker();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.search, color: Colors.orange),
+                  title: const Text('Search Location'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showSearchDialog();
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      // Check permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showError("Location permission denied");
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showError("Location permissions are permanently denied");
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        String address = "${place.locality}, ${place.administrativeArea}";
+
+        setState(() {
+          _location = address.isNotEmpty ? address : "Location selected";
+        });
+
+        // Store coordinates for later use if needed
+        _saveLocationData(position.latitude, position.longitude, address);
+      }
+    } catch (e) {
+      _showError("Error getting location: $e");
+    } finally {
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  void _openMapPicker() {
+    // Navigate to a map screen where user can pick location
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => MapLocationPicker(
+              onLocationSelected: (lat, lng, address) {
+                setState(() {
+                  _location = address;
+                });
+                _saveLocationData(lat, lng, address);
+              },
+            ),
+      ),
+    );
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Search Location'),
+            content: TextField(
+              decoration: const InputDecoration(
+                hintText: 'Enter address, city, or landmark...',
+              ),
+              onSubmitted: (value) async {
+                if (value.isNotEmpty) {
+                  await _searchLocation(value);
+                  Navigator.pop(context);
+                }
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  // Get text from field and search
+                  final textField =
+                      context.findAncestorStateOfType<State<TextField>>();
+                  // This is simplified - you might need a TextEditingController
+                  Navigator.pop(context);
+                },
+                child: const Text('Search'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _searchLocation(String query) async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      if (locations.isNotEmpty) {
+        Location location = locations.first;
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          location.latitude,
+          location.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks.first;
+          String address = "${place.name}, ${place.locality}";
+
+          setState(() {
+            _location = address;
+          });
+          _saveLocationData(location.latitude, location.longitude, address);
+        }
+      } else {
+        _showError("Location not found");
+      }
+    } catch (e) {
+      _showError("Error searching location: $e");
+    } finally {
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  void _saveLocationData(double lat, double lng, String address) {
+    // Save the location data for your form submission
+    // You can store these in your state variables
+    print("Location selected: $address ($lat, $lng)");
+
+    // Add these variables to your state if needed:
+    // double _selectedLat = lat;
+    // double _selectedLng = lng;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildPhotosSection() {

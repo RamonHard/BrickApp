@@ -164,7 +164,7 @@ class MainNavigation {
       return MaterialPageRoute(
         builder:
             (context) => ApartmentBookingPage(
-              productModel: settings.arguments as ProductModel,
+              productModel: settings.arguments as PropertyModel,
             ),
         // BookingPageForMore(
         //   selectedItem: settings.arguments as MoreProductViewModel,
