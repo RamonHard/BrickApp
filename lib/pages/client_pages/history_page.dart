@@ -20,19 +20,41 @@ class ClientHistoryPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.whiteBG,
-      body: ListView.builder(
-        itemCount: clietnRequestList.length,
-        itemBuilder: (BuildContext context, int index) {
-          ClientHistoryModel clientRequestsModel = clietnRequestList[index];
-          return ClientHistoryWidget(
-            img: clientRequestsModel.image,
-            clientName: clientRequestsModel.clientName,
-            itemName: clientRequestsModel.itemName,
-            itemID: clientRequestsModel.itemID,
-            time: "${clientRequestsModel.time}",
-            amount: clientRequestsModel.amount,
-          );
-        },
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.iconColor.withOpacity(0.1),
+              Colors.grey.shade100,
+            ],
+          ),
+        ),
+        child: ListView.builder(
+          itemCount: clietnRequestList.length,
+          itemBuilder: (BuildContext context, int index) {
+            ClientHistoryModel clientRequestsModel = clietnRequestList[index];
+            return ClientHistoryWidget(
+              img: clientRequestsModel.image,
+              clientName: clientRequestsModel.clientName,
+              itemName: clientRequestsModel.itemName,
+              itemID: clientRequestsModel.itemID,
+              time: "${clientRequestsModel.time}",
+              amount: clientRequestsModel.amount,
+              transactionType: clientRequestsModel.transactionType,
+              duration: clientRequestsModel.duration,
+              paymentMethod: clientRequestsModel.paymentMethod,
+              transactionDate: DateTime.parse(
+                clientRequestsModel.transactionDate.toString(),
+              ),
+              dueDate: clientRequestsModel.dueDate,
+              depositAmount: clientRequestsModel.depositAmount,
+              taxAmount: clientRequestsModel.taxAmount,
+              transactionId: clientRequestsModel.transactionId,
+            );
+          },
+        ),
       ),
     );
   }

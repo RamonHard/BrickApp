@@ -78,6 +78,14 @@ final clietntReqestProvider = Provider((ref) {
       itemID: 6,
       time: DateFormat.yMMMMEEEEd().format(DateTime.now()),
       amount: 200000,
+      transactionType: "Rent",
+      duration: "12 months",
+      paymentMethod: "Credit Card",
+      transactionDate: DateTime.now(),
+      dueDate: DateTime.now().add(Duration(days: 30)),
+      depositAmount: 50000,
+      taxAmount: 10000,
+      transactionId: "TXN123456",
     ),
     ClientHistoryModel(
       clientName: "Ramon Hardluck",
@@ -87,15 +95,38 @@ final clietntReqestProvider = Provider((ref) {
       itemID: 6,
       time: DateFormat.MMMMEEEEd().format(DateTime.now()),
       amount: 200000,
+      transactionType: "Rent",
+      duration: "6 months",
+      paymentMethod: "Bank Transfer",
+      transactionDate: DateTime.now(),
+      dueDate: DateTime.now().add(Duration(days: 30)),
+      depositAmount: 25000,
+      taxAmount: 5000,
+      transactionId: "TXN654321",
     ),
     ClientHistoryModel(
       clientName: "Ramon Hardluck",
       image:
           "https://miro.medium.com/v2/resize:fit:1079/1*G6bWZ2AzAAPVsl86NU-2bQ.png",
-      itemName: "Brick Appartments",
+      itemName: "Brick Apartments",
       itemID: 6,
-      time: DateFormat.MMMMEEEEd().format(DateTime.now()),
+      time: "2:30 PM", // Current time as string
       amount: 200000,
+      transactionType: "rental", // Changed from "Lease" to "rental"
+      duration: "24 months",
+      paymentMethod: "Mobile Money",
+      transactionDate: DateTime.now(), // DateTime object, not string
+      dueDate: DateTime.now().add(
+        Duration(days: 60),
+      ), // DateTime object, not string
+      depositAmount: 100000,
+      taxAmount: 20000,
+      transactionId: "TXN789012",
+      // Optional parameters
+      // clientPhone: "+256 712 345 678",
+      // clientEmail: "ramon.hardluck@email.com",
+      // itemCondition: "Excellent",
+      // notes: "First floor apartment with balcony view",
     ),
   ];
 });

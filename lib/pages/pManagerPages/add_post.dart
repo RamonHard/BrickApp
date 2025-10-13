@@ -275,7 +275,7 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildPropertyTypeDropdown(),
               const SizedBox(height: 20),
 
-              _buildSectionTitle('House Type'),
+              _buildSectionTitle('Select Property Type'),
               _buildHouseTypeDropdown(),
               const SizedBox(height: 20),
 
@@ -565,10 +565,17 @@ class _AddPostState extends ConsumerState<AddPost> {
   Widget _buildPropertyTypeDropdown() {
     List<String> propertyTypes = [
       'House',
-      'Business Shop',
       'Land',
       'Ceremony Ground',
       'Apartments',
+      'Office Space',
+      'Warehouse',
+      'Hotel',
+      'Hostel',
+      'Farm House',
+      'Industrial Building',
+      'Storage Facility',
+      'Business Shop',
     ];
 
     return DropdownButtonFormField<String>(
