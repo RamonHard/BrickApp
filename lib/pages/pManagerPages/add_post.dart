@@ -28,6 +28,7 @@ class _AddPostState extends ConsumerState<AddPost> {
     color: AppColors.darkTextColor,
   );
   String _location = "Kampala, Uganda"; // Default text
+  String salesCondition = '';
   bool _isLoadingLocation = false;
   List<XFile> _selectedVideos = [];
   XFile? _selectedVideo;
@@ -35,6 +36,7 @@ class _AddPostState extends ConsumerState<AddPost> {
   final List<String> packages = ['1 Month', '2 Months', '3 Months'];
   String? selectedPackage;
   int? price;
+  int? salePrice;
   int? discount;
   int? commission;
   XFile? _thumbnailPhoto;
@@ -169,7 +171,7 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   Widget buildSelectedInfo() {
-    if (selectedPackage == null) return const SizedBox();
+    if (selectedPackage == null && salePrice == null) return const SizedBox();
 
     return Card(
       margin: const EdgeInsets.only(top: 16),
@@ -180,14 +182,51 @@ class _AddPostState extends ConsumerState<AddPost> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Selected Package: $selectedPackage',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text('Price: UGX${currencyFormatter.format(price ?? 0)}'),
-            Text('Discount: UGX${currencyFormatter.format(discount ?? 0)}'),
-            Text('Commission: UGX${currencyFormatter.format(commission ?? 0)}'),
+            // Show rental package info if selected
+            if (selectedPackage != null) ...[
+              Text(
+                'Selected Package: $selectedPackage',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Rental Price: UGX${currencyFormatter.format(price ?? 0)}'),
+              Text('Discount: UGX${currencyFormatter.format(discount ?? 0)}'),
+              Text(
+                'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
+              ),
+            ],
+
+            // Add divider if both rental and sale are selected
+            if (selectedPackage != null && salePrice != null) ...[
+              const SizedBox(height: 12),
+              const Divider(thickness: 1),
+              const SizedBox(height: 8),
+            ],
+
+            // Show sale info if selected
+            if (salePrice != null) ...[
+              Text(
+                'Sale Information',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sale Price: UGX${currencyFormatter.format(salePrice ?? 0)}',
+              ),
+              if (salesCondition.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Conditions: $salesCondition',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -195,24 +234,16 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   // Controllers
-  final TextEditingController _priceController = TextEditingController(
-    text: '20',
-  );
-  final TextEditingController _bedroomsController = TextEditingController(
-    text: '3',
-  );
-  final TextEditingController _bathsController = TextEditingController(
-    text: '2',
-  );
-  final TextEditingController _sqftController = TextEditingController(
-    text: '1200',
-  );
-  final TextEditingController _unitsController = TextEditingController(
-    text: '1',
-  );
-  final TextEditingController _descriptionController = TextEditingController(
-    text: 'e.g Three bed rooms, Parking space, Self contained,',
-  );
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _salePriceController = TextEditingController();
+
+  final TextEditingController _bedroomsController = TextEditingController();
+  final TextEditingController _bathsController = TextEditingController();
+  final TextEditingController _sqftController = TextEditingController();
+  final TextEditingController _unitsController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _saleConditionsController =
+      TextEditingController();
   final TextEditingController _pendingReasonController =
       TextEditingController();
 
@@ -230,6 +261,7 @@ class _AddPostState extends ConsumerState<AddPost> {
   bool _isActive = true;
   bool _isRentSelected = false;
   bool _isSaleSelected = false;
+  bool _hasCompound = false; // Added hasCompound field
   int _photosCount = 0;
   List<XFile> _selectedPhotos = [];
 
@@ -282,7 +314,9 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildSectionTitle('Location'),
               _buildLocationPicker(),
               const SizedBox(height: 20),
-
+              _buildSectionTitle("Listing Type"),
+              _buildListingTypeButtons(),
+              const SizedBox(height: 20),
               _buildSectionTitle('Set Rental Price Package'),
               showHouseSections
                   ? SizedBox(
@@ -312,10 +346,6 @@ class _AddPostState extends ConsumerState<AddPost> {
               ],
 
               const SizedBox(height: 20),
-              _buildSectionTitle("Listing Type"),
-              const SizedBox(height: 10),
-              _buildListingTypeButtons(),
-              const SizedBox(height: 20),
 
               _buildSectionTitle('Description'),
               _buildDescriptionField(),
@@ -324,8 +354,6 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildSectionTitle('Add Photos'),
               _buildPhotosSection(),
               const SizedBox(height: 20),
-
-              _buildSectionTitle('Add Thumbnail'),
               _buildThumbnailSection(),
               const SizedBox(height: 20),
 
@@ -399,7 +427,10 @@ class _AddPostState extends ConsumerState<AddPost> {
         const SizedBox(width: 5.0),
         MaterialButton(
           height: 40,
-          onPressed: () => setState(() => _isSaleSelected = !_isSaleSelected),
+          onPressed: () {
+            // Show dialog when Sale button is clicked
+            showSalePriceDialog();
+          },
           color:
               _isSaleSelected
                   ? Colors.green
@@ -418,6 +449,93 @@ class _AddPostState extends ConsumerState<AddPost> {
           ),
         ),
       ],
+    );
+  }
+
+  void showSalePriceDialog() {
+    final salePriceController = TextEditingController(
+      text: salePrice?.toString() ?? '',
+    );
+
+    final saleConditionsController = TextEditingController(
+      text: salesCondition,
+    );
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: Row(
+              children: [
+                Text(
+                  'Set Sale Price',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkTextColor,
+                  ),
+                ),
+                Expanded(child: Container()),
+                IconButton(
+                  tooltip: 'Cancel',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(
+                    Icons.close,
+                    color: Color.fromARGB(255, 197, 13, 0),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: salePriceController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter Sale Price',
+                      prefixText: 'UGX ',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: saleConditionsController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Sale Conditions (Optional)',
+                      hintText: 'e.g., Negotiable, Cash only, etc.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (salePriceController.text.isNotEmpty)
+                    Text(
+                      'Sale Price: UGX${currencyFormatter.format(int.tryParse(salePriceController.text) ?? 0)}',
+                      style: style,
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  final enteredSalePrice =
+                      int.tryParse(salePriceController.text) ?? 0;
+                  setState(() {
+                    salePrice = enteredSalePrice;
+                    salesCondition = saleConditionsController.text;
+                    if (enteredSalePrice > 0) {
+                      _isSaleSelected = true;
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Done'),
+              ),
+            ],
+          ),
     );
   }
 
@@ -443,6 +561,7 @@ class _AddPostState extends ConsumerState<AddPost> {
       isFurnished: _isFurnished,
       hasAC: _hasAC,
       hasInternet: _hasInternet,
+      hasCompound: _hasCompound,
       hasSecurity: _hasSecurity,
       isPetFriendly: _isPetFriendly,
       amenities: _amenities, // Use the computed amenities list
@@ -476,6 +595,8 @@ class _AddPostState extends ConsumerState<AddPost> {
             propertyType: _propertyType,
             location: _location,
             price: price ?? int.tryParse(_priceController.text),
+            salePrice: salePrice ?? int.tryParse(_salePriceController.text),
+            saleConditions: salesCondition,
             discount: discount,
             videoPath: _selectedVideo?.path,
             commission: commission,
@@ -654,6 +775,7 @@ class _AddPostState extends ConsumerState<AddPost> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
+                hintText: 'Enter Price',
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -975,7 +1097,10 @@ class _AddPostState extends ConsumerState<AddPost> {
         _buildAmenityItem(Icons.security, 'Security', _hasSecurity, (val) {
           setState(() => _hasSecurity = val);
         }),
-        _buildAmenityItem(Icons.grass, 'Compound', _isPetFriendly, (val) {
+        _buildAmenityItem(Icons.grass, 'Compound', _hasCompound, (val) {
+          setState(() => _hasCompound = val);
+        }),
+        _buildAmenityItem(Icons.pets, 'Pet Friendly', _isPetFriendly, (val) {
           setState(() => _isPetFriendly = val);
         }),
       ],

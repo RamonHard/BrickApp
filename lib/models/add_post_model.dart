@@ -3,6 +3,8 @@ class PostData {
   final String location;
   final String? videoPath;
   final int? price;
+  final int? salePrice;
+  final String? saleConditions;
   final int? discount;
   final int? commission;
   final String currency;
@@ -27,6 +29,8 @@ class PostData {
     required this.propertyType,
     required this.location,
     this.price,
+    this.salePrice,
+    this.saleConditions,
     this.discount,
     this.commission,
     required this.currency,
@@ -53,6 +57,8 @@ class PostData {
     String? propertyType,
     String? location,
     int? price,
+    String? saleConditions,
+    int? salePrice,
     int? discount,
     int? commission,
     String? currency,
@@ -78,6 +84,8 @@ class PostData {
       propertyType: propertyType ?? this.propertyType,
       location: location ?? this.location,
       price: price ?? this.price,
+      salePrice: salePrice ?? this.salePrice,
+      saleConditions: saleConditions ?? this.saleConditions,
       discount: discount ?? this.discount,
       commission: commission ?? this.commission,
       currency: currency ?? this.currency,

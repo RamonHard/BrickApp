@@ -27,6 +27,7 @@ class PropertyModel {
   final bool isFurnished;
   final bool hasAC;
   final bool hasInternet;
+  final bool hasCompound;
   final bool hasSecurity;
   final bool isPetFriendly;
   final List<String> amenities;
@@ -77,6 +78,7 @@ class PropertyModel {
     required this.hasAC,
     required this.hasInternet,
     required this.hasSecurity,
+    required this.hasCompound,
     required this.isPetFriendly,
     required this.amenities,
     required this.productIMG,
@@ -152,6 +154,7 @@ class PropertyModel {
       isRent: isRent ?? this.isRent,
       isSale: isSale ?? this.isSale,
       hasParking: hasParking ?? this.hasParking,
+      hasCompound: hasCompound ?? this.hasCompound,
       isFurnished: isFurnished ?? this.isFurnished,
       hasAC: hasAC ?? this.hasAC,
       hasInternet: hasInternet ?? this.hasInternet,

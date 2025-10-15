@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
@@ -277,18 +278,7 @@ class ViewSelectedProduct extends ConsumerWidget {
 
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildFeatureIcon(
-                    Icons.bed,
-                    '${selectedProduct.bedrooms} Beds',
-                  ),
-                  _buildFeatureIcon(Icons.weekend, 'Living Room'),
-                  _buildFeatureIcon(Icons.park, 'Compound'),
-                  _buildFeatureIcon(Icons.local_parking, 'Parking'),
-                ],
-              ),
+              child: _buildAmenitiesFromList(selectedProduct),
             ),
 
             // Replace your featured images section with this:
@@ -582,5 +572,75 @@ class ViewSelectedProduct extends ConsumerWidget {
     return allMedia;
   }
 
-  // Helper method to check if a URL is a video
+  // Alternative approach: Use the amenities list from PropertyModel if available
+  Widget _buildAmenitiesFromList(PropertyModel product) {
+    final amenityIcons = {
+      'Parking': Icons.local_parking,
+      'Furnished': Icons.chair,
+      'Air Conditioning': Icons.ac_unit,
+      'Internet': Icons.wifi,
+      'Security': Icons.security,
+      'Pet Friendly': Icons.pets,
+      'Compound': Icons.grass,
+    };
+
+    // Check if amenities list exists in the model
+    if (product.amenities != null && product.amenities!.isNotEmpty) {
+      List<Widget> amenityWidgets = [];
+
+      // Add bedrooms first if available
+      if (product.bedrooms > 0) {
+        amenityWidgets.add(
+          _buildFeatureIcon(Icons.bed, '${product.bedrooms} Beds'),
+        );
+      }
+
+      // Add all amenities from the list
+      for (String amenity in product.amenities!) {
+        final icon = amenityIcons[amenity] ?? Icons.check_circle;
+        amenityWidgets.add(_buildFeatureIcon(icon, amenity));
+      }
+
+      return Wrap(spacing: 12, runSpacing: 12, children: amenityWidgets);
+    }
+
+    // Fallback: If amenities list doesn't exist, use boolean flags
+    return _buildDynamicAmenities(product);
+  }
+
+  // Define the missing method
+  Widget _buildDynamicAmenities(PropertyModel product) {
+    List<Widget> amenities = [];
+
+    if (product.bedrooms > 0) {
+      amenities.add(_buildFeatureIcon(Icons.bed, '${product.bedrooms} Beds'));
+    }
+    if (product.hasParking == true) {
+      amenities.add(_buildFeatureIcon(Icons.local_parking, 'Parking'));
+    }
+    if (product.isFurnished == true) {
+      amenities.add(_buildFeatureIcon(Icons.chair, 'Furnished'));
+    }
+    if (product.hasAC == true) {
+      amenities.add(_buildFeatureIcon(Icons.ac_unit, 'Air Conditioning'));
+    }
+    if (product.hasInternet == true) {
+      amenities.add(_buildFeatureIcon(Icons.wifi, 'Internet'));
+    }
+    if (product.hasSecurity == true) {
+      amenities.add(_buildFeatureIcon(Icons.security, 'Security'));
+    }
+    if (product.isPetFriendly == true) {
+      amenities.add(_buildFeatureIcon(Icons.pets, 'Pet Friendly'));
+    }
+    if (product.hasCompound == true) {
+      amenities.add(_buildFeatureIcon(Icons.grass, 'Compound'));
+    }
+
+    if (amenities.isEmpty) {
+      return Text('No amenities listed.', style: TextStyle(color: Colors.grey));
+    }
+
+    return Wrap(spacing: 12, runSpacing: 12, children: amenities);
+  }
 }
