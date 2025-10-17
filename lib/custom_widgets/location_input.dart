@@ -7,11 +7,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class LocationInput extends StatefulWidget {
   final Function(String) onLocationSelected;
   final String hintText;
-
+  final EdgeInsets contentPadding;
   const LocationInput({
     super.key,
     required this.onLocationSelected,
     required this.hintText,
+    required this.contentPadding,
   });
 
   @override
@@ -100,13 +101,11 @@ class _LocationInputState extends State<LocationInput> {
             controller: _controller,
             decoration: InputDecoration(
               hintText: widget.hintText,
+
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 12,
-                horizontal: 16,
-              ),
+              contentPadding: widget.contentPadding,
             ),
             onChanged: (value) {
               widget.onLocationSelected(value);
