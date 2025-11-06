@@ -254,7 +254,58 @@ class ViewSelectedProduct extends ConsumerWidget {
                 ],
               ),
             ),
-
+            selectedProduct.isSale
+                ? Container(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            "Sale Price",
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.darkTextColor,
+                            ),
+                          ),
+                          Expanded(child: Container()),
+                          Text(
+                            'UGX ${selectedProduct.enteredSalePrice.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: const Color.fromARGB(255, 0, 255, 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Sale Conditions: ",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.darkTextColor,
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "${selectedProduct.saleConditions}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.darkTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : SizedBox.shrink(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(

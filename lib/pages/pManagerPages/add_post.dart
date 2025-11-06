@@ -557,6 +557,8 @@ class _AddPostState extends ConsumerState<AddPost> {
       pendingReason: _isActive ? "" : _pendingReasonController.text,
       isRent: _isRentSelected,
       isSale: _isSaleSelected,
+      enteredSalePrice: (salePrice ?? 0).toDouble(),
+      saleConditions: salesCondition,
       hasParking: _hasParking,
       isFurnished: _isFurnished,
       hasAC: _hasAC,

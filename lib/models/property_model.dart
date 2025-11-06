@@ -46,7 +46,8 @@ class PropertyModel {
   final String uploaderEmail;
   final String uploaderIMG;
   final int uploaderPhoneNumber;
-
+  double enteredSalePrice;
+  final String saleConditions;
   // Optional extra metadata
   final String? destinationTitle; // was in MoreProductViewModel
 
@@ -73,6 +74,8 @@ class PropertyModel {
     this.pendingReason,
     required this.isRent,
     required this.isSale,
+    required this.enteredSalePrice,
+    required this.saleConditions,
     required this.hasParking,
     required this.isFurnished,
     required this.hasAC,
@@ -92,7 +95,8 @@ class PropertyModel {
     required this.uploaderPhoneNumber,
     this.destinationTitle,
     this.package, // optional package
-    required this.dateCreated, // required dateCreated
+    required this.dateCreated,
+    required, // required dateCreated
   });
 
   /// CopyWith for updates (like EditPostModel had)
@@ -107,6 +111,8 @@ class PropertyModel {
     String? currency,
     String? thumbnail,
     String? videoPath,
+    double? enteredSalePrice,
+    String? saleConditions,
     int? bedrooms,
     int? baths,
     double? sqft,
@@ -142,6 +148,8 @@ class PropertyModel {
       description: description ?? this.description,
       thumbnail: thumbnail ?? this.thumbnail,
       price: price ?? this.price,
+      enteredSalePrice: enteredSalePrice ?? this.enteredSalePrice,
+      saleConditions: saleConditions ?? this.saleConditions,
       discount: discount ?? this.discount,
       commission: commission ?? this.commission,
       currency: currency ?? this.currency,
