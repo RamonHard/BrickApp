@@ -1,27 +1,74 @@
-import 'dart:ui';
-import 'package:brickapp/models/destination_model.dart';
-import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
-import 'package:brickapp/pages/client_pages/gallery_view.dart';
-import 'package:brickapp/providers/house_view_provider.dart';
-import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/pages/client_pages/full_screen_view.dart';
+import 'package:brickapp/pages/client_pages/gallery_view.dart'
+    hide FullScreenGallery;
+import 'package:brickapp/providers/discount_provider.dart';
+import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/build_image_method.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../utils/app_colors.dart';
 
 class DetailedHouseView extends ConsumerWidget {
-  DetailedHouseView({super.key, required this.selectedProduct});
-
+  const DetailedHouseView({super.key, required this.selectedProduct});
   final PropertyModel selectedProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hasShownDialog = ref.watch(discountDialogShownProvider);
+
+    if (!hasShownDialog) {
+      Future.microtask(() {
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text("🎉 Special Offer"),
+                content: Text.rich(
+                  TextSpan(
+                    style: GoogleFonts.oxygen(
+                      color: AppColors.darkTextColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    children: [
+                      const TextSpan(
+                        text: "Get 8% discount on your first payment!\n\n",
+                      ),
+                      const TextSpan(text: "Secure the property now at "),
+                      TextSpan(
+                        text:
+                            "UGX ${(selectedProduct.price - selectedProduct.discount).toStringAsFixed(2)}\n\n",
+                        style: GoogleFonts.oxygen(
+                          color: Colors.green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            "You can cancel the transaction at any time after visiting the property and change your mind.\n\n"
+                            "Ensure to complete the transaction once you have visited the property to get a receipt.",
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text("OK"),
+                  ),
+                ],
+              ),
+        );
+
+        // Mark dialog as shown
+        ref.read(discountDialogShownProvider.notifier).state = true;
+      });
+    }
     final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
-    final featuredImages = ref.watch(productProvider);
     final isFavorite = ref.watch(
       favoriteItemListProvider.select(
         (favorites) => favorites.contains(selectedProduct),
@@ -60,34 +107,13 @@ class DetailedHouseView extends ConsumerWidget {
           children: [
             Stack(
               children: [
-                Image.network(
-                  selectedProduct.productIMG,
+                buildImage(
+                  selectedProduct.thumbnail,
                   width: width,
                   height: 250,
                   fit: BoxFit.cover,
                 ),
-                selectedProduct.isActive
-                    ? Container()
-                    : Positioned(
-                      right: 10,
-                      bottom: 10,
-                      child: MaterialButton(
-                        height: 35,
-                        color: AppColors.iconColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50.0),
-                        ),
-                        onPressed: () {},
-                        child: Text(
-                          "Book Now",
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.lightTextColor,
-                          ),
-                        ),
-                      ),
-                    ),
+
                 Positioned(
                   right: 10,
                   top: 10,
@@ -112,38 +138,52 @@ class DetailedHouseView extends ConsumerWidget {
                     ),
                   ),
                 ),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    height: 35,
+                    width: 75,
+                    alignment: Alignment.center,
+                    padding: EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: AppColors.darkBg.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Icon(Icons.house, color: Colors.white),
+                        Text(
+                          "${selectedProduct.units}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: AppColors.whiteTextColor,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-
             selectedProduct.isActive
                 ? Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.orange),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: Text(
-                            'Rent now',
-                            style: TextStyle(color: Colors.orange),
-                          ),
-                        ),
-                      ),
+                      Expanded(child: Container()),
                       SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
                             MainNavigation.navigateToRoute(
-                              MainNavigation.moreBookingRoute,
+                              MainNavigation.paymentMethodRoute,
                               data: selectedProduct,
                             );
                           },
+
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             shape: RoundedRectangleBorder(
@@ -159,7 +199,7 @@ class DetailedHouseView extends ConsumerWidget {
                 : Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    'Currently Unavailable due to reasons like maintainance, under constraction, or renovations but you can book it ealier in advance.',
+                    "${selectedProduct.pendingReason}",
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 14,
@@ -177,23 +217,89 @@ class DetailedHouseView extends ConsumerWidget {
                     child: Text(
                       selectedProduct.propertyType,
                       style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  Text(
-                    "UGX ${selectedProduct.price}",
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
+                  Column(
+                    children: [
+                      Text(
+                        "UGX ${selectedProduct.price - selectedProduct.discount}",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: const Color.fromARGB(255, 0, 255, 8),
+                        ),
+                      ),
+                      Text(
+                        "UGX ${selectedProduct.price}",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          textStyle: TextStyle(
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-
+            selectedProduct.isSale
+                ? Container(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            "Sale Price",
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.darkTextColor,
+                            ),
+                          ),
+                          Expanded(child: Container()),
+                          Text(
+                            'UGX ${selectedProduct.enteredSalePrice.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: const Color.fromARGB(255, 0, 255, 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Sale Conditions: ",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.darkTextColor,
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "${selectedProduct.saleConditions}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.darkTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : SizedBox.shrink(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -217,24 +323,14 @@ class DetailedHouseView extends ConsumerWidget {
 
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildFeatureIcon(
-                    Icons.bed,
-                    '${selectedProduct.bedrooms} Beds',
-                  ),
-                  _buildFeatureIcon(Icons.weekend, 'Living Room'),
-                  _buildFeatureIcon(Icons.park, 'Compound'),
-                  _buildFeatureIcon(Icons.local_parking, 'Parking'),
-                ],
-              ),
+              child: _buildAmenitiesFromList(selectedProduct),
             ),
 
+            // Replace your featured images section with this:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Featured Images',
+                'Featured Media', // Changed from 'Featured Images'
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -244,66 +340,162 @@ class DetailedHouseView extends ConsumerWidget {
 
             SizedBox(height: 8),
 
-            // 🔥 Featured Images from Provider
-            Container(
-              height: 120,
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: featuredImages.length,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => FullScreenView(
-                                imageUrl:
-                                    featuredImages[index].insideViews.first,
+            // Featured Media (Images & Videos)
+            selectedProduct.insideViews.isNotEmpty ||
+                    selectedProduct.videoPath != null
+                ? SizedBox(
+                  height: 100,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _getMediaCount(
+                      selectedProduct,
+                    ), // Updated method
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) {
+                      // Check if this is a video or image
+                      if (selectedProduct.videoPath != null && i == 0) {
+                        // Video thumbnail as first item
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => FullScreenGallery(
+                                      mediaUrls: _getAllMedia(
+                                        selectedProduct,
+                                      ), // Updated method
+                                      initialIndex: i,
+                                    ),
                               ),
-                        ),
-                      );
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              children: [
+                                // Video thumbnail with play icon overlay
+                                buildImage(
+                                  selectedProduct.videoPath!,
+                                  width: 120,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                                Container(
+                                  color: Colors.black.withOpacity(0.3),
+                                  width: 120,
+                                  height: 100,
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(10),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.videocam,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                Center(
+                                  child: Icon(
+                                    Icons.play_circle_fill,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Regular image
+                        final imgIndex =
+                            selectedProduct.videoPath != null ? i - 1 : i;
+                        final imgPath = selectedProduct.insideViews[imgIndex];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => FullScreenGallery(
+                                      mediaUrls: _getAllMedia(
+                                        selectedProduct,
+                                      ), // Updated method
+                                      initialIndex: i,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: buildImage(
+                              imgPath,
+                              width: 120,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      }
                     },
-                    child: Container(
-                      width: 120,
-                      margin: EdgeInsets.only(right: 10),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          featuredImages[index].insideViews.first,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            TextButton(
-              onPressed: () {
-                final featuredImages = ref.read(productProvider);
-                final urls =
-                    featuredImages.expand((e) => e.insideViews).toList();
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GalleryView(mediaUrls: urls),
                   ),
-                );
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.photo_library_outlined),
-                  SizedBox(width: 4),
-                  Text('View All Photos'),
-                ],
-              ),
-            ),
+                )
+                : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    "No featured media available", // Changed text
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+
+            // Show "View All Media" button only if there are media items
+            (selectedProduct.insideViews.isNotEmpty ||
+                    selectedProduct.videoPath != null)
+                ? TextButton(
+                  onPressed: () {
+                    // Debug print to verify the data
+                    print("Inside views: ${selectedProduct.insideViews}");
+                    print("Video path: ${selectedProduct.videoPath}");
+                    print(
+                      "Number of media items: ${_getMediaCount(selectedProduct)}",
+                    );
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => GalleryView(
+                              mediaUrls: _getAllMedia(
+                                selectedProduct,
+                              ), // Updated method
+                            ),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.photo_library_outlined),
+                      SizedBox(width: 4),
+                      Text(
+                        'View All Media (${_getMediaCount(selectedProduct)})', // Updated text
+                      ),
+                    ],
+                  ),
+                )
+                : SizedBox.shrink(),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -322,6 +514,58 @@ class DetailedHouseView extends ConsumerWidget {
               child: Text(selectedProduct.description),
             ),
 
+            Row(
+              children: [
+                Expanded(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.grey[300],
+                      backgroundImage: NetworkImage(
+                        selectedProduct.uploaderIMG,
+                      ),
+                    ),
+                    title: Text(
+                      selectedProduct.uploaderName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.darkTextColor,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Property Manager',
+                      style: GoogleFonts.poppins(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.lightGrey,
+                      ),
+                    ),
+                  ),
+                ),
+                MaterialButton(
+                  onPressed: () {
+                    MainNavigation.navigateToRoute(
+                      MainNavigation.viewMoreProducts,
+                      data: selectedProduct,
+                    );
+                  },
+                  padding: EdgeInsets.all(8.0),
+                  color: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'View More',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkTextColor,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 5),
+              ],
+            ),
             SizedBox(height: 20),
           ],
         ),
@@ -341,23 +585,107 @@ class DetailedHouseView extends ConsumerWidget {
       ],
     );
   }
-}
 
-class FullScreenView extends StatelessWidget {
-  final String imageUrl;
+  Widget _errorPlaceholder(double? width, double? height) => Container(
+    width: width,
+    height: height,
+    color: Colors.grey.shade300,
+    child: const Icon(Icons.broken_image, color: Colors.red),
+  );
 
-  const FullScreenView({super.key, required this.imageUrl});
+  // Helper method to get total count of media (images + video)
+  int _getMediaCount(PropertyModel product) {
+    int count = product.insideViews.length;
+    if (product.videoPath != null && product.videoPath!.isNotEmpty) {
+      count += 1;
+    }
+    return count;
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-      ),
-      body: Center(child: InteractiveViewer(child: Image.network(imageUrl))),
-    );
+  // Helper method to combine images and video into a single list
+  List<String> _getAllMedia(PropertyModel product) {
+    List<String> allMedia = [];
+
+    // Add video first if exists
+    if (product.videoPath != null && product.videoPath!.isNotEmpty) {
+      allMedia.add(product.videoPath!);
+    }
+
+    // Add all images
+    allMedia.addAll(product.insideViews);
+
+    return allMedia;
+  }
+
+  // Alternative approach: Use the amenities list from PropertyModel if available
+  Widget _buildAmenitiesFromList(PropertyModel product) {
+    final amenityIcons = {
+      'Parking': Icons.local_parking,
+      'Furnished': Icons.chair,
+      'Air Conditioning': Icons.ac_unit,
+      'Internet': Icons.wifi,
+      'Security': Icons.security,
+      'Pet Friendly': Icons.pets,
+      'Compound': Icons.grass,
+    };
+
+    // Check if amenities list exists in the model
+    if (product.amenities != null && product.amenities!.isNotEmpty) {
+      List<Widget> amenityWidgets = [];
+
+      // Add bedrooms first if available
+      if (product.bedrooms > 0) {
+        amenityWidgets.add(
+          _buildFeatureIcon(Icons.bed, '${product.bedrooms} Beds'),
+        );
+      }
+
+      // Add all amenities from the list
+      for (String amenity in product.amenities!) {
+        final icon = amenityIcons[amenity] ?? Icons.check_circle;
+        amenityWidgets.add(_buildFeatureIcon(icon, amenity));
+      }
+
+      return Wrap(spacing: 12, runSpacing: 12, children: amenityWidgets);
+    }
+
+    // Fallback: If amenities list doesn't exist, use boolean flags
+    return _buildDynamicAmenities(product);
+  }
+
+  // Define the missing method
+  Widget _buildDynamicAmenities(PropertyModel product) {
+    List<Widget> amenities = [];
+
+    if (product.bedrooms > 0) {
+      amenities.add(_buildFeatureIcon(Icons.bed, '${product.bedrooms} Beds'));
+    }
+    if (product.hasParking == true) {
+      amenities.add(_buildFeatureIcon(Icons.local_parking, 'Parking'));
+    }
+    if (product.isFurnished == true) {
+      amenities.add(_buildFeatureIcon(Icons.chair, 'Furnished'));
+    }
+    if (product.hasAC == true) {
+      amenities.add(_buildFeatureIcon(Icons.ac_unit, 'Air Conditioning'));
+    }
+    if (product.hasInternet == true) {
+      amenities.add(_buildFeatureIcon(Icons.wifi, 'Internet'));
+    }
+    if (product.hasSecurity == true) {
+      amenities.add(_buildFeatureIcon(Icons.security, 'Security'));
+    }
+    if (product.isPetFriendly == true) {
+      amenities.add(_buildFeatureIcon(Icons.pets, 'Pet Friendly'));
+    }
+    if (product.hasCompound == true) {
+      amenities.add(_buildFeatureIcon(Icons.grass, 'Compound'));
+    }
+
+    if (amenities.isEmpty) {
+      return Text('No amenities listed.', style: TextStyle(color: Colors.grey));
+    }
+
+    return Wrap(spacing: 12, runSpacing: 12, children: amenities);
   }
 }

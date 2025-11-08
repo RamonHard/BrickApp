@@ -193,10 +193,7 @@ class _AddPostState extends ConsumerState<AddPost> {
               ),
               const SizedBox(height: 8),
               Text('Rental Price: UGX${currencyFormatter.format(price ?? 0)}'),
-              Text('Discount: UGX${currencyFormatter.format(discount ?? 0)}'),
-              Text(
-                'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
-              ),
+              Text('Commission: 10%'),
             ],
 
             // Add divider if both rental and sale are selected
@@ -321,10 +318,16 @@ class _AddPostState extends ConsumerState<AddPost> {
               showHouseSections
                   ? SizedBox(
                     height: 100,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: packages.map(buildPackageCard).toList(),
-                    ),
+                    child:
+                        _isRentSelected
+                            ? ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: packages.map(buildPackageCard).toList(),
+                            )
+                            : Text(
+                              "Select 'Rent' to choose a package",
+                              style: style,
+                            ),
                   )
                   : _buildPriceField(),
               const SizedBox(height: 10),
