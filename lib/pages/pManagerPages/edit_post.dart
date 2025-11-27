@@ -5,6 +5,7 @@ import 'package:brickapp/models/destination_model.dart';
 import 'package:brickapp/models/edit_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
+import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
@@ -195,9 +196,7 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
   final TextEditingController _sqftController = TextEditingController(
     text: '1200',
   );
-  final TextEditingController _unitsController = TextEditingController(
-    text: '1',
-  );
+  final TextEditingController _unitsController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController(
     text: 'e.g Three bed rooms, Parking space, Self contained,',
   );
@@ -282,7 +281,7 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                 _buildBasicInfoFields(),
                 const SizedBox(height: 20),
 
-                _buildUnitsField(),
+                _buildUnitsField(widget.editPostModel),
                 const SizedBox(height: 20),
 
                 _buildSectionTitle('Amenities'),
@@ -635,7 +634,7 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
   }
 
   // Added field for Units
-  Widget _buildUnitsField() {
+  Widget _buildUnitsField(PropertyModel editPostModel) {
     final width = MediaQuery.of(context).size.width;
 
     return Row(
@@ -663,6 +662,7 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                     controller: _unitsController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
+                      hintText: '${editPostModel.units}',
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
@@ -677,7 +677,6 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      hintText: 'Units',
                     ),
                   ),
                 ),
@@ -1047,7 +1046,6 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
   }
 
   @override
-  @override
   void initState() {
     super.initState();
 
@@ -1056,14 +1054,13 @@ class _EditPostPageState extends ConsumerState<EditPostPage> {
 
       setState(() {
         _descriptionController.text = post.description;
-        _location = post.location;
-        _propertyType = post.propertyType;
-        discount = post.discount;
-        price = post.price;
-        // _selectedAmenities = post.amenities; // amenities does not exist on PostData
+
+        if (post.location.contains(',')) {
+          _location = post.location.split(',').first.trim();
+        } else {
+          _location = post.location;
+        }
       });
     });
   }
 }
-
-// FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF

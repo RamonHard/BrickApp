@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class TruckDriverCard extends StatelessWidget {
-  final TruckDriver driver;
+  final Truck driver;
 
   const TruckDriverCard({super.key, required this.driver});
 
@@ -21,7 +21,7 @@ class TruckDriverCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundImage: NetworkImage(driver.imageUrl),
+                  backgroundImage: NetworkImage("${driver.photo}"),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -29,7 +29,7 @@ class TruckDriverCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        driver.name,
+                        driver.email,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -37,26 +37,26 @@ class TruckDriverCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        driver.truckNumber,
+                        driver.vehicleType,
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 4),
-                      RatingBarIndicator(
-                        rating: driver.rating,
-                        itemBuilder:
-                            (context, index) =>
-                                const Icon(Icons.star, color: Colors.amber),
-                        itemCount: 5,
-                        itemSize: 20,
-                        direction: Axis.horizontal,
-                      ),
+                      // RatingBarIndicator(
+                      //   rating: driver.rating,
+                      //   itemBuilder:
+                      //       (context, index) =>
+                      //           const Icon(Icons.star, color: Colors.amber),
+                      //   itemCount: 5,
+                      //   itemSize: 20,
+                      //   direction: Axis.horizontal,
+                      // ),
                     ],
                   ),
                 ),
                 Column(
                   children: [
                     Text(
-                      '\$${driver.price.toStringAsFixed(2)}',
+                      '\$${driver.pricePerKm.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -65,7 +65,7 @@ class TruckDriverCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${driver.distance.toStringAsFixed(1)} km away',
+                      '${1} km away',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
@@ -77,7 +77,7 @@ class TruckDriverCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  driver.truckType,
+                  driver.truckModel,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -92,7 +92,7 @@ class TruckDriverCard extends StatelessWidget {
                           (context) => AlertDialog(
                             title: const Text('Confirm Booking'),
                             content: Text(
-                              'Confirm booking with ${driver.name} for \$${driver.price.toStringAsFixed(2)}?',
+                              'Confirm booking with ${driver.email} for \$${driver.pricePerKm.toStringAsFixed(2)}?',
                             ),
                             actions: [
                               TextButton(
@@ -105,7 +105,7 @@ class TruckDriverCard extends StatelessWidget {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Booking confirmed with ${driver.name}',
+                                        'Booking confirmed with ${driver.email}',
                                       ),
                                     ),
                                   );

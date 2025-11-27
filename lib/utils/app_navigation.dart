@@ -1,6 +1,4 @@
-import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/destination_model.dart';
-import 'package:brickapp/models/product_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
@@ -13,17 +11,20 @@ import 'package:brickapp/pages/client_pages/edit_profile.dart';
 import 'package:brickapp/pages/client_pages/history_page.dart';
 import 'package:brickapp/pages/client_pages/main_favourite.dart';
 import 'package:brickapp/pages/client_pages/profile_page.dart';
-import 'package:brickapp/pages/client_pages/transporter.dart';
 import 'package:brickapp/pages/client_pages/favorite_s_provider.dart';
 import 'package:brickapp/pages/client_pages/view_more_products.dart';
 import 'package:brickapp/pages/client_pages/view_selected_product.dart';
+import 'package:brickapp/pages/onboardingPages/register_addpost.dart';
+import 'package:brickapp/pages/onboardingPages/truck_driver_register.dart';
+import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/pages/pManagerPages/add_post.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
+import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/pages/pManagerPages/price_demo.dart';
 import 'package:brickapp/pages/sProviderPages/profile.dart';
 import 'package:brickapp/pages/sProviderPages/requests_for_t_and_l.dart';
-import 'package:brickapp/pages/sProviderPages/your_posts.dart';
+import 'package:brickapp/pages/sProviderPages/your_truck_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:flutter/material.dart';
@@ -57,14 +58,17 @@ class BaseNavigation {
 class MainNavigation {
   // static String homePageRoute = "/homePageRoute";
   static String logOutRoute = "/logOutRoute";
-
+  static String upgradeProfileRoute = "/upgradeProfileRoute";
+  static String register_addpostRoute = "/register_addpostRoute";
+  static String register_truckerDriverRoute = "/register_truckerDriverRoute";
+  static String PManagerSettingsRoute = "/PManagerSettingsRoute";
   static String requestsRoute = "/requestsRoute";
   static String mainContent = "/mainContent";
 
   static String sortByRoute = "/sortByRoute";
   static String clientHomePageRoute = "/clientHomePageRoute";
   static String transporterRoute = "/transporterRoute";
-  static String postViewRoute = "/postViewRoute";
+  static String myTrucksListRoute = "/myTrucksListRoute";
   static String landAndTruckProfileRoute = "/landAndTruckProfileRoute";
   static String addPostRoute = "/addPostRoute";
   static String postTruckRoute = "/postTruckRoute";
@@ -118,8 +122,8 @@ class MainNavigation {
     if (settings.name == changePasswordRoute) {
       return MaterialPageRoute(builder: (context) => ChangeClientPassword());
     }
-    if (settings.name == postViewRoute) {
-      return MaterialPageRoute(builder: (context) => ViewYourPosts());
+    if (settings.name == myTrucksListRoute) {
+      return MaterialPageRoute(builder: (context) => MyTrucksListPage());
     }
     if (settings.name == addPostRoute) {
       return MaterialPageRoute(builder: (context) => AddPost());
@@ -130,7 +134,18 @@ class MainNavigation {
     if (settings.name == landAndTruckProfileRoute) {
       return MaterialPageRoute(builder: (context) => LandAndTruckProfilePage());
     }
-
+    if (settings.name == upgradeProfileRoute) {
+      return MaterialPageRoute(builder: (context) => UserOnboardOptions());
+    }
+    if (settings.name == PManagerSettingsRoute) {
+      return MaterialPageRoute(builder: (context) => PManagerSettings());
+    }
+    if (settings.name == register_addpostRoute) {
+      return MaterialPageRoute(builder: (context) => RegisterAddPost());
+    }
+    if (settings.name == register_truckerDriverRoute) {
+      return MaterialPageRoute(builder: (context) => RegisterTruckerDriver());
+    }
     if (settings.name == requestsRoute) {
       return MaterialPageRoute(builder: (context) => LandAndTruckRequestPage());
     }

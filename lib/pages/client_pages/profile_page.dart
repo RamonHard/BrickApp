@@ -2,15 +2,20 @@ import 'dart:ui';
 import 'package:brickapp/custom_widgets/custom_expansion_list.dart';
 import 'package:brickapp/custom_widgets/profile_transparent_widget.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
+import 'package:brickapp/providers/account_type_provider.dart';
+import 'package:brickapp/providers/user_account_info.dart';
+import 'package:brickapp/utils/account_type.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import '../../utils/app_images.dart' as backImg;
 
-class ClientProfile extends StatelessWidget {
+class ClientProfile extends ConsumerWidget {
   ClientProfile({super.key});
+
   final double _sigmax = 4.0;
   final double _sigmay = 4.0;
   final TextStyle style = GoogleFonts.oxygen(
@@ -18,8 +23,13 @@ class ClientProfile extends StatelessWidget {
     fontWeight: FontWeight.w600,
     color: HexColor("#050607"),
   );
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userState = ref.watch(userProfileProvider);
+    final accountType = ref.watch(
+      accountTypeProvider,
+    ); // FIXED: Use watch instead of read
     final screenSize = MediaQuery.of(context).size.width;
 
     return Container(
@@ -62,7 +72,7 @@ class ClientProfile extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "Ramon Hardluck",
+                        userState.userName,
                         style: GoogleFonts.actor(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -71,7 +81,7 @@ class ClientProfile extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        "0740856741",
+                        userState.phoneNumber,
                         style: GoogleFonts.actor(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -80,26 +90,213 @@ class ClientProfile extends StatelessWidget {
                       ),
 
                       SizedBox(height: screenSize / 10),
-                      ExpansionTileWidget(
-                        icon: Icons.document_scanner,
-                        text: "User ID Info",
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text("Name", style: style),
+
+                      // FIXED: Compare the accountType directly instead of using toString()
+                      if (accountType == AccountType.propertyOwner)
+                        Column(
+                          children: [
+                            ExpansionTileWidget(
+                              icon: Icons.document_scanner,
+                              text: "User ID Info",
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Name", style: style),
+                                ),
+                                Text(userState.fullName, style: style),
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Phone Number", style: style),
+                                ),
+                                Text(userState.phoneNumber, style: style),
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Gender", style: style),
+                                ),
+                                Text(userState.gender, style: style),
+                              ],
+                            ),
+                            Container(
+                              alignment: Alignment.center,
+                              child: Card(
+                                color: HexColor("FFFFFF").withOpacity(0.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: ListTile(
+                                  onTap: () {
+                                    MainNavigation.navigateToRoute(
+                                      MainNavigation.PManagerSettingsRoute,
+                                    );
+                                  },
+                                  leading: Icon(
+                                    Icons.camera_alt_outlined,
+                                    color: AppColors.iconColor,
+                                  ),
+                                  title: Text(
+                                    "Settings",
+                                    style: GoogleFonts.actor(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.darkTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            ProfileTransparentButton(
+                              buttonDescription: "Add Post",
+                              icon: Icons.add,
+                              onTap: () {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation.addPostRoute,
+                                );
+                              },
+                            ),
+                            Container(
+                              alignment: Alignment.center,
+                              child: Card(
+                                color: HexColor("FFFFFF").withOpacity(0.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: ListTile(
+                                  onTap: () {
+                                    MainNavigation.navigateToRoute(
+                                      MainNavigation.myTrucksListRoute,
+                                    );
+                                  },
+                                  leading: Icon(
+                                    Icons.camera_alt_outlined,
+                                    color: AppColors.iconColor,
+                                  ),
+                                  title: Text(
+                                    "Your Posts",
+                                    style: GoogleFonts.actor(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.darkTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else if (accountType ==
+                          AccountType
+                              .transportServiceProvider) // FIXED: Direct comparison
+                        Column(
+                          children: [
+                            ProfileTransparentButton(
+                              buttonDescription: "Post Vehicle",
+                              icon: Icons.add,
+                              onTap: () {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation.postTruckRoute,
+                                );
+                              },
+                            ),
+                            ProfileTransparentButton(
+                              buttonDescription: "My Posted Vehicles",
+                              icon: Icons.list,
+                              onTap: () {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation.myTrucksListRoute,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                      // FIXED: Simplified the condition
+                      if (accountType == AccountType.none)
+                        Container(
+                          alignment: Alignment.center,
+                          child: Card(
+                            color: HexColor("FFFFFF").withOpacity(0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: ListTile(
+                              onTap: () {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation.upgradeProfileRoute,
+                                );
+                              },
+                              leading: Icon(
+                                Icons.camera_alt_outlined,
+                                color: AppColors.iconColor,
+                              ),
+                              title: Text(
+                                "Upgrade Profile",
+                                style: GoogleFonts.actor(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.darkTextColor,
+                                ),
+                              ),
+                            ),
                           ),
-                          Text("Ramon Hard", style: style),
-                          Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text("Phone Number", style: style),
+                        ),
+
+                      // Common widgets for all account types
+                      Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          Text("070 578 2809", style: style),
-                          Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text("Gender", style: style),
+                          child: ListTile(
+                            onTap: () {
+                              MainNavigation.navigateToRoute(
+                                MainNavigation.requestsRoute,
+                              );
+                            },
+                            leading: Icon(
+                              Icons.camera_alt_outlined,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "Requests",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
                           ),
-                          Text("Male", style: style),
-                        ],
+                        ),
+                      ),
+
+                      Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              MainNavigation.navigateToRoute(
+                                MainNavigation.mainFavouriteDisplayRoute,
+                              );
+                            },
+                            leading: Icon(
+                              Icons.favorite,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "View Favourites",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       Container(
                         alignment: Alignment.center,
@@ -129,112 +326,7 @@ class ClientProfile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Container(
-                        alignment: Alignment.center,
-                        child: Card(
-                          color: HexColor("FFFFFF").withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.requestsRoute,
-                              );
-                            },
-                            leading: Icon(
-                              Icons.camera_alt_outlined,
-                              color: AppColors.iconColor,
-                            ),
-                            title: Text(
-                              "Requests",
-                              style: GoogleFonts.actor(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.darkTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        alignment: Alignment.center,
-                        child: Card(
-                          color: HexColor("FFFFFF").withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.postViewRoute,
-                              );
-                            },
-                            leading: Icon(
-                              Icons.camera_alt_outlined,
-                              color: AppColors.iconColor,
-                            ),
-                            title: Text(
-                              "Your Posts",
-                              style: GoogleFonts.actor(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.darkTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      ProfileTransparentButton(
-                        buttonDescription: "Add Post",
-                        icon: Icons.add,
-                        onTap: () {
-                          MainNavigation.navigateToRoute(
-                            MainNavigation.addPostRoute,
-                          );
-                        },
-                      ),
-                      SizedBox(height: screenSize / 20),
-                      ProfileTransparentButton(
-                        buttonDescription: "Post Vehicle",
-                        icon: Icons.add,
-                        onTap: () {
-                          MainNavigation.navigateToRoute(
-                            MainNavigation.postTruckRoute,
-                          );
-                        },
-                      ),
-                      SizedBox(height: screenSize / 20),
-                      Container(
-                        alignment: Alignment.center,
-                        child: Card(
-                          color: HexColor("FFFFFF").withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.mainFavouriteDisplayRoute,
-                              );
-                            },
-                            leading: Icon(
-                              Icons.favorite,
-                              color: AppColors.iconColor,
-                            ),
-                            title: Text(
-                              "View Favourites",
-                              style: GoogleFonts.actor(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.darkTextColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
 
-                      SizedBox(height: screenSize / 20),
                       Container(
                         alignment: Alignment.center,
                         child: Card(
@@ -263,7 +355,6 @@ class ClientProfile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(height: screenSize / 20),
                       Container(
                         alignment: Alignment.center,
                         child: Card(
@@ -273,13 +364,7 @@ class ClientProfile extends StatelessWidget {
                           ),
                           child: ListTile(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (BuildContext context) => LoginPage(),
-                                ),
-                              );
+                              _showLogoutConfirmationDialog(context);
                             },
                             leading: Icon(
                               Icons.logout_outlined,
@@ -304,6 +389,54 @@ class ClientProfile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.logout, color: Colors.deepOrange),
+              const SizedBox(width: 8),
+              const Text('Confirm Logout'),
+            ],
+          ),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _performLogout(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _performLogout(BuildContext context) {
+    // Clear any user data or state if needed
+    // ref.read(userProfileProvider.notifier).reset();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (BuildContext context) => LoginPage()),
+      (route) => false,
     );
   }
 }

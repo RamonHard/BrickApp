@@ -1,94 +1,68 @@
-import 'package:brickapp/models/s_provider_model.dart.dart';
-import 'package:brickapp/models/user_model.dart';
+// providers/truck_provider.dart
+import 'package:brickapp/models/truck_driver_model.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-final userProvider = StateProvider<UserModel?>((ref) {
-  return null;
+// Mock current user ID (in real app, get from authentication)
+final currentUserIdProvider = StateProvider<String>((ref) => 'user_123');
+
+class TruckNotifier extends StateNotifier<List<Truck>> {
+  TruckNotifier() : super([]);
+
+  void addTruck(Truck truck) {
+    state = [...state, truck];
+  }
+
+  void removeTruck(String truckId) {
+    state = state.where((truck) => truck.id != truckId).toList();
+  }
+
+  void updateTruck(String truckId, Truck updatedTruck) {
+    state =
+        state
+            .map((truck) => truck.id == truckId ? updatedTruck : truck)
+            .toList();
+  }
+
+  void toggleAvailability(String truckId) {
+    state =
+        state.map((truck) {
+          if (truck.id == truckId) {
+            return truck.copyWith(isAvailable: !truck.isAvailable);
+          }
+          return truck;
+        }).toList();
+  }
+
+  // Get all available trucks for clients
+  List<Truck> getAvailableTrucks() {
+    return state.where((truck) => truck.isAvailable).toList();
+  }
+
+  // Get trucks posted by current user
+  List<Truck> getMyTrucks(String ownerId) {
+    return state.where((truck) => truck.ownerId == ownerId).toList();
+  }
+
+  List<Truck> getTrucksByType(String vehicleType) {
+    return state
+        .where((truck) => truck.vehicleType == vehicleType && truck.isAvailable)
+        .toList();
+  }
+}
+
+final truckProvider = StateNotifierProvider<TruckNotifier, List<Truck>>((ref) {
+  return TruckNotifier();
 });
 
-final truckProviderr = Provider((ref) {
-  return [
-    SProviderDriverModel(
-      name: 'Ramon HL',
-      email: 'ramon@gmail.com',
-      phone: '074085674',
-      location: "Luzira",
-      startingPrice: 2000000,
-      starRating: 6,
-      trips: 120,
-      truckType: 'Large',
-      profileImg:
-          'https://www.trucknews.com/wp-content/uploads/2020/11/iStock-170169493.jpg',
-      truckImg:
-          'https://media.wired.com/photos/590951f9d8c8646f38eef333/16:9/w_929,h_523,c_limit/walmart-advanced-vehicle-experience-wave-concept-truck.jpg',
-    ),
-    SProviderDriverModel(
-      name: 'Recado Glimps',
-      email: 'glimps@gmail.com',
-      phone: '074085674',
-      location: "Kitintale",
-      startingPrice: 300000,
-      starRating: 4,
-      trips: 100,
-      truckType: 'Large',
-      profileImg:
-          'https://media.istockphoto.com/id/170042558/photo/female-truck-driver-by-big-rig-with-digital-tablet.jpg?s=612x612&w=0&k=20&c=N0He6aw2ZxVnYXdPZZgwOstyNcsQYVF22gcCem7t9L4=',
-      truckImg:
-          'https://udtrucks.com.au/sites/default/files/styles/truck_specification_images_main/public/2022-12/Quester-CKE_512x446_2.jpg',
-    ),
-    SProviderDriverModel(
-      name: 'Tresure Bondy',
-      email: 'tresure@gmail.com',
-      phone: '074085674',
-      location: "Kasokoso",
-      startingPrice: 500000,
-      starRating: 5,
-      trips: 50,
-      truckType: 'Large',
-      profileImg: 'https://i.insider.com/5eb4902c204ad3265a422ac7?width=700',
-      truckImg:
-          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3Pa8vRIly1RjGD57f9MH2TfAufAH14r9ppQ&usqp=CAU',
-    ),
-    SProviderDriverModel(
-      name: 'Andrea Enidy',
-      email: 'andrea@gmail.com',
-      phone: '074085674',
-      location: "Entebbe",
-      startingPrice: 100000,
-      starRating: 2,
-      trips: 120,
-      profileImg:
-          'https://assets.website-files.com/5f70f0246e0318453837c2b9/645e490635327ca9b661bb47_becoming%20a%20truck%20driver.webp',
-      truckImg:
-          'https://www.hilldrup.com/wp-content/uploads/2018/01/truck-6.jpg',
-    ),
-    SProviderDriverModel(
-      name: 'Kazibwe Apuli',
-      email: 'apuli@gmail.com',
-      phone: '074085674',
-      location: "Kawempe",
-      startingPrice: 300000,
-      starRating: 1,
-      trips: 60,
-      truckType: 'Medium',
-      profileImg:
-          'https://www.trucknews.com/wp-content/uploads/2022/08/Happy-truck-driver.jpg',
-      truckImg:
-          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7VZAi1ikg_m96LDric7X_lI6MVMDC_ZmKIWy9V3PzbcR0rPRNzFOG0yF6EzhAzv7uwUU&usqp=CAU',
-    ),
-    SProviderDriverModel(
-      name: 'Robert Kiyosaki',
-      email: 'kiyosaki@gmail.com',
-      phone: '074085674',
-      location: "Matuga",
-      startingPrice: 100000,
-      starRating: 9,
-      trips: 120,
-      truckType: 'Small',
-      profileImg:
-          'https://www.trucknews.com/wp-content/uploads/2022/08/Happy-truck-driver.jpg',
-      truckImg:
-          'https://5.imimg.com/data5/GN/JB/PU/SELLER-34722340/tempo-transportation-service-500x500.jpg',
-    ),
-  ];
+// Provider for available trucks (client view)
+final availableTrucksProvider = Provider<List<Truck>>((ref) {
+  final trucks = ref.watch(truckProvider);
+  return trucks.where((truck) => truck.isAvailable).toList();
+});
+
+// Provider for my trucks (truck driver view)
+final myTrucksProvider = Provider<List<Truck>>((ref) {
+  final trucks = ref.watch(truckProvider);
+  final currentUserId = ref.watch(currentUserIdProvider);
+  return trucks.where((truck) => truck.ownerId == currentUserId).toList();
 });

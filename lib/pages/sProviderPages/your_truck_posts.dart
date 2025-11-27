@@ -1,22 +1,24 @@
-// pages/client_trucks_list_page.dart
+// pages/my_trucks_list_page.dart
 import 'package:brickapp/models/truck_driver_model.dart';
+import 'package:brickapp/pages/sProviderPages/edit_posted_truck.dart';
+import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/providers/truck_driver_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AvailableTrucksScreen extends ConsumerWidget {
-  const AvailableTrucksScreen({Key? key}) : super(key: key);
+class MyTrucksListPage extends ConsumerWidget {
+  const MyTrucksListPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final availableTrucks = ref.watch(availableTrucksProvider);
+    final myTrucks = ref.watch(myTrucksProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Available Trucks',
+          'My Trucks',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -24,6 +26,17 @@ class AvailableTrucksScreen extends ConsumerWidget {
         ),
         backgroundColor: AppColors.iconColor,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PostTruckPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -37,14 +50,14 @@ class AvailableTrucksScreen extends ConsumerWidget {
           ),
         ),
         child:
-            availableTrucks.isEmpty
-                ? _buildEmptyState()
-                : _buildTrucksList(availableTrucks),
+            myTrucks.isEmpty
+                ? _buildEmptyState(context)
+                : _buildMyTrucksList(myTrucks, ref),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -52,7 +65,7 @@ class AvailableTrucksScreen extends ConsumerWidget {
           Icon(Icons.local_shipping, size: 80, color: Colors.grey.shade400),
           SizedBox(height: 16),
           Text(
-            'No Trucks Available',
+            'No Trucks Posted',
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -61,43 +74,43 @@ class AvailableTrucksScreen extends ConsumerWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Check back later for available trucks',
+            'Post your first truck to get started',
             style: GoogleFonts.poppins(color: Colors.grey.shade500),
+          ),
+          SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PostTruckPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.iconColor,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text(
+              'Post Your First Truck',
+              style: GoogleFonts.poppins(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTrucksList(List<Truck> trucks) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            '${trucks.length} trucks available for hire',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
-            ),
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.all(16),
-            itemCount: trucks.length,
-            itemBuilder: (context, index) {
-              final truck = trucks[index];
-              return _buildTruckCard(context, truck);
-            },
-          ),
-        ),
-      ],
+  Widget _buildMyTrucksList(List<Truck> trucks, WidgetRef ref) {
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: trucks.length,
+      itemBuilder: (context, index) {
+        final truck = trucks[index];
+        return _buildMyTruckCard(context, truck, ref);
+      },
     );
   }
 
-  Widget _buildTruckCard(BuildContext context, Truck truck) {
+  Widget _buildMyTruckCard(BuildContext context, Truck truck, WidgetRef ref) {
     return Card(
       elevation: 4,
       margin: EdgeInsets.only(bottom: 16),
@@ -155,15 +168,18 @@ class AvailableTrucksScreen extends ConsumerWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color:
+                        truck.isAvailable
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    'Available',
+                    truck.isAvailable ? 'Available' : 'Not Available',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.green,
+                      color: truck.isAvailable ? Colors.green : Colors.orange,
                     ),
                   ),
                 ),
@@ -177,38 +193,59 @@ class AvailableTrucksScreen extends ConsumerWidget {
                 _buildInfoItem(Icons.confirmation_number, truck.licensePlate),
                 SizedBox(width: 16),
                 _buildInfoItem(Icons.scale, '${truck.capacity} Tons'),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
+                SizedBox(width: 16),
                 _buildInfoItem(
                   Icons.attach_money,
                   'UGX ${truck.pricePerKm}/Km',
                 ),
-                SizedBox(width: 16),
-                _buildInfoItem(Icons.phone, truck.phone),
               ],
             ),
             SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  _showContactDialog(context, truck);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.iconColor,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(
-                  'Hire This Truck',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: Icon(Icons.edit, size: 16),
+                    label: Text('Edit'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditTruckPage(truck: truck),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(
+                      truck.isAvailable ? Icons.block : Icons.check_circle,
+                      size: 16,
+                    ),
+                    label: Text(
+                      truck.isAvailable ? 'Make Unavailable' : 'Make Available',
+                    ),
+                    onPressed: () {
+                      ref
+                          .read(truckProvider.notifier)
+                          .toggleAvailability(truck.id);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          truck.isAvailable ? Colors.orange : Colors.green,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red.shade400),
+                  onPressed: () {
+                    _showDeleteDialog(context, truck.id, ref);
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -237,40 +274,24 @@ class AvailableTrucksScreen extends ConsumerWidget {
     );
   }
 
-  void _showContactDialog(BuildContext context, Truck truck) {
+  void _showDeleteDialog(BuildContext context, String truckId, WidgetRef ref) {
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Contact Truck Owner'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Truck: ${truck.truckModel}'),
-                Text('Type: ${truck.vehicleType}'),
-                Text('Capacity: ${truck.capacity} Tons'),
-                Text('Price: UGX ${truck.pricePerKm}/Km'),
-                SizedBox(height: 16),
-                Text(
-                  'Contact Information:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text('Phone: ${truck.phone}'),
-                Text('Email: ${truck.email}'),
-              ],
-            ),
+            title: Text('Delete Truck'),
+            content: Text('Are you sure you want to delete this truck?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
+                child: Text('Cancel'),
               ),
-              ElevatedButton(
+              TextButton(
                 onPressed: () {
-                  // Implement call functionality
+                  ref.read(truckProvider.notifier).removeTruck(truckId);
                   Navigator.pop(context);
                 },
-                child: Text('Call Owner'),
+                child: Text('Delete', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),

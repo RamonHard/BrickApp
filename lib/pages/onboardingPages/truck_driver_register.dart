@@ -7,14 +7,14 @@ import '../../utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
 
-class RegisterAddPost extends StatefulWidget {
-  RegisterAddPost({super.key});
+class RegisterTruckerDriver extends StatefulWidget {
+  RegisterTruckerDriver({super.key});
 
   @override
-  State<RegisterAddPost> createState() => _RegisterAddPostState();
+  State<RegisterTruckerDriver> createState() => _RegisterTruckerDriverState();
 }
 
-class _RegisterAddPostState extends State<RegisterAddPost> {
+class _RegisterTruckerDriverState extends State<RegisterTruckerDriver> {
   TextStyle style = GoogleFonts.actor(
     fontSize: 16,
     color: HexColor("FFFFFF"),

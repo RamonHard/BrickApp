@@ -1,17 +1,20 @@
 import 'dart:io';
+import 'package:brickapp/models/truck_driver_model.dart';
+import 'package:brickapp/providers/truck_driver_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-class PostTruckPage extends StatefulWidget {
+class PostTruckPage extends ConsumerStatefulWidget {
   const PostTruckPage({Key? key}) : super(key: key);
 
   @override
-  State<PostTruckPage> createState() => _PostTruckPageState();
+  ConsumerState<PostTruckPage> createState() => _PostTruckPageState();
 }
 
-class _PostTruckPageState extends State<PostTruckPage> {
+class _PostTruckPageState extends ConsumerState<PostTruckPage> {
   final _formKey = GlobalKey<FormState>();
 
   final List<String> vehicleTypes = [
@@ -68,26 +71,30 @@ class _PostTruckPageState extends State<PostTruckPage> {
     });
   }
 
+  // Update the _submitForm method in PostTruckPage
   void _submitForm() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && selectedVehicleType != null) {
       final fullPhone = '$selectedCountryCode${phoneController.text}';
+      final currentUserId = ref.read(currentUserIdProvider);
 
-      // Collect all form data
-      final formData = {
-        'truckModel': truckModelController.text,
-        'licensePlate': licensePlateController.text,
-        'vehicleType': selectedVehicleType,
-        'capacity': capacityController.text,
-        'pricePerKm':
-            selectedVehicleType != null
-                ? vehiclePricing[selectedVehicleType]
-                : null,
-        'phone': fullPhone,
-        'email': emailController.text,
-        'photo': truckPhoto != null ? 'Uploaded' : 'Not provided',
-      };
+      // Create a new truck instance
+      final newTruck = Truck(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        truckModel: truckModelController.text,
+        licensePlate: licensePlateController.text,
+        vehicleType: selectedVehicleType!,
+        capacity: capacityController.text,
+        pricePerKm: vehiclePricing[selectedVehicleType]!,
+        phone: fullPhone,
+        email: emailController.text,
+        photo: truckPhoto,
+        createdAt: DateTime.now(),
+        ownerId: currentUserId, // Set the owner ID
+        isAvailable: true,
+      );
 
-      print('Form submitted: $formData');
+      // Add to Riverpod state
+      ref.read(truckProvider.notifier).addTruck(newTruck);
 
       // Show success dialog
       _showSuccessDialog();
@@ -111,8 +118,9 @@ class _PostTruckPageState extends State<PostTruckPage> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Optionally clear form or navigate back
                 _clearForm();
+                // Optionally navigate to trucks list
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => TrucksListPage()));
               },
               child: Text('OK'),
             ),

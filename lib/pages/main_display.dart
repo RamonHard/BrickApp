@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '/utils/app_colors.dart';
-import '/utils/account_type.dart' as account_type;
 
 class MainDisplay extends HookConsumerWidget {
   final bool? isClient;
@@ -14,7 +13,6 @@ class MainDisplay extends HookConsumerWidget {
   MainDisplay({super.key, this.isClient});
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = useState(0);
-    final user = ref.watch(userProvider.notifier).state;
 
     print("QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ  $isClient");
 
@@ -153,7 +151,7 @@ class LandAndTruckNavBar extends StatelessWidget {
     }
 
     if (index == 1) {
-      MainNavigation.navigateToRoute(MainNavigation.postViewRoute);
+      MainNavigation.navigateToRoute(MainNavigation.myTrucksListRoute);
     }
 
     if (index == 2) {
