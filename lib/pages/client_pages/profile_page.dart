@@ -1,9 +1,10 @@
 import 'dart:ui';
 import 'package:brickapp/custom_widgets/custom_expansion_list.dart';
 import 'package:brickapp/custom_widgets/profile_transparent_widget.dart';
+import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
-import 'package:brickapp/providers/user_account_info.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/account_type.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
@@ -26,7 +27,7 @@ class ClientProfile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userState = ref.watch(userProfileProvider);
+    final userState = ref.watch(userProvider);
     final accountType = ref.watch(
       accountTypeProvider,
     ); // FIXED: Use watch instead of read
@@ -72,7 +73,7 @@ class ClientProfile extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        userState.userName,
+                        userState.fullName ?? '',
                         style: GoogleFonts.actor(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -81,7 +82,7 @@ class ClientProfile extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        userState.phoneNumber,
+                        userState.phoneNumber ?? '',
                         style: GoogleFonts.actor(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -103,17 +104,17 @@ class ClientProfile extends ConsumerWidget {
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Name", style: style),
                                 ),
-                                Text(userState.fullName, style: style),
+                                Text(userState.fullName ?? '', style: style),
                                 Padding(
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Phone Number", style: style),
                                 ),
-                                Text(userState.phoneNumber, style: style),
+                                Text(userState.phoneNumber ?? '', style: style),
                                 Padding(
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Gender", style: style),
                                 ),
-                                Text(userState.gender, style: style),
+                                Text(userState.gender ?? '', style: style),
                               ],
                             ),
                             Container(
@@ -188,6 +189,27 @@ class ClientProfile extends ConsumerWidget {
                               .transportServiceProvider) // FIXED: Direct comparison
                         Column(
                           children: [
+                            ExpansionTileWidget(
+                              icon: Icons.document_scanner,
+                              text: "User ID Info",
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Name", style: style),
+                                ),
+                                Text(userState.fullName ?? '', style: style),
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Phone Number", style: style),
+                                ),
+                                Text(userState.phoneNumber ?? '', style: style),
+                                Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text("Gender", style: style),
+                                ),
+                                Text(userState.gender ?? '', style: style),
+                              ],
+                            ),
                             ProfileTransparentButton(
                               buttonDescription: "Post Vehicle",
                               icon: Icons.add,
@@ -210,7 +232,7 @@ class ClientProfile extends ConsumerWidget {
                         ),
 
                       // FIXED: Simplified the condition
-                      if (accountType == AccountType.none)
+                      if (accountType == AccountType.regular)
                         Container(
                           alignment: Alignment.center,
                           child: Card(

@@ -648,7 +648,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
       child: Row(
         children: [
           Container(
-            width: 100,
+            width: 130,
             child: DropdownButtonFormField<String>(
               value: '+256',
               items:

@@ -1,24 +1,28 @@
 import 'dart:ui';
+import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/forgot_passward.dart';
 import 'package:brickapp/pages/onboardingPages/sign_up.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_images.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 // import 'package:http/http.dart' as http;
 import '../../custom_widgets/input_field.dart';
+import '../../providers/account_type_provider.dart';
 import '../../utils/app_colors.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   LoginPage({Key? key}) : super(key: key);
   // TabController? tabController;
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final TextStyle style = GoogleFonts.actor(
     fontSize: 30,
     fontWeight: FontWeight.w900,
@@ -87,6 +91,13 @@ class _LoginPageState extends State<LoginPage> {
                       minWidth: 150,
                       height: 45,
                       onPressed: () {
+                        // Store basic user data when logging in
+                        ref.read(userProvider.notifier).setUserData({
+                          'email': emailController.text.trim(),
+                          'accountType':
+                              AccountType.regular, // Default to regular
+                        });
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(

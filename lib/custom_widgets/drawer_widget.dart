@@ -45,10 +45,10 @@ class DrawerWidget extends StatelessWidget {
           ),
           ListTile(
             onTap: () {
-              Navigator.pop(context);
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => RegisterAddPost()),
-              );
+              // Navigator.pop(context);
+              // Navigator.of(context).push(
+              //   MaterialPageRoute(builder: (context) => RegisterAddPost()),
+              // );
             },
             leading: Icon(Icons.post_add, color: AppColors.iconColor),
             title: Text('Post', style: style),

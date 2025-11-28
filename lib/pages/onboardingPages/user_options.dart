@@ -58,9 +58,7 @@ class UserOnboardOptions extends ConsumerWidget {
                 InkWell(
                   onTap: () {
                     // Set account type and navigate
-                    ref
-                        .read(accountTypeProvider.notifier)
-                        .setAccountType(AccountType.transportServiceProvider);
+
                     MainNavigation.navigateToRoute(
                       MainNavigation.register_truckerDriverRoute,
                     );
@@ -98,9 +96,7 @@ class UserOnboardOptions extends ConsumerWidget {
                 InkWell(
                   onTap: () {
                     // Set account type and navigate
-                    ref
-                        .read(accountTypeProvider.notifier)
-                        .setAccountType(AccountType.propertyOwner);
+
                     MainNavigation.navigateToRoute(
                       MainNavigation.register_addpostRoute,
                     );

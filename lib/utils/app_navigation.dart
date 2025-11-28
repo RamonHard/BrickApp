@@ -141,7 +141,9 @@ class MainNavigation {
       return MaterialPageRoute(builder: (context) => PManagerSettings());
     }
     if (settings.name == register_addpostRoute) {
-      return MaterialPageRoute(builder: (context) => RegisterAddPost());
+      return MaterialPageRoute(
+        builder: (context) => PropertyManagerRegistration(),
+      );
     }
     if (settings.name == register_truckerDriverRoute) {
       return MaterialPageRoute(builder: (context) => RegisterTruckerDriver());
