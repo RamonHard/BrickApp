@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
+import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
@@ -12,7 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
 
 class AddPost extends ConsumerStatefulWidget {
   const AddPost({super.key});
@@ -40,6 +41,9 @@ class _AddPostState extends ConsumerState<AddPost> {
   int? discount;
   int? commission;
   XFile? _thumbnailPhoto;
+
+  // Add this for rules and regulations document
+  XFile? _rulesDocument;
 
   final currencyFormatter = NumberFormat("#,##0", "en_US");
 
@@ -354,6 +358,11 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildDescriptionField(),
               const SizedBox(height: 20),
 
+              // Add Rules & Regulations Document Section
+              _buildSectionTitle('Rules & Regulations (Optional)'),
+              _buildRulesDocumentSection(),
+              const SizedBox(height: 20),
+
               _buildSectionTitle('Add Photos'),
               _buildPhotosSection(),
               const SizedBox(height: 20),
@@ -367,6 +376,131 @@ class _AddPostState extends ConsumerState<AddPost> {
         ),
       ),
     );
+  }
+
+  // Add this new method for rules document upload
+  Widget _buildRulesDocumentSection() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _rulesDocument != null
+                    ? Icons.picture_as_pdf
+                    : Icons.upload_file,
+              ),
+            ),
+            title: Text(
+              _rulesDocument != null
+                  ? _rulesDocument!.name
+                  : 'Upload Rules & Regulations',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text(
+              _rulesDocument != null
+                  ? 'Tap to replace'
+                  : 'PDF, DOC, or TXT (Max 10MB)',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_rulesDocument != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        _rulesDocument = null;
+                      });
+                    },
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.cloud_upload, color: Colors.blue),
+                  onPressed: _pickRulesDocument,
+                ),
+              ],
+            ),
+          ),
+          if (_rulesDocument != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+              child: LinearProgressIndicator(
+                value: 1.0, // Show 100% when uploaded
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+            ),
+          if (_rulesDocument != null)
+            TextButton.icon(
+              icon: const Icon(Icons.visibility),
+              label: const Text("Preview Document"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => DocumentPreviewScreen(
+                          filePath: _rulesDocument!.path,
+                          title: "Preview Document",
+                        ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Add method to pick document
+  Future<void> _pickRulesDocument() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+
+        // File size check (10MB)
+        final size = await file.length();
+        if (size > 10 * 1024 * 1024) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File must be less than 10MB')),
+          );
+          return;
+        }
+
+        setState(() {
+          _rulesDocument = XFile(file.path); // keep your existing model
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${result.files.single.name} uploaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
+    }
   }
 
   // Add house type dropdown
@@ -542,9 +676,9 @@ class _AddPostState extends ConsumerState<AddPost> {
     );
   }
 
-  // Updated _updatePostData method
+  // Updated _updatePostData method with rules document
   void _updatePostData() {
-    // Create PropertyModel with ALL fields
+    // Create PropertyModel with ALL fields including rules document
     final newProperty = PropertyModel(
       id: DateTime.now().millisecondsSinceEpoch,
       propertyType: _propertyType,
@@ -573,6 +707,7 @@ class _AddPostState extends ConsumerState<AddPost> {
       productIMG: _selectedPhotos.isNotEmpty ? _selectedPhotos.first.path : "",
       photoPaths: _selectedPhotos.map((x) => x.path).toList(),
       videoPath: _selectedVideo?.path,
+      rulesDocumentPath: _rulesDocument?.path, // Add rules document
       starRating: 0.0,
       reviews: 0,
       uploaderName: "Current User", // You should get this from user auth
@@ -604,6 +739,7 @@ class _AddPostState extends ConsumerState<AddPost> {
             saleConditions: salesCondition,
             discount: discount,
             videoPath: _selectedVideo?.path,
+            rulesDocumentPath: _rulesDocument?.path, // Add to PostData as well
             commission: commission,
             currency: _currency,
             bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
@@ -627,9 +763,14 @@ class _AddPostState extends ConsumerState<AddPost> {
         );
 
     // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Property added successfully!")),
-    );
+    String successMessage = "Property added successfully!";
+    if (_rulesDocument != null) {
+      successMessage += " Rules document uploaded.";
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(successMessage)));
 
     Navigator.pop(context);
   }

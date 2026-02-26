@@ -57,6 +57,9 @@ dependencies:
   cached_network_image: ^3.4.1
   chewie: ^1.13.0
   syncfusion_flutter_charts: ^30.2.6+1
+  file_picker: ^10.3.10
+  flutter_pdfview: ^1.4.4
+  open_filex: ^4.7.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

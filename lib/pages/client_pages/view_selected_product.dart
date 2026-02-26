@@ -7,6 +7,7 @@ import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/full_screen_view.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart'
     hide FullScreenGallery;
+import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
 import 'package:brickapp/providers/product_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
@@ -519,7 +520,31 @@ class ViewSelectedProduct extends ConsumerWidget {
               padding: const EdgeInsets.all(16.0),
               child: Text(selectedProduct.description),
             ),
-
+            if (selectedProduct.rulesDocumentPath != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: AppColors.orangeTextColor),
+                  ),
+                  leading: const Icon(Icons.description),
+                  title: const Text("View Rules Document"),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => DocumentPreviewScreen(
+                              filePath: selectedProduct.rulesDocumentPath!,
+                              title: "Rules & Regulations",
+                            ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             Row(
               children: [
                 Expanded(

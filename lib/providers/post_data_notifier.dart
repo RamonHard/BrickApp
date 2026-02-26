@@ -27,6 +27,7 @@ class PostDataNotifier extends StateNotifier<PostData> {
           isPetFriendly: false,
           description: '',
           photoPaths: [],
+          rulesDocumentPath: null,
         ),
       );
 

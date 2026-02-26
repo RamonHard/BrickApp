@@ -19,6 +19,7 @@ import 'package:brickapp/pages/onboardingPages/truck_driver_register.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/pages/pManagerPages/add_post.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
+import 'package:brickapp/pages/pManagerPages/my_posts.dart';
 import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/pages/pManagerPages/price_demo.dart';
@@ -69,6 +70,7 @@ class MainNavigation {
   static String clientHomePageRoute = "/clientHomePageRoute";
   static String transporterRoute = "/transporterRoute";
   static String myTrucksListRoute = "/myTrucksListRoute";
+  static String myPropertyPosts = "/myPropertyPosts";
   static String landAndTruckProfileRoute = "/landAndTruckProfileRoute";
   static String addPostRoute = "/addPostRoute";
   static String postTruckRoute = "/postTruckRoute";
@@ -125,6 +127,9 @@ class MainNavigation {
     if (settings.name == myTrucksListRoute) {
       return MaterialPageRoute(builder: (context) => MyTrucksListPage());
     }
+    if (settings.name == myPropertyPosts) {
+      return MaterialPageRoute(builder: (context) => MyPostsPage());
+    }
     if (settings.name == addPostRoute) {
       return MaterialPageRoute(builder: (context) => AddPost());
     }
@@ -161,9 +166,8 @@ class MainNavigation {
     if (settings.name == editPostPae) {
       return MaterialPageRoute(
         builder:
-            (context) => EditPostPage(
-              editPostModel: settings.arguments as PropertyModel,
-            ),
+            (context) =>
+                EditPost(property: settings.arguments as PropertyModel),
       );
     }
     if (settings.name == bookingPageForMoreRoute) {

@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 class PropertyModel {
   // Core property details
   final int id;
@@ -9,6 +11,7 @@ class PropertyModel {
   final double? commission;
   final String currency;
   final String thumbnail;
+  final String? rulesDocumentPath;
   String? videoPath;
   // Structure
   final int bedrooms;
@@ -92,6 +95,7 @@ class PropertyModel {
     required this.uploaderName,
     required this.uploaderEmail,
     required this.uploaderIMG,
+    this.rulesDocumentPath,
     required this.uploaderPhoneNumber,
     this.destinationTitle,
     this.package, // optional package
@@ -140,6 +144,7 @@ class PropertyModel {
     String? destinationTitle,
     String? package, // added package
     DateTime? dateCreated, // added dateCreated
+    String? rulesDocumentPath,
   }) {
     return PropertyModel(
       id: id ?? this.id,
@@ -172,6 +177,7 @@ class PropertyModel {
       productIMG: productIMG ?? this.productIMG,
       photoPaths: photoPaths ?? this.photoPaths,
       videoPath: videoPath ?? this.videoPath,
+      rulesDocumentPath: rulesDocumentPath ?? this.rulesDocumentPath,
       insideViews: insideViews ?? this.insideViews,
       starRating: starRating ?? this.starRating,
       reviews: reviews ?? this.reviews,

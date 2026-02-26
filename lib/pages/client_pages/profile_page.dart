@@ -164,7 +164,7 @@ class ClientProfile extends ConsumerWidget {
                                 child: ListTile(
                                   onTap: () {
                                     MainNavigation.navigateToRoute(
-                                      MainNavigation.myTrucksListRoute,
+                                      MainNavigation.myPropertyPosts,
                                     );
                                   },
                                   leading: Icon(

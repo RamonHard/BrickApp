@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart' show XFile;
+
 class PostData {
   final String propertyType;
   final String location;
@@ -22,6 +24,7 @@ class PostData {
   final bool hasInternet;
   final bool hasSecurity;
   final bool isPetFriendly;
+  final String? rulesDocumentPath;
   final String description;
   final List<String> photoPaths;
 
@@ -50,6 +53,7 @@ class PostData {
     required this.hasSecurity,
     required this.isPetFriendly,
     required this.description,
+    required this.rulesDocumentPath,
     required this.photoPaths,
   });
 
@@ -101,6 +105,7 @@ class PostData {
       hasParking: hasParking ?? this.hasParking,
       isFurnished: isFurnished ?? this.isFurnished,
       hasAC: hasAC ?? this.hasAC,
+      rulesDocumentPath: rulesDocumentPath ?? this.rulesDocumentPath,
       hasInternet: hasInternet ?? this.hasInternet,
       hasSecurity: hasSecurity ?? this.hasSecurity,
       isPetFriendly: isPetFriendly ?? this.isPetFriendly,
