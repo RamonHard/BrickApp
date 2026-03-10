@@ -697,8 +697,9 @@ class _EditPostState extends ConsumerState<EditPost> {
       package: selectedPackage,
       dateCreated: widget.property.dateCreated,
       rulesDocumentPath:
-          _rulesDocument?.path ??
-          widget.property.rulesDocumentPath, // Keep original creation date
+          _rulesDocument?.path ?? widget.property.rulesDocumentPath,
+      numberOfMonths: '',
+      isLand: false, // Keep original creation date
       // dateUpdated: DateTime.now(), // Add update timestamp
     );
 
@@ -741,6 +742,7 @@ class _EditPostState extends ConsumerState<EditPost> {
             description: _descriptionController.text,
             photoPaths: allPhotoPaths,
             rulesDocumentPath: _rulesDocument?.path,
+            isLand: false,
           ),
         );
 
@@ -1945,21 +1947,23 @@ class _EditPostState extends ConsumerState<EditPost> {
       });
     }
   }
-Future<void> _pickNewDocument(BuildContext context) async {
-  try {
-    final picker = ImagePicker();
 
-    final XFile? file = await picker.pickMedia(); // supports pdf, doc, image
+  Future<void> _pickNewDocument(BuildContext context) async {
+    try {
+      final picker = ImagePicker();
 
-    if (file != null) {
-      setState(() {
-        _rulesDocument = file;
-      });
+      final XFile? file = await picker.pickMedia(); // supports pdf, doc, image
+
+      if (file != null) {
+        setState(() {
+          _rulesDocument = file;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking document: $e");
     }
-  } catch (e) {
-    debugPrint("Error picking document: $e");
   }
-}
+
   Future<void> _pickVideo() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickVideo(

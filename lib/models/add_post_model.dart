@@ -4,6 +4,9 @@ class PostData {
   final String propertyType;
   final String location;
   final String? videoPath;
+  final Object? numberOfMonths;
+  final bool isLand;
+  final double? landPercentage;
   final int? price;
   final int? salePrice;
   final String? saleConditions;
@@ -36,6 +39,9 @@ class PostData {
     this.saleConditions,
     this.discount,
     this.commission,
+    required this.isLand,
+    this.landPercentage,
+    this.numberOfMonths,
     required this.currency,
     required this.bedrooms,
     required this.baths,
@@ -67,6 +73,9 @@ class PostData {
     int? commission,
     String? currency,
     int? bedrooms,
+    bool? isLand,
+    double? landPercentage,
+    Object? numberOfMonths,
     int? baths,
     int? sqft,
     int? units,
@@ -92,6 +101,9 @@ class PostData {
       saleConditions: saleConditions ?? this.saleConditions,
       discount: discount ?? this.discount,
       commission: commission ?? this.commission,
+      isLand: isLand ?? this.isLand,
+      landPercentage: landPercentage ?? this.landPercentage,
+      numberOfMonths: numberOfMonths ?? this.numberOfMonths,
       currency: currency ?? this.currency,
       bedrooms: bedrooms ?? this.bedrooms,
       baths: baths ?? this.baths,

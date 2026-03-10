@@ -96,7 +96,7 @@ class ApartmentBookingPage extends HookConsumerWidget {
                         ),
                       ),
                       Text(
-                        'UGX ${(productModel.price - productModel.discount).toStringAsFixed(0)} /month',
+                        'UGX ${(productModel.price - productModel.discount).toStringAsFixed(0)} | ${productModel.numberOfMonths}month',
                         style: const TextStyle(
                           color: Colors.green,
                           fontSize: 16,
@@ -127,43 +127,61 @@ class ApartmentBookingPage extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Payment Options
+                  // Payment Options - All five options
                   PaymentOption(
-                    title: 'Pay with Airtel',
+                    title: 'Pay with Mobile Money',
                     icon: Icons.phone_android,
                     onSelected: () {
-                      // Handle Airtel payment selection
+                      // Handle Mobile Money payment selection
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+                  PaymentOption(
+                    title: 'Bank Transfer',
+                    icon: Icons.account_balance,
+                    onSelected: () {
+                      // Handle Bank Transfer selection
                     },
                   ),
                   const SizedBox(height: 8),
                   PaymentOption(
-                    title: 'Pay with MTN',
-                    icon: Icons.phone_android,
+                    title: 'Credit Card',
+                    icon: Icons.credit_card,
                     onSelected: () {
-                      // Handle MTN payment selection
+                      // Handle Credit Card selection
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  PaymentOption(
+                    title: 'Visa',
+                    icon: Icons.credit_card,
+                    // Customizing the Visa option with a different color or style
+                    onSelected: () {
+                      // Handle Visa selection
                     },
                   ),
                   const SizedBox(height: 24),
 
                   // Book Now Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        // Handle booking
-                      },
-                      child: const Text(
-                        'Book Now',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ),
+                  // SizedBox(
+                  //   width: double.infinity,
+                  //   child: ElevatedButton(
+                  //     style: ElevatedButton.styleFrom(
+                  //       padding: const EdgeInsets.symmetric(vertical: 16),
+                  //       shape: RoundedRectangleBorder(
+                  //         borderRadius: BorderRadius.circular(8),
+                  //       ),
+                  //     ),
+                  //     onPressed: () {
+                  //       // Handle booking
+                  //     },
+                  //     child: const Text(
+                  //       'Book Now',
+                  //       style: TextStyle(fontSize: 18),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -248,10 +266,20 @@ class PaymentOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Customize icon color for Visa to make it stand out
+    Color iconColor = Colors.grey;
+    if (title == 'Visa') {
+      iconColor = Colors.blue;
+    } else if (title == 'Credit Card') {
+      iconColor = Colors.purple;
+    } else if (title == 'Bank Transfer') {
+      iconColor = Colors.brown;
+    }
+
     return Card(
       elevation: 2,
       child: ListTile(
-        leading: Icon(icon, size: 30),
+        leading: Icon(icon, size: 30, color: iconColor),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         trailing: const Icon(Icons.chevron_right),
         onTap: onSelected,

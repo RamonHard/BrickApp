@@ -144,6 +144,22 @@ class ProductNotifier extends StateNotifier<List<PropertyModel>> {
   void addProduct(PropertyModel product) {
     state = [...state, product];
   }
+
+  // Add this method for updating existing products
+  void updateProduct(PropertyModel updatedProduct) {
+    state =
+        state.map((product) {
+          if (product.id == updatedProduct.id) {
+            return updatedProduct;
+          }
+          return product;
+        }).toList();
+  }
+
+  // Optional: Add a method to remove a product
+  void removeProduct(int id) {
+    state = state.where((product) => product.id != id).toList();
+  }
 }
 
 final productProvider =

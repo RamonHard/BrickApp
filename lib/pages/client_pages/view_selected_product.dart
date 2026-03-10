@@ -150,7 +150,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                   bottom: 10,
                   child: Container(
                     height: 35,
-                    width: 75,
+                    width: 100,
                     alignment: Alignment.center,
                     padding: EdgeInsets.all(8.0),
                     decoration: BoxDecoration(
@@ -162,7 +162,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                       children: [
                         Icon(Icons.house, color: Colors.white),
                         Text(
-                          "${selectedProduct.units}",
+                          "${selectedProduct.units} Units",
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: AppColors.whiteTextColor,
@@ -229,8 +229,17 @@ class ViewSelectedProduct extends ConsumerWidget {
                       ),
                     ),
                   ),
+
                   Column(
                     children: [
+                      Text(
+                        "${selectedProduct.numberOfMonths} Months",
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color.fromARGB(255, 75, 75, 75),
+                        ),
+                      ),
                       Text(
                         "UGX ${selectedProduct.price - selectedProduct.discount}",
                         style: GoogleFonts.poppins(

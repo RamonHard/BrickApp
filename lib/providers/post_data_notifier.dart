@@ -28,6 +28,7 @@ class PostDataNotifier extends StateNotifier<PostData> {
           description: '',
           photoPaths: [],
           rulesDocumentPath: null,
+          isLand: false,
         ),
       );
 

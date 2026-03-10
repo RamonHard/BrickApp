@@ -6,9 +6,12 @@ class PropertyModel {
   final String propertyType;
   final String location;
   final String description;
+  final String numberOfMonths;
   final double price;
+
   final double discount;
   final double? commission;
+  final double? landPercentage;
   final String currency;
   final String thumbnail;
   final String? rulesDocumentPath;
@@ -18,7 +21,8 @@ class PropertyModel {
   final int baths;
   final double? sqft;
   final int units;
-  final bool isActive;
+  final bool isActive; // required dateCreated
+  final bool isLand;
 
   // Status
   final String? pendingReason;
@@ -65,8 +69,10 @@ class PropertyModel {
     required this.description,
     required this.price,
     required this.discount,
+    required this.numberOfMonths,
     required this.thumbnail,
     this.commission,
+    this.landPercentage,
     this.videoPath,
     required this.currency,
     required this.bedrooms,
@@ -74,6 +80,7 @@ class PropertyModel {
     required this.sqft,
     required this.units,
     required this.isActive,
+    required this.isLand,
     this.pendingReason,
     required this.isRent,
     required this.isSale,
@@ -99,8 +106,7 @@ class PropertyModel {
     required this.uploaderPhoneNumber,
     this.destinationTitle,
     this.package, // optional package
-    required this.dateCreated,
-    required, // required dateCreated
+    required this.dateCreated, // required dateCreated
   });
 
   /// CopyWith for updates (like EditPostModel had)
@@ -112,6 +118,7 @@ class PropertyModel {
     double? price,
     double? discount,
     double? commission,
+    double? landPercentage,
     String? currency,
     String? thumbnail,
     String? videoPath,
@@ -122,6 +129,7 @@ class PropertyModel {
     double? sqft,
     int? units,
     bool? isActive,
+    bool? isLand,
     String? pendingReason,
     bool? isRent,
     bool? isSale,
@@ -129,6 +137,7 @@ class PropertyModel {
     bool? isFurnished,
     bool? hasAC,
     bool? hasInternet,
+    String? numberOfMonths,
     bool? hasSecurity,
     bool? isPetFriendly,
     List<String>? amenities,
@@ -151,18 +160,21 @@ class PropertyModel {
       propertyType: propertyType ?? this.propertyType,
       location: location ?? this.location,
       description: description ?? this.description,
+      numberOfMonths: numberOfMonths ?? this.numberOfMonths,
       thumbnail: thumbnail ?? this.thumbnail,
       price: price ?? this.price,
       enteredSalePrice: enteredSalePrice ?? this.enteredSalePrice,
       saleConditions: saleConditions ?? this.saleConditions,
       discount: discount ?? this.discount,
       commission: commission ?? this.commission,
+      landPercentage: landPercentage ?? this.landPercentage,
       currency: currency ?? this.currency,
       bedrooms: bedrooms ?? this.bedrooms,
       baths: baths ?? this.baths,
       sqft: sqft ?? this.sqft,
       units: units ?? this.units,
       isActive: isActive ?? this.isActive,
+      isLand: isLand ?? this.isLand,
       pendingReason: pendingReason ?? this.pendingReason,
       isRent: isRent ?? this.isRent,
       isSale: isSale ?? this.isSale,

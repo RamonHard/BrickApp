@@ -16,7 +16,9 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 
 class AddPost extends ConsumerStatefulWidget {
-  const AddPost({super.key});
+  final PropertyModel? editPostModel; // Add this for editing existing post
+
+  const AddPost({super.key, this.editPostModel});
 
   @override
   ConsumerState<AddPost> createState() => _AddPostState();
@@ -28,16 +30,30 @@ class _AddPostState extends ConsumerState<AddPost> {
     fontWeight: FontWeight.w600,
     color: AppColors.darkTextColor,
   );
+
   String _location = "Kampala, Uganda"; // Default text
   String salesCondition = '';
   bool _isLoadingLocation = false;
   List<XFile> _selectedVideos = [];
   XFile? _selectedVideo;
   bool _isVideo = false;
-  final List<String> packages = ['1 Month', '2 Months', '3 Months'];
+
+  // Updated packages with custom option
+  final List<String> packages = [
+    '1 Month',
+    '2 Months',
+    '3 Months',
+    '6 Months',
+    '1 Year',
+    '2 Years',
+    'Custom Months',
+  ];
+
   String? selectedPackage;
+  int? customMonths; // For custom months input
   int? price;
   int? salePrice;
+  double? landPercentage; // For land percentage
   int? discount;
   int? commission;
   XFile? _thumbnailPhoto;
@@ -47,13 +63,130 @@ class _AddPostState extends ConsumerState<AddPost> {
 
   final currencyFormatter = NumberFormat("#,##0", "en_US");
 
+  // Helper method to get month count from package string
+  int _getMonthCount(String pkg) {
+    switch (pkg) {
+      case '1 Month':
+        return 1;
+      case '2 Months':
+        return 2;
+      case '3 Months':
+        return 3;
+      case '6 Months':
+        return 6;
+      case '1 Year':
+        return 12;
+      case '2 Years':
+        return 24;
+      default:
+        return 1;
+    }
+  }
+
+  // Calculate total price
+  double _calculateTotalPrice() {
+    if (_propertyType == 'Land') {
+      return (landPercentage ?? 0).toDouble();
+    }
+
+    if (!_isRentSelected || price == null) {
+      return 0.0;
+    }
+
+    int numberOfMonths = 0;
+
+    if (selectedPackage == 'Custom Months') {
+      numberOfMonths = customMonths ?? 0;
+    } else {
+      numberOfMonths = _getMonthCount(selectedPackage ?? '');
+    }
+
+    // Calculate total price: monthly price × number of months
+    int total = (price ?? 0) * numberOfMonths;
+
+    // Subtract discount if applicable
+    if (discount != null && discount! > 0) {
+      total -= (discount ?? 0);
+    }
+
+    return total.toDouble();
+  }
+
+  // Initialize data when editing an existing post
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editPostModel != null) {
+      _initializeEditData();
+    }
+  }
+
+  void _initializeEditData() {
+    final post = widget.editPostModel!;
+    setState(() {
+      // Basic info
+      _propertyType = post.propertyType ?? 'House';
+      _houseType = post.propertyType ?? 'Residential';
+      _location = post.location ?? 'Kampala, Uganda';
+      _descriptionController.text = post.description ?? '';
+
+      // Pricing
+      price = post.price?.toInt() ?? 0;
+      salePrice = post.enteredSalePrice?.toInt();
+      discount = post.discount?.toInt();
+      commission = post.commission?.toInt();
+      landPercentage = post.landPercentage;
+      _currency = post.currency ?? 'USD';
+
+      // Package info
+      selectedPackage = post.package;
+      if (post.package?.contains('Custom') ?? false) {
+        final match = RegExp(r'(\d+)').firstMatch(post.package ?? '');
+        customMonths = match != null ? int.parse(match.group(1)!) : 0;
+      }
+
+      // Boolean flags
+      _isRentSelected = post.isRent ?? false;
+      _isSaleSelected = post.isSale ?? false;
+      _isActive = post.isActive ?? true;
+      salesCondition = post.saleConditions ?? '';
+      _pendingReasonController.text = post.pendingReason ?? '';
+
+      // Property details
+      _bedroomsController.text = post.bedrooms?.toString() ?? '';
+      _bathsController.text = post.baths?.toString() ?? '';
+      _sqftController.text = post.sqft?.toString() ?? '';
+      _unitsController.text = post.units?.toString() ?? '';
+
+      // Amenities
+      _hasParking = post.hasParking ?? false;
+      _isFurnished = post.isFurnished ?? false;
+      _hasAC = post.hasAC ?? false;
+      _hasInternet = post.hasInternet ?? false;
+      _hasSecurity = post.hasSecurity ?? false;
+      _hasCompound = post.hasCompound ?? false;
+      _isPetFriendly = post.isPetFriendly ?? false;
+
+      // Photos (can't pre-load XFile from paths)
+      if (post.thumbnail != null && post.thumbnail!.isNotEmpty) {
+        _thumbnailPhoto = XFile(post.thumbnail!);
+      }
+    });
+  }
+
   void showPriceDialog(String pkg) {
     final priceController = TextEditingController(
       text: price?.toString() ?? '600000',
     );
 
+    final customMonthsController = TextEditingController(
+      text: customMonths?.toString() ?? '',
+    );
+
     int dialogDiscount = discount ?? 30000;
     int dialogCommission = commission ?? 18000;
+
+    bool isLandProperty = _propertyType == 'Land';
 
     showDialog(
       context: context,
@@ -65,7 +198,9 @@ class _AddPostState extends ConsumerState<AddPost> {
                   title: Row(
                     children: [
                       Text(
-                        'Set Price',
+                        pkg == 'Custom Months'
+                            ? 'Set Custom Package'
+                            : 'Set Price for $pkg',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -83,58 +218,206 @@ class _AddPostState extends ConsumerState<AddPost> {
                       ),
                     ],
                   ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: priceController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Enter Price',
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Custom months input if Custom is selected
+                        if (pkg == 'Custom Months') ...[
+                          TextField(
+                            controller: customMonthsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Enter Number of Months',
+                              hintText: 'e.g., 9, 15, 24',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // For land, show percentage input instead of price
+                        if (isLandProperty) ...[
+                          TextField(
+                            controller: priceController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Price per Square Meter (%)',
+                              hintText: 'Enter percentage',
+                              suffixText: '%',
+                            ),
+                            onChanged: (value) {
+                              final enteredPercentage =
+                                  int.tryParse(value) ?? 0;
+                              setStateDialog(() {
+                                dialogCommission =
+                                    (enteredPercentage * 0.1)
+                                        .toInt(); // 10% commission of percentage
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Note: For land, this is the percentage of total value',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ] else ...[
+                          TextField(
+                            controller: priceController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText:
+                                  pkg == 'Custom Months'
+                                      ? 'Enter Monthly Price'
+                                      : 'Enter Price',
+                            ),
+                            onChanged: (value) {
+                              final enteredPrice = int.tryParse(value) ?? 0;
+                              setStateDialog(() {
+                                dialogDiscount = (enteredPrice * 0.05).toInt();
+                                dialogCommission =
+                                    (enteredPrice * 0.03).toInt();
+                              });
+                            },
+                          ),
+                        ],
+
+                        const SizedBox(height: 16),
+                        Text(
+                          'Selected Package: ${pkg == 'Custom Months' ? 'Custom' : pkg}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.darkTextColor,
+                          ),
                         ),
-                        onChanged: (value) {
-                          final enteredPrice = int.tryParse(value) ?? 0;
-                          setStateDialog(() {
-                            dialogDiscount = (enteredPrice * 0.05).toInt();
-                            dialogCommission = (enteredPrice * 0.03).toInt();
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Selected Package: $pkg',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Price: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
-                        style: style,
-                      ),
-                      Text(
-                        'Discount: UGX${currencyFormatter.format(dialogDiscount)}',
-                        style: style,
-                      ),
-                      Text(
-                        'Commission: UGX${currencyFormatter.format(dialogCommission)}',
-                        style: style,
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+
+                        if (isLandProperty) ...[
+                          Text(
+                            'Percentage: ${int.tryParse(priceController.text) ?? 0}%',
+                            style: style,
+                          ),
+                        ] else ...[
+                          Text(
+                            '${pkg == 'Custom Months' ? 'Monthly' : ''} Price: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
+                            style: style,
+                          ),
+                        ],
+
+                        if (!isLandProperty) ...[
+                          Text(
+                            'Discount: UGX${currencyFormatter.format(dialogDiscount)}',
+                            style: style,
+                          ),
+                          Text(
+                            'Commission: UGX${currencyFormatter.format(dialogCommission)}',
+                            style: style,
+                          ),
+                        ],
+
+                        if (pkg != 'Custom Months' &&
+                            pkg.contains('Month') &&
+                            !isLandProperty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Total for $pkg: UGX${currencyFormatter.format((int.tryParse(priceController.text) ?? 0) * _getMonthCount(pkg))}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ),
+
+                        if (pkg == 'Custom Months' &&
+                            customMonthsController.text.isNotEmpty &&
+                            !isLandProperty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total Price Breakdown:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[800],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Monthly: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                  Text(
+                                    'Duration: ${customMonthsController.text} months',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                  const Divider(color: Colors.green),
+                                  Text(
+                                    'Total: UGX${currencyFormatter.format((int.tryParse(priceController.text) ?? 0) * (int.tryParse(customMonthsController.text) ?? 1))}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[900],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () {
                         final enteredPrice =
                             int.tryParse(priceController.text) ?? 0;
+                        final enteredCustomMonths =
+                            int.tryParse(customMonthsController.text) ?? 0;
+
                         setState(() {
                           selectedPackage = pkg;
-                          price = enteredPrice;
-                          discount = (enteredPrice * 0.05).toInt();
-                          commission = (enteredPrice * 0.03).toInt();
+
+                          if (isLandProperty) {
+                            // For land, store percentage
+                            landPercentage = enteredPrice.toDouble();
+                            price =
+                                enteredPrice; // Still use price for backward compatibility
+                          } else {
+                            price = enteredPrice;
+                          }
+
+                          if (pkg == 'Custom Months') {
+                            customMonths = enteredCustomMonths;
+                          }
+
+                          if (!isLandProperty) {
+                            discount = (enteredPrice * 0.05).toInt();
+                            commission = (enteredPrice * 0.03).toInt();
+                          } else {
+                            // For land, commission might be percentage of sale price
+                            commission =
+                                (enteredPrice * 0.1)
+                                    .toInt(); // 10% of the percentage
+                          }
                         });
                         Navigator.pop(context);
                       },
@@ -147,6 +430,8 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   Widget buildPackageCard(String pkg) {
+    bool isLandProperty = _propertyType == 'Land';
+
     return GestureDetector(
       onTap: () => showPriceDialog(pkg),
       child: Card(
@@ -166,7 +451,10 @@ class _AddPostState extends ConsumerState<AddPost> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Icon(Icons.key_sharp, color: AppColors.darkBg),
+              Icon(
+                Icons.key_sharp,
+                color: isLandProperty ? Colors.orange : AppColors.darkBg,
+              ),
             ],
           ),
         ),
@@ -174,30 +462,112 @@ class _AddPostState extends ConsumerState<AddPost> {
     );
   }
 
+  // Updated buildSelectedInfo to show custom months and total price
   Widget buildSelectedInfo() {
     if (selectedPackage == null && salePrice == null) return const SizedBox();
+
+    bool isLandProperty = _propertyType == 'Land';
+    double totalPrice = _calculateTotalPrice();
 
     return Card(
       margin: const EdgeInsets.only(top: 16),
       elevation: 20,
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Show rental package info if selected
             if (selectedPackage != null) ...[
-              Text(
-                'Selected Package: $selectedPackage',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Text(
+                    selectedPackage == 'Custom Months'
+                        ? 'Custom Package: ${customMonths ?? 0} Months'
+                        : 'Package: $selectedPackage',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isLandProperty ? Colors.orange[50] : Colors.blue[50],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isLandProperty ? 'Land' : 'Rental',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color:
+                            isLandProperty
+                                ? Colors.orange[700]
+                                : Colors.blue[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
-              Text('Rental Price: UGX${currencyFormatter.format(price ?? 0)}'),
-              Text('Commission: 10%'),
+
+              if (isLandProperty) ...[
+                Text(
+                  'Land Percentage: ${landPercentage ?? 0}%',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  'Commission: $commission% of total value',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ] else ...[
+                Text(
+                  'Monthly Price: UGX${currencyFormatter.format(price ?? 0)}',
+                ),
+                if (customMonths != null && customMonths! > 0)
+                  Text('Duration: $customMonths months'),
+                if (discount != null && discount! > 0)
+                  Text(
+                    'Discount: UGX${currencyFormatter.format(discount ?? 0)}',
+                  ),
+                Text(
+                  'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
+                ),
+
+                // Show total price
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green[100]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calculate, color: Colors.green[700], size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Total Price: UGX${currencyFormatter.format(totalPrice.toInt())}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
 
             // Add divider if both rental and sale are selected
@@ -209,12 +579,36 @@ class _AddPostState extends ConsumerState<AddPost> {
 
             // Show sale info if selected
             if (salePrice != null) ...[
-              Text(
-                'Sale Information',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Text(
+                    'Sale Information',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.green[100]!),
+                    ),
+                    child: const Text(
+                      'For Sale',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
@@ -275,6 +669,7 @@ class _AddPostState extends ConsumerState<AddPost> {
     if (_hasInternet) amenities.add('Internet');
     if (_hasSecurity) amenities.add('Security');
     if (_isPetFriendly) amenities.add('Pet Friendly');
+    if (_hasCompound) amenities.add('Compound');
     return amenities;
   }
 
@@ -285,12 +680,14 @@ class _AddPostState extends ConsumerState<AddPost> {
         _propertyType == 'Apartments' ||
         _propertyType == 'Business Shop';
 
+    bool isLandProperty = _propertyType == 'Land';
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         leading: const BackButton(),
         title: Text(
-          'Post Your Rental',
+          widget.editPostModel != null ? 'Edit Property' : 'Post Your Property',
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -308,29 +705,41 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildPropertyTypeDropdown(),
               const SizedBox(height: 20),
 
-              _buildSectionTitle('Select Property Type'),
-              _buildHouseTypeDropdown(),
-              const SizedBox(height: 20),
+              if (!isLandProperty) ...[
+                _buildSectionTitle('Select Property Type'),
+                _buildHouseTypeDropdown(),
+                const SizedBox(height: 20),
+              ],
 
               _buildSectionTitle('Location'),
               _buildLocationPicker(),
               const SizedBox(height: 20),
+
               _buildSectionTitle("Listing Type"),
               _buildListingTypeButtons(),
               const SizedBox(height: 20),
-              _buildSectionTitle('Set Rental Price Package'),
-              showHouseSections
+
+              _buildSectionTitle(
+                isLandProperty
+                    ? 'Set Land Percentage'
+                    : 'Set Rental Price Package',
+              ),
+              showHouseSections || isLandProperty
                   ? SizedBox(
                     height: 100,
                     child:
-                        _isRentSelected
+                        _isRentSelected || isLandProperty
                             ? ListView(
                               scrollDirection: Axis.horizontal,
                               children: packages.map(buildPackageCard).toList(),
                             )
-                            : Text(
-                              "Select 'Rent' to choose a package",
-                              style: style,
+                            : Center(
+                              child: Text(
+                                isLandProperty
+                                    ? "Select a package for land"
+                                    : "Select 'Rent' to choose a package",
+                                style: style,
+                              ),
                             ),
                   )
                   : _buildPriceField(),
@@ -676,15 +1085,24 @@ class _AddPostState extends ConsumerState<AddPost> {
     );
   }
 
-  // Updated _updatePostData method with rules document
+  // Updated _updatePostData method with rules document and total price
   void _updatePostData() {
+    bool isLandProperty = _propertyType == 'Land';
+    double totalPrice = _calculateTotalPrice();
+
     // Create PropertyModel with ALL fields including rules document
     final newProperty = PropertyModel(
-      id: DateTime.now().millisecondsSinceEpoch,
+      numberOfMonths:
+          selectedPackage == 'Custom Months'
+              ? customMonths?.toString() ?? ''
+              : _getMonthCount(selectedPackage ?? '').toString(),
+      // totalPrice: totalPrice, // Add total price here
+      id: widget.editPostModel?.id ?? DateTime.now().millisecondsSinceEpoch,
       propertyType: _propertyType,
       location: _location,
       description: _descriptionController.text,
       price: (price ?? int.tryParse(_priceController.text) ?? 0).toDouble(),
+      landPercentage: isLandProperty ? (landPercentage ?? 0).toDouble() : null,
       currency: _currency,
       bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
       baths: int.tryParse(_bathsController.text) ?? 0,
@@ -704,28 +1122,57 @@ class _AddPostState extends ConsumerState<AddPost> {
       hasSecurity: _hasSecurity,
       isPetFriendly: _isPetFriendly,
       amenities: _amenities, // Use the computed amenities list
-      productIMG: _selectedPhotos.isNotEmpty ? _selectedPhotos.first.path : "",
-      photoPaths: _selectedPhotos.map((x) => x.path).toList(),
-      videoPath: _selectedVideo?.path,
-      rulesDocumentPath: _rulesDocument?.path, // Add rules document
-      starRating: 0.0,
-      reviews: 0,
-      uploaderName: "Current User", // You should get this from user auth
-      uploaderEmail: "me@example.com", // You should get this from user auth
+      productIMG:
+          _selectedPhotos.isNotEmpty
+              ? _selectedPhotos.first.path
+              : (widget.editPostModel?.productIMG ?? ""),
+      photoPaths:
+          _selectedPhotos.isNotEmpty
+              ? _selectedPhotos.map((x) => x.path).toList()
+              : (widget.editPostModel?.photoPaths ?? []),
+      videoPath: _selectedVideo?.path ?? widget.editPostModel?.videoPath,
+      rulesDocumentPath:
+          _rulesDocument?.path ??
+          widget.editPostModel?.rulesDocumentPath, // Add rules document
+      starRating: widget.editPostModel?.starRating ?? 0.0,
+      reviews: widget.editPostModel?.reviews ?? 0,
+      uploaderName:
+          widget.editPostModel?.uploaderName ??
+          "Current User", // You should get this from user auth
+      uploaderEmail:
+          widget.editPostModel?.uploaderEmail ??
+          "me@example.com", // You should get this from user auth
       uploaderIMG:
+          widget.editPostModel?.uploaderIMG ??
           "https://i.pravatar.cc/150?img=1", // You should get this from user auth
-      uploaderPhoneNumber: 123456789, // You should get this from user auth
-      insideViews: _selectedPhotos.map((x) => x.path).toList(),
-      thumbnail: _thumbnailPhoto?.path ?? "",
+      uploaderPhoneNumber:
+          widget.editPostModel?.uploaderPhoneNumber ??
+          123456789, // You should get this from user auth
+      insideViews:
+          _selectedPhotos.isNotEmpty
+              ? _selectedPhotos.map((x) => x.path).toList()
+              : (widget.editPostModel?.insideViews ?? []),
+      thumbnail: _thumbnailPhoto?.path ?? widget.editPostModel?.thumbnail ?? "",
       discount: (discount ?? 0).toDouble(),
       destinationTitle: _propertyType,
       commission: (commission ?? 0).toDouble(), // Added commission
-      package: selectedPackage, // Added package
-      dateCreated: DateTime.now(), // Added timestamp
+      package:
+          selectedPackage == 'Custom Months'
+              ? 'Custom: $customMonths months'
+              : selectedPackage,
+      dateCreated:
+          widget.editPostModel?.dateCreated ??
+          DateTime.now(), // Added timestamp
+      isLand: isLandProperty,
     );
 
-    // Update Riverpod state
-    ref.read(productProvider.notifier).addProduct(newProperty);
+    if (widget.editPostModel != null) {
+      // Update existing post
+      ref.read(productProvider.notifier).updateProduct(newProperty);
+    } else {
+      // Add new post
+      ref.read(productProvider.notifier).addProduct(newProperty);
+    }
 
     // Also update PostData if needed
     ref
@@ -735,6 +1182,8 @@ class _AddPostState extends ConsumerState<AddPost> {
             propertyType: _propertyType,
             location: _location,
             price: price ?? int.tryParse(_priceController.text),
+            // totalPrice: totalPrice, // Add total price here
+            landPercentage: landPercentage,
             salePrice: salePrice ?? int.tryParse(_salePriceController.text),
             saleConditions: salesCondition,
             discount: discount,
@@ -758,14 +1207,29 @@ class _AddPostState extends ConsumerState<AddPost> {
             isPetFriendly: _isPetFriendly,
             description: _descriptionController.text,
             photoPaths: _selectedPhotos.map((x) => x.path).toList(),
-            // package: selectedPackage, // Added package
+            numberOfMonths:
+                selectedPackage == 'Custom Months'
+                    ? customMonths
+                    : _getMonthCount(selectedPackage ?? ''),
+            isLand: isLandProperty,
           ),
         );
 
     // Show success message
-    String successMessage = "Property added successfully!";
+    String successMessage =
+        widget.editPostModel != null
+            ? "Property updated successfully!"
+            : "Property added successfully!";
+
     if (_rulesDocument != null) {
       successMessage += " Rules document uploaded.";
+    }
+    if (isLandProperty) {
+      successMessage =
+          "Land listed successfully with ${landPercentage ?? 0}% rate!";
+    } else if (totalPrice > 0) {
+      successMessage =
+          "Property listed at UGX${currencyFormatter.format(totalPrice.toInt())} total!";
     }
 
     ScaffoldMessenger.of(
@@ -803,9 +1267,9 @@ class _AddPostState extends ConsumerState<AddPost> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: const Text(
-          'Post Rental',
-          style: TextStyle(
+        child: Text(
+          widget.editPostModel != null ? 'Update Property' : 'Post Property',
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -1361,7 +1825,7 @@ class _AddPostState extends ConsumerState<AddPost> {
                           _location,
                           style: TextStyle(
                             color:
-                                _location == "Kampala"
+                                _location == "Kampala, Uganda"
                                     ? Colors.grey
                                     : Colors.black,
                           ),
@@ -1825,7 +2289,8 @@ class _AddPostState extends ConsumerState<AddPost> {
               color: Colors.white,
             ),
             child:
-                _thumbnailPhoto == null
+                _thumbnailPhoto == null &&
+                        widget.editPostModel?.thumbnail == null
                     ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -1841,12 +2306,26 @@ class _AddPostState extends ConsumerState<AddPost> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(_thumbnailPhoto!.path),
-                            width: double.infinity,
-                            height: 150,
-                            fit: BoxFit.cover,
-                          ),
+                          child:
+                              _thumbnailPhoto != null
+                                  ? Image.file(
+                                    File(_thumbnailPhoto!.path),
+                                    width: double.infinity,
+                                    height: 150,
+                                    fit: BoxFit.cover,
+                                  )
+                                  : Image.network(
+                                    widget.editPostModel!.thumbnail!,
+                                    width: double.infinity,
+                                    height: 150,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: Colors.grey[300],
+                                              child: const Icon(Icons.error),
+                                            ),
+                                  ),
                         ),
                         Positioned(
                           top: 8,
