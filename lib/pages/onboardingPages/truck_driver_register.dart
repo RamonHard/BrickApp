@@ -1,13 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:http/http.dart' as http;
 import '../../utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -351,7 +353,7 @@ class _RegisterTruckerDriverState extends ConsumerState<RegisterTruckerDriver> {
     }
   }
 
-  void _validateAndSubmit() {
+  Future<void> _validateAndSubmit() async {
     if (fullNameController.text.isEmpty ||
         phoneNumController.text.isEmpty ||
         idNINController.text.isEmpty ||
@@ -362,7 +364,7 @@ class _RegisterTruckerDriverState extends ConsumerState<RegisterTruckerDriver> {
         _facePhoto == null ||
         selectedValue == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Please fill all required fields and upload all photos',
           ),
@@ -372,33 +374,77 @@ class _RegisterTruckerDriverState extends ConsumerState<RegisterTruckerDriver> {
       return;
     }
 
-    print('Before updating user provider');
-    print('Current user state: ${ref.read(userProvider).toMap()}');
+    try {
+      // Get token from provider
+      final token = ref.read(userProvider).token;
 
-    // Use the dedicated method
-    ref
-        .read(userProvider.notifier)
-        .setTransportManagerData(
-          fullName: fullNameController.text,
-          phoneNumber: phoneNumController.text,
-          idNumber: idNINController.text,
-          driverPermitNumber: driverPermitController.text,
-          address: addressController.text,
-          gender: selectedValue == 1 ? 'Male' : 'Female',
-          email: emailController.text.isEmpty ? null : emailController.text,
-          idFrontPhoto: _idFrontPhoto!.path,
-          idBackPhoto: _idBackPhoto!.path,
-          facePhoto: _facePhoto!.path,
-          driverPermitPhoto: _driverPermitPhoto!.path,
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to upgrade your account'),
+            backgroundColor: Colors.red,
+          ),
         );
+        return;
+      }
 
-    print('After updating user provider');
-    print('Updated user state: ${ref.read(userProvider).toMap()}');
-    print('Account type: ${ref.read(userProvider).accountType}');
-    ref
-        .read(accountTypeProvider.notifier)
-        .setAccountType(AccountType.transportServiceProvider);
-    showActivationPopup();
+      // Build multipart request
+      var request = http.MultipartRequest('POST', Uri.parse(AppUrls.upgrade));
+
+      // Add auth header
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add text fields
+      request.fields['role'] = 'service_provider';
+      request.fields['fullName'] = fullNameController.text.trim();
+      request.fields['idNumber'] = idNINController.text.trim();
+      request.fields['address'] = addressController.text.trim();
+      request.fields['gender'] = selectedValue == 1 ? 'male' : 'female';
+      if (emailController.text.isNotEmpty) {
+        request.fields['email'] = emailController.text.trim();
+      }
+
+      // Add files
+      request.files.add(
+        await http.MultipartFile.fromPath('id_front', _idFrontPhoto!.path),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath('id_back', _idBackPhoto!.path),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'driver_permit',
+          _driverPermitPhoto!.path,
+        ),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath('face', _facePhoto!.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      print('UPGRADE RESPONSE: $data');
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        // Update role in provider
+        ref.read(userProvider.notifier).updateRole('service_provider');
+        showActivationPopup();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Upgrade failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error during upgrade: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void showActivationPopup() {

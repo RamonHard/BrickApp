@@ -1,104 +1,157 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import '../models/booking_model.dart';
+import '../utils/urls.dart';
 
-// Booking state model
-class BookingState {
+// Transport booking state
+class TransportBookingState {
   final String? pickupLocation;
   final String? dropoffLocation;
-  final String? selectedTruckType;
+  final int? selectedVehicleTypeId;
+  final String? selectedVehicleTypeName;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
+  final double distanceKm;
   final double? estimatedPrice;
   final bool isLoading;
 
-  const BookingState({
+  const TransportBookingState({
     this.pickupLocation,
     this.dropoffLocation,
-    this.selectedTruckType,
+    this.selectedVehicleTypeId,
+    this.selectedVehicleTypeName,
     this.selectedDate,
     this.selectedTime,
+    this.distanceKm = 0,
     this.estimatedPrice,
     this.isLoading = false,
   });
 
-  BookingState copyWith({
+  TransportBookingState copyWith({
     String? pickupLocation,
     String? dropoffLocation,
-    String? selectedTruckType,
+    int? selectedVehicleTypeId,
+    String? selectedVehicleTypeName,
     DateTime? selectedDate,
     TimeOfDay? selectedTime,
+    double? distanceKm,
     double? estimatedPrice,
     bool? isLoading,
   }) {
-    return BookingState(
+    return TransportBookingState(
       pickupLocation: pickupLocation ?? this.pickupLocation,
       dropoffLocation: dropoffLocation ?? this.dropoffLocation,
-      selectedTruckType: selectedTruckType ?? this.selectedTruckType,
+      selectedVehicleTypeId:
+          selectedVehicleTypeId ?? this.selectedVehicleTypeId,
+      selectedVehicleTypeName:
+          selectedVehicleTypeName ?? this.selectedVehicleTypeName,
       selectedDate: selectedDate ?? this.selectedDate,
       selectedTime: selectedTime ?? this.selectedTime,
+      distanceKm: distanceKm ?? this.distanceKm,
       estimatedPrice: estimatedPrice ?? this.estimatedPrice,
       isLoading: isLoading ?? this.isLoading,
     );
   }
+
+  // Keep old field name so existing code doesn't break
+  String? get selectedTruckType => selectedVehicleTypeName;
 }
 
-// Booking StateNotifier
-class BookingNotifier extends StateNotifier<BookingState> {
-  BookingNotifier() : super(const BookingState());
+class TransportBookingNotifier extends StateNotifier<TransportBookingState> {
+  TransportBookingNotifier() : super(const TransportBookingState());
 
-  void setPickupLocation(String location) {
-    state = state.copyWith(pickupLocation: location);
-  }
+  void setPickupLocation(String location) =>
+      state = state.copyWith(pickupLocation: location);
 
-  void setDropoffLocation(String location) {
-    state = state.copyWith(dropoffLocation: location);
-  }
+  void setDropoffLocation(String location) =>
+      state = state.copyWith(dropoffLocation: location);
 
-  void setSelectedTruckType(String type) {
-    state = state.copyWith(selectedTruckType: type);
-  }
+  void setVehicleType(int id, String name) =>
+      state = state.copyWith(
+        selectedVehicleTypeId: id,
+        selectedVehicleTypeName: name,
+      );
 
-  void setSelectedDate(DateTime date) {
-    state = state.copyWith(selectedDate: date);
-  }
+  void setSelectedDate(DateTime date) =>
+      state = state.copyWith(selectedDate: date);
 
-  void setSelectedTime(TimeOfDay time) {
-    state = state.copyWith(selectedTime: time);
-  }
+  void setSelectedTime(TimeOfDay time) =>
+      state = state.copyWith(selectedTime: time);
 
-  void setEstimatedPrice(double price) {
-    state = state.copyWith(estimatedPrice: price);
-  }
+  void setDistance(double km) => state = state.copyWith(distanceKm: km);
 
-  void setIsLoading(bool loading) {
-    state = state.copyWith(isLoading: loading);
-  }
+  // Keep old method name so existing code doesn't break
+  void setSelectedTruckType(String type) =>
+      state = state.copyWith(selectedVehicleTypeName: type);
 
-  void calculatePrice(double distance) {
-    double basePrice = 50.0; // Base price
-    double distancePrice = distance * 2.0; // $2 per km
+  // Fetch live price from backend
+  Future<void> calculatePrice(double distanceKm) async {
+    if (state.selectedVehicleTypeId == null) return;
 
-    switch (state.selectedTruckType) {
-      case 'Small Truck':
-        basePrice += 20.0;
-        break;
-      case 'Medium Truck':
-        basePrice += 40.0;
-        break;
-      case 'Large Truck':
-        basePrice += 60.0;
-        break;
-      default:
-        basePrice += 30.0;
+    state = state.copyWith(isLoading: true, distanceKm: distanceKm);
+
+    try {
+      final uri = Uri.parse(AppUrls.transportCalculate).replace(
+        queryParameters: {
+          'vehicle_type_id': state.selectedVehicleTypeId.toString(),
+          'distance_km': distanceKm.toString(),
+        },
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        state = state.copyWith(
+          estimatedPrice: double.tryParse(data['total'].toString()),
+          isLoading: false,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
     }
-
-    setEstimatedPrice(basePrice + distancePrice);
   }
+
+  void reset() => state = const TransportBookingState();
 }
 
-// Riverpod Provider
-final bookingProvider = StateNotifierProvider<BookingNotifier, BookingState>((
-  ref,
-) {
-  return BookingNotifier();
-});
+final bookingProvider =
+    StateNotifierProvider<TransportBookingNotifier, TransportBookingState>(
+      (ref) => TransportBookingNotifier(),
+    );
+
+// Property bookings history
+final myPropertyBookingsProvider = FutureProvider.autoDispose
+    .family<List<PropertyBookingModel>, String>((ref, token) async {
+      final response = await http.get(
+        Uri.parse(AppUrls.myBookings),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List list = data['bookings'];
+        return list.map((e) => PropertyBookingModel.fromJson(e)).toList();
+      } else {
+        throw Exception('Failed to load bookings');
+      }
+    });
+
+// Transport bookings history
+final myTransportBookingsProvider = FutureProvider.autoDispose
+    .family<List<TransportBookingModel>, String>((ref, token) async {
+      final response = await http.get(
+        Uri.parse(AppUrls.myTransportBookings),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List list = data['bookings'];
+        return list.map((e) => TransportBookingModel.fromJson(e)).toList();
+      } else {
+        throw Exception('Failed to load transport bookings');
+      }
+    });

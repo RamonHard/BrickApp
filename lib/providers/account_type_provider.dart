@@ -3,14 +3,14 @@ import 'package:brickapp/models/user_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AccountTypeNotifier extends StateNotifier<AccountType> {
-  AccountTypeNotifier() : super(AccountType.regular);
+  AccountTypeNotifier() : super(AccountType.client);
 
   void setAccountType(AccountType type) {
     state = type;
   }
 
   void reset() {
-    state = AccountType.regular;
+    state = AccountType.client;
   }
 }
 

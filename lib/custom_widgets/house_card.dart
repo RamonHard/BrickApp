@@ -1,11 +1,10 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import '../utils/app_colors.dart';
+import '../utils/build_image_method.dart';
 
-// ignore: must_be_immutable
 class HouseCard extends StatelessWidget {
   HouseCard({
     Key? key,
@@ -27,6 +26,7 @@ class HouseCard extends StatelessWidget {
     required this.reviews,
     required this.isActive,
   }) : super(key: key);
+
   final String description;
   final String thumbnail;
   final String location;
@@ -50,8 +50,14 @@ class HouseCard extends StatelessWidget {
     fontWeight: FontWeight.w600,
     color: HexColor("FFFFFF"),
   );
+
   @override
   Widget build(BuildContext context) {
+    // Convert thumbnail to full URL
+    final fullThumbnail = toFullUrl(thumbnail);
+    // In build method, after final fullThumbnail = toFullUrl(thumbnail);
+    print('🏠 CARD THUMBNAIL INPUT: $thumbnail');
+    print('🏠 CARD FULL URL: $fullThumbnail');
     return Padding(
       padding: const EdgeInsets.only(left: 5.0, right: 5.0, top: 8.0),
       child: SizedBox(
@@ -60,7 +66,7 @@ class HouseCard extends StatelessWidget {
           elevation: 15.0,
           color: Colors.white,
           shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(10.0),
               bottomRight: Radius.circular(10.0),
@@ -69,79 +75,115 @@ class HouseCard extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: Stack(
-                  children: [
-                    InkWell(
-                      onTap: onTap,
-                      child: Container(
+                child: InkWell(
+                  onTap: onTap,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.only(
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(10.0),
                             topRight: Radius.circular(10.0),
                           ),
-                          image: DecorationImage(
-                            image:
-                                thumbnail.startsWith("http") ||
-                                        thumbnail.startsWith("https")
-                                    ? NetworkImage(thumbnail)
-                                    : FileImage(File(thumbnail))
-                                        as ImageProvider,
-                            fit: BoxFit.cover,
+                          color: Colors.grey[200],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10.0),
+                            topRight: Radius.circular(10.0),
                           ),
+                          child:
+                              fullThumbnail.isEmpty
+                                  ? Icon(
+                                    Icons.home,
+                                    size: 60,
+                                    color: Colors.grey[400],
+                                  )
+                                  : fullThumbnail.startsWith('http')
+                                  ? Image.network(
+                                    fullThumbnail,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    loadingBuilder: (
+                                      context,
+                                      child,
+                                      loadingProgress,
+                                    ) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.grey[200],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder:
+                                        (_, __, ___) => Icon(
+                                          Icons.broken_image,
+                                          size: 60,
+                                          color: Colors.grey[400],
+                                        ),
+                                  )
+                                  : Image.file(
+                                    File(fullThumbnail),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder:
+                                        (_, __, ___) => Icon(
+                                          Icons.broken_image,
+                                          size: 60,
+                                          color: Colors.grey[400],
+                                        ),
+                                  ),
                         ),
                       ),
-                    ),
-                    if (showDelete == true)
+                      if (showDelete)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.white.withOpacity(0.7),
+                            child: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: favOnpress,
+                            ),
+                          ),
+                        ),
                       Positioned(
-                        top: 10,
+                        bottom: 10,
                         right: 10,
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.white.withOpacity(0.7),
-                          child: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            highlightColor: AppColors.iconColor,
-                            onPressed: favOnpress,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isActive ? Colors.green : Colors.orange,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
-                        ),
-                      )
-                    else
-                      Container(),
-                    Positioned(
-                      bottom: 10,
-                      right: 10,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isActive ? Colors.green : Colors.orange,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        onPressed: () {
-                          // Optional: handle button press
-                        },
-                        child: Text(
-                          isActive ? 'Active' : 'Pending',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                          onPressed: () {},
+                          child: Text(
+                            isActive ? 'Active' : 'Pending',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-
               ListTile(
                 title: Text(
-                  "$houseType",
+                  houseType,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -150,11 +192,18 @@ class HouseCard extends StatelessWidget {
                     color: AppColors.darkTextColor,
                   ),
                 ),
-                leading: CircleAvatar(
-                  radius: 25,
-                  backgroundImage: NetworkImage(profileIMG),
-                ),
-
+                leading:
+                    profileIMG.isNotEmpty
+                        ? CircleAvatar(
+                          radius: 25,
+                          backgroundImage: NetworkImage(toFullUrl(profileIMG)),
+                          onBackgroundImageError: (_, __) {},
+                        )
+                        : CircleAvatar(
+                          radius: 25,
+                          backgroundColor: Colors.grey[300],
+                          child: Icon(Icons.person, color: Colors.grey[500]),
+                        ),
                 subtitle: Text(
                   description,
                   style: GoogleFonts.poppins(
@@ -168,37 +217,37 @@ class HouseCard extends StatelessWidget {
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.bed,
-                      color: const Color.fromARGB(255, 128, 127, 127),
+                      color: Color.fromARGB(255, 128, 127, 127),
                     ),
                     Text(
-                      "$bedroomNum",
+                      '$bedroomNum',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: const Color.fromARGB(255, 128, 127, 127),
                       ),
                     ),
-                    SizedBox(width: 20),
-                    Icon(
+                    const SizedBox(width: 20),
+                    const Icon(
                       Icons.square_foot_rounded,
-                      color: const Color.fromARGB(255, 128, 127, 127),
+                      color: Color.fromARGB(255, 128, 127, 127),
                     ),
                     Text(
-                      "${sqft}sqft",
+                      sqft != null ? '${sqft}sqft' : 'N/A',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: const Color.fromARGB(255, 128, 127, 127),
                       ),
                     ),
-                    SizedBox(width: 5.0),
-                    Icon(
+                    const SizedBox(width: 5.0),
+                    const Icon(
                       Icons.house_rounded,
-                      color: const Color.fromARGB(255, 128, 127, 127),
+                      color: Color.fromARGB(255, 128, 127, 127),
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     RichText(
                       text: TextSpan(
                         children: [
@@ -232,8 +281,8 @@ class HouseCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.star, color: Colors.amber, size: 15),
-                    SizedBox(width: 4.0),
+                    const Icon(Icons.star, color: Colors.amber, size: 15),
+                    const SizedBox(width: 4.0),
                     RichText(
                       text: TextSpan(
                         children: [
@@ -246,7 +295,7 @@ class HouseCard extends StatelessWidget {
                             ),
                           ),
                           TextSpan(
-                            text: '($reviews)reviews',
+                            text: '($reviews) reviews',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
@@ -258,7 +307,7 @@ class HouseCard extends StatelessWidget {
                     ),
                     Expanded(child: Container()),
                     Text(
-                      "UGX${price}/m",
+                      'UGX ${price.toStringAsFixed(0)}/m',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -275,5 +324,3 @@ class HouseCard extends StatelessWidget {
     );
   }
 }
-
-// ignore: must_be_immutable

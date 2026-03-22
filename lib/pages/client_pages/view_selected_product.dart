@@ -9,7 +9,7 @@ import 'package:brickapp/pages/client_pages/gallery_view.dart'
     hide FullScreenGallery;
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
-import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/providers/property_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
@@ -47,7 +47,7 @@ class ViewSelectedProduct extends ConsumerWidget {
                       const TextSpan(text: "Secure the property now at "),
                       TextSpan(
                         text:
-                            "UGX ${(selectedProduct.price - selectedProduct.discount).toStringAsFixed(2)}\n\n",
+                            "UGX ${(selectedProduct.rentPrice ?? selectedProduct.discount).toStringAsFixed(2)}\n\n",
                         style: GoogleFonts.oxygen(
                           color: Colors.green,
                           fontSize: 16,

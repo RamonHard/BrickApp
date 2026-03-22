@@ -4,10 +4,12 @@ import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -466,8 +468,7 @@ class _PropertyManagerRegistrationState
     }
   }
 
-  void _validateAndSubmit() {
-    // Basic validation
+  Future<void> _validateAndSubmit() async {
     if (businessNameController.text.isEmpty ||
         fullNameController.text.isEmpty ||
         phoneNumController.text.isEmpty ||
@@ -478,40 +479,76 @@ class _PropertyManagerRegistrationState
         _facePhoto == null ||
         selectedValue == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Please fill all required fields and upload all photos',
           ),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
         ),
       );
       return;
     }
 
-    // Store user data in Riverpod provider
-    ref.read(userProvider.notifier).setUserData({
-      'businessName': businessNameController.text,
-      'fullName': fullNameController.text,
-      'email': emailController.text.isEmpty ? null : emailController.text,
-      'phoneNumber': phoneNumController.text,
-      'idNumber': idNINController.text,
-      'address': addressController.text,
-      'gender': selectedValue == 1 ? 'Male' : 'Female',
-      'accountType': AccountType.propertyOwner,
-      'idFrontPhoto': _idFrontPhoto!.path,
-      'idBackPhoto': _idBackPhoto!.path,
-      'facePhoto': _facePhoto!.path,
-      // 'registrationDate': DateTime.now(),
-      'status': 'pending_review',
-    });
+    try {
+      final token = ref.read(userProvider).token;
 
-    // Update account type
-    ref
-        .read(accountTypeProvider.notifier)
-        .setAccountType(AccountType.propertyOwner);
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to upgrade your account'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-    showActivationPopup();
+      var request = http.MultipartRequest('POST', Uri.parse(AppUrls.upgrade));
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['role'] = 'property_manager';
+      request.fields['fullName'] = fullNameController.text.trim();
+      request.fields['companyName'] = businessNameController.text.trim();
+      request.fields['idNumber'] = idNINController.text.trim();
+      request.fields['address'] = addressController.text.trim();
+      request.fields['gender'] = selectedValue == 1 ? 'male' : 'female';
+      if (emailController.text.isNotEmpty) {
+        request.fields['email'] = emailController.text.trim();
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath('id_front', _idFrontPhoto!.path),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath('id_back', _idBackPhoto!.path),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath('face', _facePhoto!.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      print('PROPERTY MANAGER UPGRADE RESPONSE: $data');
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        ref.read(userProvider.notifier).updateRole('property_manager');
+        showActivationPopup();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Upgrade failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error during upgrade: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void showActivationPopup() {

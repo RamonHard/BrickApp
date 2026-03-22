@@ -5,14 +5,16 @@ class InputFieldWidget extends StatelessWidget {
   InputFieldWidget({
     Key? key,
     required this.hintText,
-    this.isObsecure,
+    this.isObsecure = false,
     this.textEditingController,
     this.keyBordType,
   }) : super(key: key);
+
   final String hintText;
-  bool? isObsecure;
-  TextEditingController? textEditingController;
-  TextInputType? keyBordType;
+  final bool isObsecure;
+  final TextEditingController? textEditingController;
+  final TextInputType? keyBordType;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -23,10 +25,10 @@ class InputFieldWidget extends StatelessWidget {
           style: GoogleFonts.actor(color: Colors.white, fontSize: 18),
           keyboardType: keyBordType,
           controller: textEditingController,
-          obscureText: isObsecure!,
+          obscureText: isObsecure,
           decoration: InputDecoration(
             contentPadding: EdgeInsets.all(8.0),
-            hintText: '${hintText}',
+            hintText: hintText,
             hintStyle: GoogleFonts.actor(color: Colors.white, fontSize: 16),
             focusedBorder: OutlineInputBorder(
               borderSide: BorderSide(color: Colors.white, width: 2),

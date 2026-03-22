@@ -1,7 +1,9 @@
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
 import 'package:brickapp/pages/pManagerPages/post_preview.dart';
-import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/providers/product_provider.dart';
+import 'package:brickapp/providers/property_providers.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,7 +15,8 @@ class MyPostsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final posts = ref.watch(productProvider);
+    final token = ref.watch(userProvider).token ?? '';
+    final myListingsAsync = ref.watch(myListingsFamilyProvider(token));
 
     return Scaffold(
       appBar: AppBar(
@@ -26,31 +29,44 @@ class MyPostsPage extends ConsumerWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              // Navigate to AddPost page
-              // Navigator.push(context, MaterialPageRoute(
-              //   builder: (context) => AddPost(),
-              // ));
-            },
-          ),
-        ],
       ),
-      body:
-          posts.isEmpty
-              ? const Center(
-                child: Text('No posts found. Create your first property post!'),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final property = posts[index];
-                  return PostListItem(property: property);
-                },
+      body: myListingsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error:
+            (err, _) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Failed to load your listings'),
+                  TextButton(
+                    onPressed:
+                        () => ref.refresh(myListingsFamilyProvider(token)),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
+            ),
+        data: (listings) {
+          // Sync into productProvider so EditPost can use it
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(productProvider.notifier).setProducts(listings);
+          });
+
+          if (listings.isEmpty) {
+            return const Center(
+              child: Text('No posts yet. Tap + to add your first property!'),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: listings.length,
+            itemBuilder: (context, index) {
+              return PostListItem(property: listings[index]);
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -108,23 +124,26 @@ class PostListItem extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color:
-                          property.isActive
+                          property.status == 'active'
                               ? Colors.green[50]
                               : Colors.orange[50],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color:
-                            property.isActive
+                            property.status == 'active'
                                 ? Colors.green[100]!
                                 : Colors.orange[100]!,
                       ),
                     ),
                     child: Text(
-                      property.isActive ? 'Active' : 'Pending',
+                      property.status == 'active' ? 'Active' : 'Pending',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: property.isActive ? Colors.green : Colors.orange,
+                        color:
+                            property.status == 'active'
+                                ? Colors.green
+                                : Colors.orange,
                       ),
                     ),
                   ),
@@ -163,7 +182,7 @@ class PostListItem extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     children: [
-                      if (property.isRent)
+                      if (property.propertyType == 'Rent')
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -182,7 +201,7 @@ class PostListItem extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (property.isSale)
+                      if (property.propertyType == 'Sale')
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -208,18 +227,20 @@ class PostListItem extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (property.isRent && property.price != null)
+                      if (property.propertyType == 'Rent' &&
+                          property.rentPrice != null)
                         Text(
-                          'UGX ${currencyFormatter.format(property.price)}/month',
+                          'UGX ${currencyFormatter.format(property.rentPrice)}/month',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: Colors.blue,
                           ),
                         ),
-                      if (property.isSale && property.enteredSalePrice != null)
+                      if (property.propertyType == 'Sale' &&
+                          property.salePrice != null)
                         Text(
-                          'UGX ${currencyFormatter.format(property.enteredSalePrice)}',
+                          'UGX ${currencyFormatter.format(property.salePrice)}',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -239,8 +260,11 @@ class PostListItem extends StatelessWidget {
                 children: [
                   if (property.bedrooms != null && property.bedrooms! > 0)
                     _buildInfoChip(Icons.bed, '${property.bedrooms} Beds'),
-                  if (property.baths != null && property.baths! > 0)
-                    _buildInfoChip(Icons.bathroom, '${property.baths} Baths'),
+                  if (property.bathrooms != null && property.bathrooms! > 0)
+                    _buildInfoChip(
+                      Icons.bathroom,
+                      '${property.bathrooms} Baths',
+                    ),
                   if (property.sqft != null && property.sqft! > 0)
                     _buildInfoChip(Icons.square_foot, '${property.sqft} sqft'),
                 ],

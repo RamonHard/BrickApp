@@ -1,11 +1,11 @@
 import 'package:brickapp/pages/client_pages/location_picker_page.dart';
 import 'package:brickapp/providers/p_filter_provider.dart';
+import 'package:brickapp/providers/property_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-
 import '../../models/property_filter_model.dart' show FilterModel;
 
 class FilterSearch extends ConsumerStatefulWidget {
@@ -269,20 +269,16 @@ class _FilterSearchState extends ConsumerState<FilterSearch> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  final fromPrice = double.tryParse(
-                    fromPriceController.text.replaceAll(RegExp(r'[^\d]'), ''),
+                  ref
+                      .read(propertyFilterProvider.notifier)
+                      .state = PropertyFilter(
+                    minPrice: double.tryParse(
+                      fromPriceController.text.replaceAll(RegExp(r'[^\d]'), ''),
+                    ),
+                    maxPrice: double.tryParse(
+                      toPriceController.text.replaceAll(RegExp(r'[^\d]'), ''),
+                    ),
                   );
-                  final toPrice = double.tryParse(
-                    toPriceController.text.replaceAll(RegExp(r'[^\d]'), ''),
-                  );
-
-                  ref.read(filterProvider.notifier).state = FilterModel(
-                    selectedDescriptions: selectedDescriptions,
-                    fromPrice: fromPrice,
-                    toPrice: toPrice,
-                    selectedAmenities: amenities,
-                  );
-
                   Navigator.pop(context);
                 },
                 child: Text("Search"),

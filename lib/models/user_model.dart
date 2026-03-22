@@ -1,173 +1,140 @@
-// models/user_model.dart
-enum AccountType { transportServiceProvider, propertyOwner, regular }
+enum AccountType { service_provider, property_manager, client, admin }
 
 class User {
-  final String? uid;
+  final int? id;
   final String? email;
-  final String? phoneNumber;
+  final String? phone;
   final String? fullName;
-  final String? businessName;
+  final String? companyName;
   final String? idNumber;
-  final String? driverPermitNumber;
   final String? address;
   final String? gender;
+  final String? avatar;
+  final String? token;
   final AccountType accountType;
-  final String? idFrontPhoto;
-  final String? idBackPhoto;
-  final String? facePhoto;
-  final String? driverPermitPhoto;
+  final bool isVerified;
   final String? status;
-  final DateTime? registrationDate;
 
   User({
-    this.uid,
+    this.id,
     this.email,
-    this.phoneNumber,
+    this.phone,
     this.fullName,
-    this.businessName,
+    this.companyName,
     this.idNumber,
-    this.driverPermitNumber,
     this.address,
     this.gender,
+    this.avatar,
+    this.token,
     required this.accountType,
-    this.idFrontPhoto,
-    this.idBackPhoto,
-    this.facePhoto,
-    this.driverPermitPhoto,
+    this.isVerified = false,
     this.status,
-    this.registrationDate,
   });
 
   User copyWith({
-    String? uid,
+    int? id,
     String? email,
-    String? phoneNumber,
+    String? phone,
     String? fullName,
-    String? businessName,
+    String? companyName,
     String? idNumber,
-    String? driverPermitNumber,
     String? address,
     String? gender,
+    String? avatar,
+    String? token,
     AccountType? accountType,
-    String? idFrontPhoto,
-    String? idBackPhoto,
-    String? facePhoto,
-    String? driverPermitPhoto,
+    bool? isVerified,
     String? status,
-    DateTime? registrationDate,
   }) {
     return User(
-      uid: uid ?? this.uid,
+      id: id ?? this.id,
       email: email ?? this.email,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      phone: phone ?? this.phone,
       fullName: fullName ?? this.fullName,
-      businessName: businessName ?? this.businessName,
+      companyName: companyName ?? this.companyName,
       idNumber: idNumber ?? this.idNumber,
-      driverPermitNumber: driverPermitNumber ?? this.driverPermitNumber,
       address: address ?? this.address,
       gender: gender ?? this.gender,
+      avatar: avatar ?? this.avatar,
+      token: token ?? this.token,
       accountType: accountType ?? this.accountType,
-      idFrontPhoto: idFrontPhoto ?? this.idFrontPhoto,
-      idBackPhoto: idBackPhoto ?? this.idBackPhoto,
-      facePhoto: facePhoto ?? this.facePhoto,
-      driverPermitPhoto: driverPermitPhoto ?? this.driverPermitPhoto,
+      isVerified: isVerified ?? this.isVerified,
       status: status ?? this.status,
-      registrationDate: registrationDate ?? this.registrationDate,
     );
   }
 
-  // FIXED: Make these methods static
-  static String accountTypeToString(AccountType type) {
+  // Convert backend role string to AccountType
+  static AccountType roleToAccountType(String? role) {
+    switch (role) {
+      case 'property_manager':
+        return AccountType.property_manager;
+      case 'service_provider':
+        return AccountType.service_provider;
+      case 'admin':
+        return AccountType.admin;
+      default:
+        return AccountType.client;
+    }
+  }
+
+  // Convert AccountType back to backend role string
+  static String accountTypeToRole(AccountType type) {
     switch (type) {
-      case AccountType.transportServiceProvider:
-        return 'transportServiceProvider';
-      case AccountType.propertyOwner:
-        return 'propertyOwner';
-      case AccountType.regular:
+      case AccountType.property_manager:
+        return 'property_manager';
+      case AccountType.service_provider:
+        return 'service_provider';
+      case AccountType.admin:
+        return 'admin';
       default:
-        return 'regular';
+        return 'client';
     }
   }
 
-  // FIXED: Make these methods static
-  static AccountType stringToAccountType(String? typeString) {
-    if (typeString == null) return AccountType.regular;
-
-    switch (typeString) {
-      case 'transportServiceProvider':
-        return AccountType.transportServiceProvider;
-      case 'propertyOwner':
-        return AccountType.propertyOwner;
-      case 'regular':
-      default:
-        return AccountType.regular;
-    }
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'uid': uid,
-      'email': email,
-      'phoneNumber': phoneNumber,
-      'fullName': fullName,
-      'businessName': businessName,
-      'idNumber': idNumber,
-      'driverPermitNumber': driverPermitNumber,
-      'address': address,
-      'gender': gender,
-      'accountType': accountTypeToString(accountType), // Use static method
-      'idFrontPhoto': idFrontPhoto,
-      'idBackPhoto': idBackPhoto,
-      'facePhoto': facePhoto,
-      'driverPermitPhoto': driverPermitPhoto,
-      'status': status,
-      'registrationDate': registrationDate?.toIso8601String(),
-    };
-  }
-
-  factory User.fromMap(Map<String, dynamic> map) {
+  // Build from backend login/register response
+  factory User.fromBackend(Map<String, dynamic> map, {String? token}) {
     return User(
-      uid: map['uid'],
+      id: map['id'],
+      fullName: map['full_name'] ?? map['fullName'],
+      phone: map['phone'],
       email: map['email'],
-      phoneNumber: map['phoneNumber'],
-      fullName: map['fullName'],
-      businessName: map['businessName'],
-      idNumber: map['idNumber'],
-      driverPermitNumber: map['driverPermitNumber'],
-      address: map['address'],
-      gender: map['gender'],
-      accountType: stringToAccountType(map['accountType']), // Use static method
-      idFrontPhoto: map['idFrontPhoto'],
-      idBackPhoto: map['idBackPhoto'],
-      facePhoto: map['facePhoto'],
-      driverPermitPhoto: map['driverPermitPhoto'],
-      status: map['status'],
-      registrationDate:
-          map['registrationDate'] != null
-              ? DateTime.parse(map['registrationDate'])
-              : null,
+      avatar: map['avatar'],
+      isVerified: map['is_verified'] ?? false,
+      accountType: roleToAccountType(map['role']),
+      token: token,
     );
   }
 
-  // Helper methods to check account type
-  bool get isRegular => accountType == AccountType.regular;
-  bool get isPropertyOwner => accountType == AccountType.propertyOwner;
-  bool get isTransportManager =>
-      accountType == AccountType.transportServiceProvider;
+  // Helper getters
+  bool get isClient => accountType == AccountType.client;
+  bool get isPropertyManager => accountType == AccountType.property_manager;
+  bool get isServiceProvider => accountType == AccountType.service_provider;
+  bool get isAdmin => accountType == AccountType.admin;
 
-  // Get display name for account type
+  String get displayName => fullName ?? 'User';
+  String get displayPhone => phone ?? 'Not set';
+  String get displayEmail => email ?? 'Not set';
+
   String get accountTypeDisplay {
     switch (accountType) {
-      case AccountType.propertyOwner:
+      case AccountType.property_manager:
         return 'Property Manager';
-      case AccountType.transportServiceProvider:
-        return 'Transport Manager';
-      case AccountType.regular:
+      case AccountType.service_provider:
+        return 'Service Provider';
+      case AccountType.admin:
+        return 'Admin';
       default:
-        return 'Regular Client';
+        return 'Client';
     }
   }
 
-  // Get account type as string when needed
-  String get accountTypeString => accountTypeToString(accountType);
+  // Full avatar URL
+  String? get avatarUrl {
+    if (avatar == null) return null;
+    return '${AppBaseUrl.base}/$avatar';
+  }
+}
+
+class AppBaseUrl {
+  static const String base = 'http://10.0.2.2:3000';
 }

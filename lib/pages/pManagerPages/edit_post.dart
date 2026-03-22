@@ -3,7 +3,8 @@ import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
-import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/providers/product_provider.dart';
+import 'package:brickapp/providers/property_providers.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -699,7 +700,10 @@ class _EditPostState extends ConsumerState<EditPost> {
       rulesDocumentPath:
           _rulesDocument?.path ?? widget.property.rulesDocumentPath,
       numberOfMonths: '',
-      isLand: false, // Keep original creation date
+      isLand: false,
+      userId: null,
+      listingType: '',
+      status: '', // Keep original creation date
       // dateUpdated: DateTime.now(), // Add update timestamp
     );
 
@@ -709,7 +713,9 @@ class _EditPostState extends ConsumerState<EditPost> {
         currentProducts
             .map((p) => p.id == updatedProperty.id ? updatedProperty : p)
             .toList();
-    ref.read(productProvider.notifier).state = updatedProducts;
+    for (final p in updatedProducts) {
+      ref.read(productProvider.notifier).updateProduct(p);
+    }
 
     // Also update PostData if needed
     ref

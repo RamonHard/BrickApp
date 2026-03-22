@@ -4,7 +4,10 @@ import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_images.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -33,6 +36,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   TextEditingController phoneController = TextEditingController();
+  TextEditingController fullNameController = TextEditingController();
+
   String selectedCountryCode = '+256';
 
   @override
@@ -89,6 +94,35 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                       ),
                     ),
                   ),
+                  Text("Full Name", style: style),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 50,
+                    child: TextField(
+                      controller: fullNameController,
+                      style: const TextStyle(color: Colors.white, fontSize: 20),
+                      obscureText: false,
+                      decoration: InputDecoration(
+                        fillColor: HexColor("ffffff"),
+                        filled: false,
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.white,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
                   // Email Field
                   Text("Email", style: style),
@@ -259,36 +293,81 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     );
   }
 
-  void _signUp() {
+  Future<void> _signUp() async {
     final String email = emailController.text.trim();
     final String password = passwordController.text.trim();
     final String phoneNumber =
         selectedCountryCode + phoneController.text.trim();
+    final String fullName = fullNameController.text.trim();
 
-    // Basic validation
-    if (email.isEmpty || password.isEmpty || phoneController.text.isEmpty) {
+    if (fullName.isEmpty || password.isEmpty || phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please fill all fields'),
+        const SnackBar(
+          content: Text('Full name, phone and password are required'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Store user data in Riverpod
-    ref.read(userProvider.notifier).setUserData({
-      'email': email,
-      'phoneNumber': phoneNumber,
-      'accountType': AccountType.regular, // Start as regular
-      'createdAt': DateTime.now(),
-    });
+    try {
+      final response = await http.post(
+        Uri.parse(AppUrls.register),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "fullName": fullName,
+          "phone": phoneNumber,
+          "email": email.isEmpty ? null : email,
+          "password": password,
+        }),
+      );
 
-    // Navigate to main display
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MainDisplay(isClient: true)),
-    );
+      final data = jsonDecode(response.body);
+      print("REGISTER RESPONSE: $data");
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        // ✅ Now login immediately to get the token
+        final loginResponse = await http.post(
+          Uri.parse(AppUrls.login),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({"phone": phoneNumber, "password": password}),
+        );
+
+        final loginData = jsonDecode(loginResponse.body);
+        print("AUTO LOGIN RESPONSE: $loginData");
+
+        if (loginResponse.statusCode == 200 && loginData['status'] == true) {
+          // ✅ Save user + token properly
+          ref
+              .read(userProvider.notifier)
+              .setFromBackend(loginData['user'], loginData['token']);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account created successfully')),
+          );
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainDisplay(isClient: true),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Registration failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error during registration: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -296,6 +375,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     emailController.dispose();
     passwordController.dispose();
     phoneController.dispose();
+    fullNameController.dispose();
     super.dispose();
   }
 }

@@ -1,10 +1,8 @@
 import 'dart:io';
-import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
-import 'package:brickapp/providers/post_data_notifier.dart';
-import 'package:brickapp/providers/product_providers.dart';
+import 'package:brickapp/providers/product_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -14,6 +12,10 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:brickapp/utils/urls.dart';
+import 'package:brickapp/providers/user_provider.dart';
 
 class AddPost extends ConsumerStatefulWidget {
   final PropertyModel? editPostModel; // Add this for editing existing post
@@ -131,8 +133,8 @@ class _AddPostState extends ConsumerState<AddPost> {
       _descriptionController.text = post.description ?? '';
 
       // Pricing
-      price = post.price?.toInt() ?? 0;
-      salePrice = post.enteredSalePrice?.toInt();
+      price = post.rentPrice?.toInt() ?? 0;
+      salePrice = post.salePrice?.toInt();
       discount = post.discount?.toInt();
       commission = post.commission?.toInt();
       landPercentage = post.landPercentage;
@@ -1086,157 +1088,183 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   // Updated _updatePostData method with rules document and total price
-  void _updatePostData() {
+  Future<void> _updatePostData() async {
     bool isLandProperty = _propertyType == 'Land';
-    double totalPrice = _calculateTotalPrice();
 
-    // Create PropertyModel with ALL fields including rules document
-    final newProperty = PropertyModel(
-      numberOfMonths:
-          selectedPackage == 'Custom Months'
-              ? customMonths?.toString() ?? ''
-              : _getMonthCount(selectedPackage ?? '').toString(),
-      // totalPrice: totalPrice, // Add total price here
-      id: widget.editPostModel?.id ?? DateTime.now().millisecondsSinceEpoch,
-      propertyType: _propertyType,
-      location: _location,
-      description: _descriptionController.text,
-      price: (price ?? int.tryParse(_priceController.text) ?? 0).toDouble(),
-      landPercentage: isLandProperty ? (landPercentage ?? 0).toDouble() : null,
-      currency: _currency,
-      bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
-      baths: int.tryParse(_bathsController.text) ?? 0,
-      sqft: int.tryParse(_sqftController.text)?.toDouble() ?? 0,
-      units: int.tryParse(_unitsController.text) ?? 0,
-      isActive: _isActive,
-      pendingReason: _isActive ? "" : _pendingReasonController.text,
-      isRent: _isRentSelected,
-      isSale: _isSaleSelected,
-      enteredSalePrice: (salePrice ?? 0).toDouble(),
-      saleConditions: salesCondition,
-      hasParking: _hasParking,
-      isFurnished: _isFurnished,
-      hasAC: _hasAC,
-      hasInternet: _hasInternet,
-      hasCompound: _hasCompound,
-      hasSecurity: _hasSecurity,
-      isPetFriendly: _isPetFriendly,
-      amenities: _amenities, // Use the computed amenities list
-      productIMG:
-          _selectedPhotos.isNotEmpty
-              ? _selectedPhotos.first.path
-              : (widget.editPostModel?.productIMG ?? ""),
-      photoPaths:
-          _selectedPhotos.isNotEmpty
-              ? _selectedPhotos.map((x) => x.path).toList()
-              : (widget.editPostModel?.photoPaths ?? []),
-      videoPath: _selectedVideo?.path ?? widget.editPostModel?.videoPath,
-      rulesDocumentPath:
-          _rulesDocument?.path ??
-          widget.editPostModel?.rulesDocumentPath, // Add rules document
-      starRating: widget.editPostModel?.starRating ?? 0.0,
-      reviews: widget.editPostModel?.reviews ?? 0,
-      uploaderName:
-          widget.editPostModel?.uploaderName ??
-          "Current User", // You should get this from user auth
-      uploaderEmail:
-          widget.editPostModel?.uploaderEmail ??
-          "me@example.com", // You should get this from user auth
-      uploaderIMG:
-          widget.editPostModel?.uploaderIMG ??
-          "https://i.pravatar.cc/150?img=1", // You should get this from user auth
-      uploaderPhoneNumber:
-          widget.editPostModel?.uploaderPhoneNumber ??
-          123456789, // You should get this from user auth
-      insideViews:
-          _selectedPhotos.isNotEmpty
-              ? _selectedPhotos.map((x) => x.path).toList()
-              : (widget.editPostModel?.insideViews ?? []),
-      thumbnail: _thumbnailPhoto?.path ?? widget.editPostModel?.thumbnail ?? "",
-      discount: (discount ?? 0).toDouble(),
-      destinationTitle: _propertyType,
-      commission: (commission ?? 0).toDouble(), // Added commission
-      package:
-          selectedPackage == 'Custom Months'
-              ? 'Custom: $customMonths months'
-              : selectedPackage,
-      dateCreated:
-          widget.editPostModel?.dateCreated ??
-          DateTime.now(), // Added timestamp
-      isLand: isLandProperty,
-    );
-
-    if (widget.editPostModel != null) {
-      // Update existing post
-      ref.read(productProvider.notifier).updateProduct(newProperty);
-    } else {
-      // Add new post
-      ref.read(productProvider.notifier).addProduct(newProperty);
+    // Basic validation
+    if (_descriptionController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please add a description')));
+      return;
     }
 
-    // Also update PostData if needed
-    ref
-        .read(postDataProvider.notifier)
-        .update(
-          PostData(
-            propertyType: _propertyType,
-            location: _location,
-            price: price ?? int.tryParse(_priceController.text),
-            // totalPrice: totalPrice, // Add total price here
-            landPercentage: landPercentage,
-            salePrice: salePrice ?? int.tryParse(_salePriceController.text),
-            saleConditions: salesCondition,
-            discount: discount,
-            videoPath: _selectedVideo?.path,
-            rulesDocumentPath: _rulesDocument?.path, // Add to PostData as well
-            commission: commission,
-            currency: _currency,
-            bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
-            baths: int.tryParse(_bathsController.text) ?? 0,
-            sqft: int.tryParse(_sqftController.text) ?? 0,
-            units: int.tryParse(_unitsController.text) ?? 0,
-            isActive: _isActive,
-            pendingReason: _isActive ? null : _pendingReasonController.text,
-            isRent: _isRentSelected,
-            isSale: _isSaleSelected,
-            hasParking: _hasParking,
-            isFurnished: _isFurnished,
-            hasAC: _hasAC,
-            hasInternet: _hasInternet,
-            hasSecurity: _hasSecurity,
-            isPetFriendly: _isPetFriendly,
-            description: _descriptionController.text,
-            photoPaths: _selectedPhotos.map((x) => x.path).toList(),
-            numberOfMonths:
-                selectedPackage == 'Custom Months'
-                    ? customMonths
-                    : _getMonthCount(selectedPackage ?? ''),
-            isLand: isLandProperty,
+    if (_selectedPhotos.isEmpty && _thumbnailPhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one photo')),
+      );
+      return;
+    }
+
+    if (!_isRentSelected && !_isSaleSelected && !isLandProperty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select Rent or Sale listing type'),
+        ),
+      );
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final token = ref.read(userProvider).token;
+
+      if (token == null) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
+        return;
+      }
+
+      // Build multipart request
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(AppUrls.properties + '/create'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Text fields
+      request.fields['property_type'] = _propertyType;
+      request.fields['description'] = _descriptionController.text.trim();
+      request.fields['address'] = _location;
+      request.fields['status'] = _isActive ? 'active' : 'pending';
+      request.fields['currency'] = _currency;
+
+      // Listing type
+      if (_isRentSelected && _isSaleSelected) {
+        request.fields['listing_type'] = 'rent_and_sale';
+      } else if (_isRentSelected) {
+        request.fields['listing_type'] = 'rent';
+      } else if (_isSaleSelected) {
+        request.fields['listing_type'] = 'sale';
+      }
+
+      // Pricing
+      if (price != null && price! > 0) {
+        request.fields['rent_price'] = price.toString();
+      }
+      if (salePrice != null && salePrice! > 0) {
+        request.fields['sale_price'] = salePrice.toString();
+        request.fields['sale_condition'] = salesCondition;
+      }
+
+      // Duration
+      if (selectedPackage != null) {
+        final months =
+            selectedPackage == 'Custom Months'
+                ? (customMonths ?? 1)
+                : _getMonthCount(selectedPackage!);
+        request.fields['rent_duration_months'] = months.toString();
+      }
+
+      // Property details
+      if (_bedroomsController.text.isNotEmpty) {
+        request.fields['bedrooms'] = _bedroomsController.text;
+      }
+      if (_bathsController.text.isNotEmpty) {
+        request.fields['bathrooms'] = _bathsController.text;
+      }
+      if (_sqftController.text.isNotEmpty) {
+        request.fields['square_feet'] = _sqftController.text;
+      }
+      if (_unitsController.text.isNotEmpty) {
+        request.fields['units'] = _unitsController.text;
+      }
+      if (!_isActive && _pendingReasonController.text.isNotEmpty) {
+        request.fields['pending_reason'] = _pendingReasonController.text;
+      }
+
+      // Amenities as comma separated string
+      request.fields['amenities'] = _amenities.join(',');
+
+      // Land specific
+      if (isLandProperty && landPercentage != null) {
+        request.fields['land_percentage'] = landPercentage.toString();
+      }
+
+      // Images
+      for (final photo in _selectedPhotos) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', photo.path),
+        );
+      }
+
+      // Thumbnail (add as first image if no other photos)
+      if (_thumbnailPhoto != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', _thumbnailPhoto!.path),
+        );
+      }
+
+      // Video
+      if (_selectedVideo != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('video', _selectedVideo!.path),
+        );
+      }
+
+      // Rules document
+      if (_rulesDocument != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('document', _rulesDocument!.path),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      print('ADD PROPERTY RESPONSE: $data');
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        // Also add to local productProvider so MyPostsPage updates
+        final newProperty = PropertyModel.fromJson(data['property']);
+        ref.read(productProvider.notifier).addProduct(newProperty);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Property posted successfully!'),
+            backgroundColor: Colors.green,
           ),
         );
 
-    // Show success message
-    String successMessage =
-        widget.editPostModel != null
-            ? "Property updated successfully!"
-            : "Property added successfully!";
-
-    if (_rulesDocument != null) {
-      successMessage += " Rules document uploaded.";
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Failed to post property'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // close loading
+      print('Error posting property: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
-    if (isLandProperty) {
-      successMessage =
-          "Land listed successfully with ${landPercentage ?? 0}% rate!";
-    } else if (totalPrice > 0) {
-      successMessage =
-          "Property listed at UGX${currencyFormatter.format(totalPrice.toInt())} total!";
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(successMessage)));
-
-    Navigator.pop(context);
   }
 
   Future<void> _pickPhotos() async {

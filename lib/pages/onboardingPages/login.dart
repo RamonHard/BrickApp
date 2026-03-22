@@ -6,9 +6,12 @@ import 'package:brickapp/pages/onboardingPages/sign_up.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_images.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 // import 'package:http/http.dart' as http;
 import '../../custom_widgets/input_field.dart';
@@ -28,7 +31,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     fontWeight: FontWeight.w900,
     color: HexColor("FFFFFF"),
   );
-  TextEditingController emailController = TextEditingController();
+  TextEditingController phoneController = TextEditingController();
   TextEditingController passwardController = TextEditingController();
 
   final double _sigmax = 0.0;
@@ -74,10 +77,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     SizedBox(height: deviceWidth / 10),
                     InputFieldWidget(
-                      keyBordType: TextInputType.emailAddress,
-                      textEditingController: emailController,
-                      isObsecure: false,
-                      hintText: 'email',
+                      keyBordType: TextInputType.phone,
+                      textEditingController:
+                          phoneController, // you can rename later
+                      hintText: 'phone (+256...)',
                     ),
                     SizedBox(height: deviceWidth / 10),
                     InputFieldWidget(
@@ -90,21 +93,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     MaterialButton(
                       minWidth: 150,
                       height: 45,
-                      onPressed: () {
-                        // Store basic user data when logging in
-                        ref.read(userProvider.notifier).setUserData({
-                          'email': emailController.text.trim(),
-                          'accountType':
-                              AccountType.regular, // Default to regular
-                        });
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MainDisplay(isClient: true),
-                          ),
-                        );
-                      },
+                      onPressed: _loginUser,
                       color: AppColors.buttonColor,
                       padding: const EdgeInsets.all(8.0),
                       shape: const RoundedRectangleBorder(
@@ -185,5 +174,62 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _loginUser() async {
+    final phone = phoneController.text.trim();
+    final password = passwardController.text.trim();
+
+    if (phone.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(AppUrls.login),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"phone": phone, "password": password}),
+      );
+
+      final data = jsonDecode(response.body);
+      print("LOGIN RESPONSE: $data");
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        // ✅ Save user + token properly
+        ref
+            .read(userProvider.notifier)
+            .setFromBackend(data['user'], data['token']);
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login successful')));
+
+        // ✅ Route based on role
+        final user = ref.read(userProvider);
+        final isClient = user.isClient || user.isAdmin;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainDisplay(isClient: isClient),
+          ),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Login failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 }

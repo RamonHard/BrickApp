@@ -82,7 +82,7 @@ class ClientProfile extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        userState.phoneNumber ?? '',
+                        userState.phone ?? '',
                         style: GoogleFonts.actor(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -93,7 +93,7 @@ class ClientProfile extends ConsumerWidget {
                       SizedBox(height: screenSize / 10),
 
                       // FIXED: Compare the accountType directly instead of using toString()
-                      if (accountType == AccountType.propertyOwner)
+                      if (accountType == AccountType.property_manager)
                         Column(
                           children: [
                             ExpansionTileWidget(
@@ -109,7 +109,7 @@ class ClientProfile extends ConsumerWidget {
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Phone Number", style: style),
                                 ),
-                                Text(userState.phoneNumber ?? '', style: style),
+                                Text(userState.phone ?? '', style: style),
                                 Padding(
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Gender", style: style),
@@ -186,7 +186,7 @@ class ClientProfile extends ConsumerWidget {
                         )
                       else if (accountType ==
                           AccountType
-                              .transportServiceProvider) // FIXED: Direct comparison
+                              .service_provider) // FIXED: Direct comparison
                         Column(
                           children: [
                             ExpansionTileWidget(
@@ -202,7 +202,7 @@ class ClientProfile extends ConsumerWidget {
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Phone Number", style: style),
                                 ),
-                                Text(userState.phoneNumber ?? '', style: style),
+                                Text(userState.phone ?? '', style: style),
                                 Padding(
                                   padding: EdgeInsets.all(8.0),
                                   child: Text("Gender", style: style),
@@ -232,7 +232,7 @@ class ClientProfile extends ConsumerWidget {
                         ),
 
                       // FIXED: Simplified the condition
-                      if (accountType == AccountType.regular)
+                      if (accountType == AccountType.client)
                         Container(
                           alignment: Alignment.center,
                           child: Card(

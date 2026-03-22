@@ -93,7 +93,7 @@ class FindTransporterPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildLocationInputs(BookingNotifier bookingNotifier) {
+  Widget _buildLocationInputs(TransportBookingNotifier bookingNotifier) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[50],
@@ -210,8 +210,8 @@ class FindTransporterPage extends ConsumerWidget {
 
   Widget _buildBookButton(
     BuildContext context,
-    BookingState booking,
-    BookingNotifier bookingNotifier,
+    TransportBookingState booking,
+    TransportBookingNotifier bookingNotifier,
   ) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
