@@ -1,12 +1,14 @@
+import 'dart:convert';
+import 'package:brickapp/providers/stats_provider.dart';
+import 'package:brickapp/providers/user_provider.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
-// Provider for payment settings state
-final paymentSettingsProvider =
-    StateNotifierProvider<PaymentSettingsNotifier, PaymentSettingsState>((ref) {
-      return PaymentSettingsNotifier();
-    });
+// Stats provider
 
 class PaymentSettingsState {
   final bool mobileMoneyEnabled;
@@ -55,17 +57,14 @@ class PaymentSettingsState {
 class PaymentSettingsNotifier extends StateNotifier<PaymentSettingsState> {
   PaymentSettingsNotifier() : super(PaymentSettingsState());
 
-  void toggleMobileMoney(bool value) {
-    state = state.copyWith(mobileMoneyEnabled: value, hasChanges: true);
-  }
+  void toggleMobileMoney(bool value) =>
+      state = state.copyWith(mobileMoneyEnabled: value, hasChanges: true);
 
-  void toggleBankTransfer(bool value) {
-    state = state.copyWith(bankTransferEnabled: value, hasChanges: true);
-  }
+  void toggleBankTransfer(bool value) =>
+      state = state.copyWith(bankTransferEnabled: value, hasChanges: true);
 
-  void toggleCardPayment(bool value) {
-    state = state.copyWith(cardPaymentEnabled: value, hasChanges: true);
-  }
+  void toggleCardPayment(bool value) =>
+      state = state.copyWith(cardPaymentEnabled: value, hasChanges: true);
 
   void updateBankDetails({
     String? bankName,
@@ -82,13 +81,7 @@ class PaymentSettingsNotifier extends StateNotifier<PaymentSettingsState> {
     );
   }
 
-  void applyChanges() {
-    state = state.copyWith(hasChanges: false);
-  }
-
-  void resetChanges() {
-    state = state.copyWith(hasChanges: false);
-  }
+  void applyChanges() => state = state.copyWith(hasChanges: false);
 }
 
 class PManagerSettings extends ConsumerWidget {
@@ -96,8 +89,11 @@ class PManagerSettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final token = ref.watch(userProvider).token ?? '';
+    final statsAsync = ref.watch(managerStatsProvider(token));
     final paymentState = ref.watch(paymentSettingsProvider);
     final paymentNotifier = ref.read(paymentSettingsProvider.notifier);
+    final formatter = NumberFormat('#,###');
 
     return PopScope(
       canPop: !paymentState.hasChanges,
@@ -108,7 +104,7 @@ class PManagerSettings extends ConsumerWidget {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Payment Settings'),
+          title: const Text('Manager Settings'),
           backgroundColor: Colors.deepOrange,
           foregroundColor: Colors.white,
           leading: IconButton(
@@ -126,8 +122,13 @@ class PManagerSettings extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.save),
                 onPressed: () => _applyChanges(context, ref),
-                tooltip: 'Apply Changes',
+                tooltip: 'Save Changes',
               ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.refresh(managerStatsProvider(token)),
+              tooltip: 'Refresh',
+            ),
           ],
         ),
         body: SingleChildScrollView(
@@ -135,29 +136,275 @@ class PManagerSettings extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Payment Methods Section
-              _buildPaymentMethodsSection(paymentState, paymentNotifier),
-              const SizedBox(height: 24),
+              // ─── Stats Overview ───────────────────────
+              statsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error:
+                    (e, _) => Center(
+                      child: Column(
+                        children: [
+                          Text('Failed to load stats: $e'),
+                          TextButton(
+                            onPressed:
+                                () => ref.refresh(managerStatsProvider(token)),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                data:
+                    (stats) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Property stats
+                        _buildSectionTitle('My Properties'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Active',
+                                '${stats['properties']['active']}',
+                                Icons.home,
+                                Colors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Pending',
+                                '${stats['properties']['pending']}',
+                                Icons.pending,
+                                Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Inactive',
+                                '${stats['properties']['inactive']}',
+                                Icons.visibility_off,
+                                Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
-              // Conditionally show Bank Details Form if Bank Transfer is enabled
+                        // Revenue stats
+                        _buildSectionTitle('Revenue'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Revenue',
+                                'UGX ${formatter.format(double.tryParse(stats['revenue']['total_revenue'].toString()) ?? 0)}',
+                                Icons.attach_money,
+                                Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Net Earnings',
+                                'UGX ${formatter.format(double.tryParse(stats['revenue']['net_revenue'].toString()) ?? 0)}',
+                                Icons.trending_up,
+                                Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Confirmed Bookings',
+                                '${stats['bookings']['confirmed']}',
+                                Icons.check_circle,
+                                Colors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Pending Bookings',
+                                '${stats['bookings']['pending']}',
+                                Icons.hourglass_empty,
+                                Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Monthly revenue chart
+                        if ((stats['monthly_revenue'] as List).isNotEmpty) ...[
+                          _buildSectionTitle('Monthly Revenue'),
+                          Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SizedBox(
+                                height: 250,
+                                child: SfCartesianChart(
+                                  primaryXAxis: const CategoryAxis(),
+                                  legend: const Legend(isVisible: true),
+                                  tooltipBehavior: TooltipBehavior(
+                                    enable: true,
+                                  ),
+                                  series: <CartesianSeries>[
+                                    LineSeries<Map<String, dynamic>, String>(
+                                      name: 'Revenue',
+                                      dataSource:
+                                          List<Map<String, dynamic>>.from(
+                                            stats['monthly_revenue'],
+                                          ),
+                                      xValueMapper:
+                                          (data, _) => data['month'].toString(),
+                                      yValueMapper:
+                                          (data, _) =>
+                                              double.tryParse(
+                                                data['revenue'].toString(),
+                                              ) ??
+                                              0,
+                                      markerSettings: const MarkerSettings(
+                                        isVisible: true,
+                                      ),
+                                      color: Colors.deepOrange,
+                                    ),
+                                    LineSeries<Map<String, dynamic>, String>(
+                                      name: 'Payout',
+                                      dataSource:
+                                          List<Map<String, dynamic>>.from(
+                                            stats['monthly_revenue'],
+                                          ),
+                                      xValueMapper:
+                                          (data, _) => data['month'].toString(),
+                                      yValueMapper:
+                                          (data, _) =>
+                                              double.tryParse(
+                                                data['payout'].toString(),
+                                              ) ??
+                                              0,
+                                      markerSettings: const MarkerSettings(
+                                        isVisible: true,
+                                      ),
+                                      color: Colors.blue,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // Recent bookings
+                        if ((stats['recent_bookings'] as List).isNotEmpty) ...[
+                          _buildSectionTitle('Recent Bookings'),
+                          Card(
+                            elevation: 2,
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount:
+                                  (stats['recent_bookings'] as List).length,
+                              separatorBuilder:
+                                  (_, __) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final booking =
+                                    stats['recent_bookings'][index]
+                                        as Map<String, dynamic>;
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor:
+                                        booking['status'] == 'confirmed'
+                                            ? Colors.green
+                                            : Colors.orange,
+                                    child: const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    booking['client_name'] ?? 'Client',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${booking['property_type'] ?? ''} • ${booking['address'] ?? ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'UGX ${formatter.format(double.tryParse(booking['total_price'].toString()) ?? 0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              booking['status'] == 'confirmed'
+                                                  ? Colors.green[50]
+                                                  : Colors.orange[50],
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          booking['status']
+                                              .toString()
+                                              .toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color:
+                                                booking['status'] == 'confirmed'
+                                                    ? Colors.green
+                                                    : Colors.orange,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ],
+                    ),
+              ),
+
+              // ─── Payment Methods ──────────────────────
+              _buildSectionTitle('Payment Methods'),
+              _buildPaymentMethodsSection(paymentState, paymentNotifier),
+              const SizedBox(height: 16),
+
               if (paymentState.bankTransferEnabled) ...[
                 _buildBankDetailsSection(
                   context,
                   paymentState,
                   paymentNotifier,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
               ],
 
-              // Transaction Insights Section
-              _buildTransactionInsightsSection(),
-              const SizedBox(height: 24),
-
-              // Account Visits Analytics Section
-              _buildVisitsAnalyticsSection(),
-
               // Apply Changes Button
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               _buildApplyChangesButton(context, paymentState, ref),
               const SizedBox(height: 20),
             ],
@@ -167,50 +414,48 @@ class PManagerSettings extends ConsumerWidget {
     );
   }
 
-  void _showUnsavedChangesDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-              const SizedBox(width: 8),
-              const Text('Unsaved Changes'),
-            ],
-          ),
-          content: const Text(
-            'You have unsaved changes. Are you sure you want to leave without applying them?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
-              child: const Text('Leave'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                _applyChanges(context, ref); // Apply changes first
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
-                foregroundColor: Colors.white,
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
-              child: const Text('Apply & Leave'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              title,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -223,39 +468,29 @@ class PManagerSettings extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Payment Methods',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 16),
             _buildPaymentOption(
               icon: Icons.phone_android,
               title: 'Mobile Money',
-              subtitle: 'Receive payments via Mobile Money',
+              subtitle: 'MTN & Airtel Money',
               value: state.mobileMoneyEnabled,
-              onChanged: (value) => notifier.toggleMobileMoney(value),
+              onChanged: notifier.toggleMobileMoney,
             ),
             const Divider(),
             _buildPaymentOption(
               icon: Icons.account_balance,
               title: 'Bank Transfer',
-              subtitle: 'Receive payments directly to your bank',
+              subtitle: 'Direct bank payment',
               value: state.bankTransferEnabled,
-              onChanged: (value) => notifier.toggleBankTransfer(value),
+              onChanged: notifier.toggleBankTransfer,
             ),
             const Divider(),
             _buildPaymentOption(
               icon: Icons.credit_card,
               title: 'Credit/Debit Card',
-              subtitle: 'Accept card payments',
+              subtitle: 'Visa & Mastercard',
               value: state.cardPaymentEnabled,
-              onChanged: (value) => notifier.toggleCardPayment(value),
+              onChanged: notifier.toggleCardPayment,
             ),
           ],
         ),
@@ -279,9 +514,7 @@ class PManagerSettings extends ConsumerWidget {
         onChanged: onChanged,
         activeColor: Colors.deepOrange,
       ),
-      onTap: () {
-        onChanged(!value);
-      },
+      onTap: () => onChanged(!value),
     );
   }
 
@@ -299,12 +532,12 @@ class PManagerSettings extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.account_balance, color: Colors.deepOrange),
+                const Icon(Icons.account_balance, color: Colors.deepOrange),
                 const SizedBox(width: 8),
                 Text(
                   'Bank Account Details',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
@@ -319,7 +552,7 @@ class PManagerSettings extends ConsumerWidget {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.account_balance),
               ),
-              onChanged: (value) => notifier.updateBankDetails(bankName: value),
+              onChanged: (v) => notifier.updateBankDetails(bankName: v),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -330,8 +563,7 @@ class PManagerSettings extends ConsumerWidget {
                 prefixIcon: Icon(Icons.numbers),
               ),
               keyboardType: TextInputType.number,
-              onChanged:
-                  (value) => notifier.updateBankDetails(accountNumber: value),
+              onChanged: (v) => notifier.updateBankDetails(accountNumber: v),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -341,8 +573,7 @@ class PManagerSettings extends ConsumerWidget {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
               ),
-              onChanged:
-                  (value) => notifier.updateBankDetails(accountHolder: value),
+              onChanged: (v) => notifier.updateBankDetails(accountHolder: v),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -352,23 +583,7 @@ class PManagerSettings extends ConsumerWidget {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.code),
               ),
-              onChanged:
-                  (value) => notifier.updateBankDetails(branchCode: value),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  _saveBankDetails(context, state);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text('Save Bank Details'),
-              ),
+              onChanged: (v) => notifier.updateBankDetails(branchCode: v),
             ),
           ],
         ),
@@ -393,18 +608,62 @@ class PManagerSettings extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
-              'Apply Changes',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Save Payment Settings',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showUnsavedChangesDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+                const SizedBox(width: 8),
+                const Text('Unsaved Changes'),
+              ],
+            ),
+            content: const Text(
+              'You have unsaved changes. Leave without saving?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
+                child: const Text('Leave'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _applyChanges(context, ref);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Save & Leave'),
+              ),
+            ],
+          ),
     );
   }
 
@@ -412,13 +671,12 @@ class PManagerSettings extends ConsumerWidget {
     final state = ref.read(paymentSettingsProvider);
     final notifier = ref.read(paymentSettingsProvider.notifier);
 
-    // Validate bank details if bank transfer is enabled
     if (state.bankTransferEnabled &&
         (state.bankName.isEmpty ||
             state.accountNumber.isEmpty ||
             state.accountHolder.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Please fill in all required bank details'),
           backgroundColor: Colors.deepOrange,
         ),
@@ -426,225 +684,14 @@ class PManagerSettings extends ConsumerWidget {
       return;
     }
 
-    // Apply all changes logic here
-    // This is where you would save all settings to your backend/database
-
-    // Show success message
+    // TODO: Save payment settings to backend when payment table is added
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('All changes applied successfully!'),
+      const SnackBar(
+        content: Text('Payment settings saved!'),
         backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
       ),
     );
 
-    // Reset changes flag
     notifier.applyChanges();
-
-    // Print current settings (for debugging)
-    print('Payment Settings Applied:');
-    print('Mobile Money: ${state.mobileMoneyEnabled}');
-    print('Bank Transfer: ${state.bankTransferEnabled}');
-    print('Card Payment: ${state.cardPaymentEnabled}');
-    if (state.bankTransferEnabled) {
-      print('Bank Name: ${state.bankName}');
-      print('Account Number: ${state.accountNumber}');
-      print('Account Holder: ${state.accountHolder}');
-      print('Branch Code: ${state.branchCode}');
-    }
   }
-
-  void _saveBankDetails(BuildContext context, PaymentSettingsState state) {
-    // Validate bank details
-    if (state.bankName.isEmpty ||
-        state.accountNumber.isEmpty ||
-        state.accountHolder.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please fill in all required bank details'),
-          backgroundColor: Colors.deepOrange,
-        ),
-      );
-      return;
-    }
-
-    // Save bank details logic here
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Bank details saved successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  Widget _buildTransactionInsightsSection() {
-    // Sample transaction data
-    final List<TransactionData> transactionData = [
-      TransactionData('Jan', 1200, 800),
-      TransactionData('Feb', 1500, 1100),
-      TransactionData('Mar', 1800, 1300),
-      TransactionData('Apr', 2000, 1500),
-      TransactionData('May', 2200, 1700),
-      TransactionData('Jun', 2500, 1900),
-    ];
-
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Transaction Insights',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Quick Stats
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatCard('Total Revenue', '\$11,200', Icons.attach_money),
-                _buildStatCard('Pending', '\$1,500', Icons.pending),
-                _buildStatCard('This Month', '\$2,500', Icons.trending_up),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Transaction Chart
-            SizedBox(
-              height: 250,
-              child: SfCartesianChart(
-                primaryXAxis: CategoryAxis(),
-                title: ChartTitle(text: 'Monthly Transactions'),
-                legend: Legend(isVisible: true),
-                tooltipBehavior: TooltipBehavior(enable: true),
-                series: <CartesianSeries>[
-                  LineSeries<TransactionData, String>(
-                    name: 'Revenue',
-                    dataSource: transactionData,
-                    xValueMapper: (TransactionData data, _) => data.month,
-                    yValueMapper: (TransactionData data, _) => data.revenue,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                    color: Colors.deepOrange,
-                  ),
-                  LineSeries<TransactionData, String>(
-                    name: 'Payouts',
-                    dataSource: transactionData,
-                    xValueMapper: (TransactionData data, _) => data.month,
-                    yValueMapper: (TransactionData data, _) => data.payouts,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisitsAnalyticsSection() {
-    // Sample visits data
-    final List<VisitsData> visitsData = [
-      VisitsData('Mon', 45),
-      VisitsData('Tue', 52),
-      VisitsData('Wed', 48),
-      VisitsData('Thu', 60),
-      VisitsData('Fri', 55),
-      VisitsData('Sat', 35),
-      VisitsData('Sun', 25),
-    ];
-
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Account Visits Analytics',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Quick Stats
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatCard('Total Visits', '320', Icons.people),
-                _buildStatCard('Avg Daily', '46', Icons.timeline),
-                _buildStatCard('Growth', '+12%', Icons.trending_up),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Visits Chart
-            SizedBox(
-              height: 250,
-              child: SfCartesianChart(
-                primaryXAxis: CategoryAxis(),
-                title: ChartTitle(text: 'Weekly Visits Trend'),
-                tooltipBehavior: TooltipBehavior(enable: true),
-                series: <CartesianSeries>[
-                  ColumnSeries<VisitsData, String>(
-                    dataSource: visitsData,
-                    xValueMapper: (VisitsData data, _) => data.day,
-                    yValueMapper: (VisitsData data, _) => data.visits,
-                    color: Colors.deepOrange,
-                    dataLabelSettings: const DataLabelSettings(isVisible: true),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.deepOrange, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          title,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-// Data models for charts
-class TransactionData {
-  final String month;
-  final double revenue;
-  final double payouts;
-
-  TransactionData(this.month, this.revenue, this.payouts);
-}
-
-class VisitsData {
-  final String day;
-  final int visits;
-
-  VisitsData(this.day, this.visits);
 }

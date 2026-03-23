@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class LandAndTruckRequestPage extends ConsumerWidget {
-  const LandAndTruckRequestPage({super.key});
+class RequestsForPropertyManager extends ConsumerWidget {
+  const RequestsForPropertyManager({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

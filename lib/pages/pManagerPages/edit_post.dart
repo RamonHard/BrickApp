@@ -1,19 +1,21 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/providers/post_data_notifier.dart';
 import 'package:brickapp/providers/product_provider.dart';
-import 'package:brickapp/providers/property_providers.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class EditPost extends ConsumerStatefulWidget {
   final PropertyModel property; // Pass existing property data
@@ -54,12 +56,10 @@ class _EditPostState extends ConsumerState<EditPost> {
   static const List<String> propertyTypes = [
     'House',
     'Land',
-    'Ceremony Ground',
+    'Venue',
     'Apartments',
     'Office Space',
     'Warehouse',
-    'Hotel',
-    'Hostel',
     'Farm House',
     'Industrial Building',
     'Storage Facility',
@@ -289,21 +289,22 @@ class _EditPostState extends ConsumerState<EditPost> {
   void _initializeForm() {
     final property = widget.property;
 
-    // Set basic info - Ensure propertyType is in the list
-    _propertyType = property.propertyType;
+    _propertyType =
+        property.propertyType.isNotEmpty ? property.propertyType : 'House';
 
-    // If propertyType is not in the list, default to first item
     if (!propertyTypes.contains(_propertyType)) {
       _propertyType = propertyTypes.first;
     }
 
-    _location = property.location;
-    _houseType = property.destinationTitle ?? 'Residential';
-    _descriptionController.text = property.description;
+    _location =
+        property.location.isNotEmpty ? property.location : 'Kampala, Uganda';
 
-    // Set numeric values
-    price = property.price.toInt();
-    _priceController.text = property.price.toString();
+    _houseType = property.destinationTitle ?? 'Residential';
+    _descriptionController.text = property.description ?? '';
+
+    // ✅ Safe price handling
+    price = property.rentPrice?.toInt() ?? property.price.toInt();
+    _priceController.text = price.toString();
 
     if (property.isSale && property.enteredSalePrice > 0) {
       salePrice = property.enteredSalePrice.toInt();
@@ -317,16 +318,14 @@ class _EditPostState extends ConsumerState<EditPost> {
       _isRentSelected = true;
       selectedPackage = property.package;
       discount = property.discount.toInt();
-      commission = property.commission!.toInt();
+      commission = property.commission?.toInt() ?? 0; // ✅ null safe
     }
 
-    // Set basic information
-    _bedroomsController.text = property.bedrooms.toString();
-    _bathsController.text = property.baths.toString();
-    _sqftController.text = property.sqft.toString();
-    _unitsController.text = property.units.toString();
+    _bedroomsController.text = (property.bedrooms ?? 0).toString();
+    _bathsController.text = (property.baths ?? 0).toString();
+    _sqftController.text = (property.sqft ?? 0).toString();
+    _unitsController.text = (property.units ?? 0).toString();
 
-    // Set amenities
     _hasParking = property.hasParking;
     _isFurnished = property.isFurnished;
     _hasAC = property.hasAC;
@@ -335,24 +334,22 @@ class _EditPostState extends ConsumerState<EditPost> {
     _isPetFriendly = property.isPetFriendly;
     _hasCompound = property.hasCompound;
 
-    // Set status
     _isActive = property.isActive;
     if (!_isActive && property.pendingReason != null) {
       _pendingReasonController.text = property.pendingReason!;
     }
 
-    // Set existing photos
-    _existingPhotos = property.insideViews ?? [];
+    // ✅ Safe photos handling
+    _existingPhotos = List<String>.from(
+      property.imageUrls.isNotEmpty ? property.imageUrls : property.insideViews,
+    );
 
-    // Set video if exists
     if (property.videoPath != null && property.videoPath!.isNotEmpty) {
       _isVideo = true;
     }
 
-    // Set currency if available
-    _currency = property.currency ?? 'USD';
+    _currency = property.currency.isNotEmpty ? property.currency : 'UGX';
 
-    // Initialize salesCondition if not already set
     if (salesCondition.isEmpty && property.saleConditions != null) {
       salesCondition = property.saleConditions!;
     }
@@ -368,6 +365,8 @@ class _EditPostState extends ConsumerState<EditPost> {
     if (_isPetFriendly) amenities.add('Pet Friendly');
     return amenities;
   }
+
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -648,116 +647,110 @@ class _EditPostState extends ConsumerState<EditPost> {
     );
   }
 
-  void _updateProperty() {
-    // Combine existing and new photos
-    final allPhotoPaths = [
-      ..._existingPhotos.where((photo) => !_photosToDelete.contains(photo)),
-      ..._selectedPhotos.map((x) => x.path),
-    ];
+  Future<void> _updateProperty() async {
+    setState(() => _isSubmitting = true);
 
-    // Create updated PropertyModel
-    final updatedProperty = PropertyModel(
-      id: widget.property.id, // Keep original ID
-      propertyType: _propertyType,
-      location: _location,
-      description: _descriptionController.text,
-      price: (price ?? int.tryParse(_priceController.text) ?? 0).toDouble(),
-      currency: _currency,
-      bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
-      baths: int.tryParse(_bathsController.text) ?? 0,
-      sqft: int.tryParse(_sqftController.text)?.toDouble() ?? 0,
-      units: int.tryParse(_unitsController.text) ?? 0,
-      isActive: _isActive,
-      pendingReason: _isActive ? "" : _pendingReasonController.text,
-      isRent: _isRentSelected,
-      isSale: _isSaleSelected,
-      enteredSalePrice: (salePrice ?? 0).toDouble(),
-      saleConditions: salesCondition,
-      hasParking: _hasParking,
-      isFurnished: _isFurnished,
-      hasAC: _hasAC,
-      hasInternet: _hasInternet,
-      hasCompound: _hasCompound,
-      hasSecurity: _hasSecurity,
-      isPetFriendly: _isPetFriendly,
-      amenities: _amenities,
-      productIMG: allPhotoPaths.isNotEmpty ? allPhotoPaths.first : "",
-      photoPaths: allPhotoPaths,
-      videoPath: _selectedVideo?.path ?? widget.property.videoPath,
-      starRating: widget.property.starRating, // Keep existing rating
-      reviews: widget.property.reviews, // Keep existing reviews
-      uploaderName: widget.property.uploaderName,
-      uploaderEmail: widget.property.uploaderEmail,
-      uploaderIMG: widget.property.uploaderIMG,
-      uploaderPhoneNumber: widget.property.uploaderPhoneNumber,
-      insideViews: allPhotoPaths,
-      thumbnail: _thumbnailPhoto?.path ?? widget.property.thumbnail ?? "",
-      discount: (discount ?? 0).toDouble(),
-      destinationTitle: _houseType,
-      commission: (commission ?? 0).toDouble(),
-      package: selectedPackage,
-      dateCreated: widget.property.dateCreated,
-      rulesDocumentPath:
-          _rulesDocument?.path ?? widget.property.rulesDocumentPath,
-      numberOfMonths: '',
-      isLand: false,
-      userId: null,
-      listingType: '',
-      status: '', // Keep original creation date
-      // dateUpdated: DateTime.now(), // Add update timestamp
-    );
+    try {
+      final token = ref.read(userProvider).token;
+      if (token == null) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
+        return;
+      }
 
-    // Update in Riverpod state
-    final currentProducts = ref.read(productProvider);
-    final updatedProducts =
-        currentProducts
-            .map((p) => p.id == updatedProperty.id ? updatedProperty : p)
-            .toList();
-    for (final p in updatedProducts) {
-      ref.read(productProvider.notifier).updateProduct(p);
-    }
+      var request = http.MultipartRequest(
+        'PATCH',
+        Uri.parse('${AppUrls.properties}/${widget.property.id}'),
+      );
 
-    // Also update PostData if needed
-    ref
-        .read(postDataProvider.notifier)
-        .update(
-          PostData(
-            propertyType: _propertyType,
-            location: _location,
-            price: price ?? int.tryParse(_priceController.text),
-            salePrice: salePrice ?? int.tryParse(_salePriceController.text),
-            saleConditions: salesCondition,
-            discount: discount,
-            videoPath: _selectedVideo?.path,
-            commission: commission,
-            currency: _currency,
-            bedrooms: int.tryParse(_bedroomsController.text) ?? 0,
-            baths: int.tryParse(_bathsController.text) ?? 0,
-            sqft: int.tryParse(_sqftController.text) ?? 0,
-            units: int.tryParse(_unitsController.text) ?? 0,
-            isActive: _isActive,
-            pendingReason: _isActive ? null : _pendingReasonController.text,
-            isRent: _isRentSelected,
-            isSale: _isSaleSelected,
-            hasParking: _hasParking,
-            isFurnished: _isFurnished,
-            hasAC: _hasAC,
-            hasInternet: _hasInternet,
-            hasSecurity: _hasSecurity,
-            isPetFriendly: _isPetFriendly,
-            description: _descriptionController.text,
-            photoPaths: allPhotoPaths,
-            rulesDocumentPath: _rulesDocument?.path,
-            isLand: false,
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['property_type'] = _propertyType;
+      request.fields['description'] = _descriptionController.text.trim();
+      request.fields['address'] = _location;
+      request.fields['status'] = _isActive ? 'active' : 'pending';
+      request.fields['currency'] = _currency;
+
+      if (_isRentSelected) request.fields['listing_type'] = 'rent';
+      if (_isSaleSelected) request.fields['listing_type'] = 'sale';
+      if (_isRentSelected && _isSaleSelected) {
+        request.fields['listing_type'] = 'rent_and_sale';
+      }
+
+      if (price != null && price! > 0) {
+        request.fields['rent_price'] = price.toString();
+      }
+      if (salePrice != null && salePrice! > 0) {
+        request.fields['sale_price'] = salePrice.toString();
+        request.fields['sale_condition'] = salesCondition;
+      }
+      if (_bedroomsController.text.isNotEmpty) {
+        request.fields['bedrooms'] = _bedroomsController.text;
+      }
+      if (_bathsController.text.isNotEmpty) {
+        request.fields['bathrooms'] = _bathsController.text;
+      }
+      if (_sqftController.text.isNotEmpty) {
+        request.fields['square_feet'] = _sqftController.text;
+      }
+      if (_unitsController.text.isNotEmpty) {
+        request.fields['units'] = _unitsController.text;
+      }
+      if (!_isActive && _pendingReasonController.text.isNotEmpty) {
+        request.fields['pending_reason'] = _pendingReasonController.text;
+      }
+
+      request.fields['amenities'] = _amenities.join(',');
+
+      for (final photo in _selectedPhotos) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', photo.path),
+        );
+      }
+      if (_thumbnailPhoto != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', _thumbnailPhoto!.path),
+        );
+      }
+      if (_selectedVideo != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('video', _selectedVideo!.path),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      setState(() => _isSubmitting = false);
+
+      if (response.statusCode == 200 && data['status'] == true) {
+        final updated = PropertyModel.fromJson(data['property']);
+        ref.read(productProvider.notifier).updateProduct(updated);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Property updated successfully!'),
+            backgroundColor: Colors.green,
           ),
         );
-
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Property updated successfully!")),
-    );
-
-    Navigator.pop(context);
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Update failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Widget _buildExistingPhotosSection() {
@@ -863,20 +856,30 @@ class _EditPostState extends ConsumerState<EditPost> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _updateProperty,
+        onPressed: _isSubmitting ? null : _updateProperty,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: const Text(
-          'Update Property',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        child:
+            _isSubmitting
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : const Text(
+                  'Update Property',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
       ),
     );
   }

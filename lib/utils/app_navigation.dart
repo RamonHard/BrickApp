@@ -24,7 +24,7 @@ import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/pages/pManagerPages/price_demo.dart';
 import 'package:brickapp/pages/sProviderPages/profile.dart';
-import 'package:brickapp/pages/sProviderPages/requests_for_t_and_l.dart';
+import 'package:brickapp/pages/sProviderPages/requests_for_property_manager.dart';
 import 'package:brickapp/pages/sProviderPages/your_truck_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
@@ -63,7 +63,7 @@ class MainNavigation {
   static String register_addpostRoute = "/register_addpostRoute";
   static String register_truckerDriverRoute = "/register_truckerDriverRoute";
   static String PManagerSettingsRoute = "/PManagerSettingsRoute";
-  static String requestsRoute = "/requestsRoute";
+  static String requestsForPropertyManagerRoute = "/requestsRoute";
   static String mainContent = "/mainContent";
 
   static String sortByRoute = "/sortByRoute";
@@ -153,9 +153,16 @@ class MainNavigation {
     if (settings.name == register_truckerDriverRoute) {
       return MaterialPageRoute(builder: (context) => RegisterTruckerDriver());
     }
-    if (settings.name == requestsRoute) {
-      return MaterialPageRoute(builder: (context) => LandAndTruckRequestPage());
+    if (settings.name == requestsForPropertyManagerRoute) {
+      return MaterialPageRoute(
+        builder: (context) => RequestsForPropertyManager(),
+      );
     }
+    // if (settings.name == requestsForServiceProviderRoute) {
+    //   return MaterialPageRoute(
+    //     builder: (context) => ,
+    //   );
+    // }
     // if (settings.name == bookingPageRoute) {
     //   return MaterialPageRoute(
     //     builder:
@@ -227,7 +234,7 @@ class MainNavigation {
         if (isClient) {
           return HomePage();
         } else {
-          return LandAndTruckRequestPage();
+          return RequestsForPropertyManager();
         }
       },
     );

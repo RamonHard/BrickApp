@@ -271,9 +271,22 @@ class ClientProfile extends ConsumerWidget {
                           ),
                           child: ListTile(
                             onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.requestsRoute,
-                              );
+                              if (accountType == AccountType.client) {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation
+                                      .requestsForPropertyManagerRoute,
+                                );
+                              } else if (accountType ==
+                                  AccountType.service_provider) {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation
+                                      .requestsForServiceProviderRoute,
+                                );
+                              } else {
+                                MainNavigation.navigateToRoute(
+                                  MainNavigation.requestsForPClientRoute,
+                                );
+                              }
                             },
                             leading: Icon(
                               Icons.camera_alt_outlined,

@@ -98,6 +98,7 @@ class User {
       fullName: map['full_name'] ?? map['fullName'],
       phone: map['phone'],
       email: map['email'],
+      gender: map['gender'],
       avatar: map['avatar'],
       isVerified: map['is_verified'] ?? false,
       accountType: roleToAccountType(map['role']),

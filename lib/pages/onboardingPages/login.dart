@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:brickapp/custom_widgets/phone_number_input_field.dart';
 import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/forgot_passward.dart';
@@ -76,11 +77,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
                     SizedBox(height: deviceWidth / 10),
-                    InputFieldWidget(
-                      keyBordType: TextInputType.phone,
+                    PhoneInputField(
                       textEditingController:
                           phoneController, // you can rename later
-                      hintText: 'phone (+256...)',
+                      hintText: '789xxxxxxx',
                     ),
                     SizedBox(height: deviceWidth / 10),
                     InputFieldWidget(
@@ -199,6 +199,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       if (response.statusCode == 200 && data['status'] == true) {
         // ✅ Save user + token properly
+        // ✅ Save basic user + token
         ref
             .read(userProvider.notifier)
             .setFromBackend(data['user'], data['token']);
@@ -210,7 +211,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         // ✅ Route based on role
         final user = ref.read(userProvider);
         final isClient = user.isClient || user.isAdmin;
-
+        final profileResponse = await http.get(
+          Uri.parse(AppUrls.profile),
+          headers: {'Authorization': 'Bearer ${data['token']}'},
+        );
+        if (profileResponse.statusCode == 200) {
+          final profileData = jsonDecode(profileResponse.body);
+          ref
+              .read(userProvider.notifier)
+              .setFromBackend(profileData['user'], data['token']);
+        }
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
