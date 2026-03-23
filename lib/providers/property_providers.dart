@@ -109,3 +109,19 @@ final myListingsFamilyProvider = FutureProvider.autoDispose
         throw Exception('Failed to load listings');
       }
     });
+
+// Properties by owner
+final ownerPropertiesFamilyProvider = FutureProvider.autoDispose
+    .family<List<PropertyModel>, int>((ref, userId) async {
+      final response = await http.get(
+        Uri.parse('${AppUrls.properties}?user_id=$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List list = data['properties'];
+        return list.map((e) => PropertyModel.fromJson(e)).toList();
+      } else {
+        throw Exception('Failed to load owner properties');
+      }
+    });

@@ -28,7 +28,12 @@ class ViewMoreProducts extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
-    final moreProductViewList = ref.watch(productProvider);
+
+    // ✅ Fetch properties by owner from backend
+    final ownerPropertiesAsync = ref.watch(
+      ownerPropertiesFamilyProvider(productModel.userId ?? 0),
+    );
+
     return SafeArea(
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -42,15 +47,14 @@ class ViewMoreProducts extends ConsumerWidget {
                   pinned: false,
                   backgroundColor: AppColors.appBarColor,
                   leading: IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     icon: Icon(Icons.arrow_back, color: AppColors.iconColor),
                   ),
                 ),
               ]),
           body: Column(
             children: [
+              // Header with uploader info
               Container(
                 padding: EdgeInsets.all(8.0),
                 height: 100,
@@ -89,10 +93,9 @@ class ViewMoreProducts extends ConsumerWidget {
                     Container(
                       height: 140,
                       width: width,
-                      child: Text(""),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.only(
+                        borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(36.0),
                           bottomRight: Radius.circular(36.0),
                         ),
@@ -101,47 +104,89 @@ class ViewMoreProducts extends ConsumerWidget {
                     ListTile(
                       leading: CircleAvatar(
                         radius: 40,
-                        backgroundImage: NetworkImage(productModel.uploaderIMG),
+                        backgroundColor: Colors.grey[300],
+                        child:
+                            productModel.uploaderIMG.isNotEmpty
+                                ? null
+                                : const Icon(Icons.person, size: 40),
+                        backgroundImage:
+                            productModel.uploaderIMG.isNotEmpty
+                                ? NetworkImage(productModel.uploaderIMG)
+                                : null,
                       ),
                       title: Text(productModel.uploaderName, style: style),
+                      // subtitle: Text(
+                      //   productModel.ownerPhone ?? '',
+                      //   style: style.copyWith(fontSize: 13),
+                      // ),
                     ),
                   ],
                 ),
               ),
+
+              // Properties list
               Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: moreProductViewList.length,
-                  itemBuilder: (BuildContext context, int index) {
-                    PropertyModel moreProductViewModel =
-                        moreProductViewList[index];
-                    return HouseCard(
-                      profileIMG: productModel.uploaderIMG,
-                      price: moreProductViewModel.price,
-                      location: moreProductViewModel.location,
-                      description: moreProductViewModel.description,
-                      thumbnail: moreProductViewModel.thumbnail,
-                      houseType: moreProductViewModel.propertyType,
-                      isActive: moreProductViewModel.isActive,
-                      id: 1,
-                      uploaderName: productModel.uploaderName,
-                      unitsNum: moreProductViewModel.units,
-                      bedroomNum: moreProductViewModel.bedrooms,
-                      starRating: moreProductViewModel.starRating,
-                      reviews: moreProductViewModel.reviews,
-                      sqft: moreProductViewModel.sqft,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (BuildContext context) => DetailedHouseView(
-                                  selectedProduct: moreProductViewModel,
-                                ),
-                          ),
+                child: ownerPropertiesAsync.when(
+                  loading:
+                      () => const Center(child: CircularProgressIndicator()),
+                  error:
+                      (err, _) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Failed to load properties'),
+                            TextButton(
+                              onPressed:
+                                  () => ref.refresh(
+                                    ownerPropertiesFamilyProvider(
+                                      productModel.userId ?? 0,
+                                    ),
+                                  ),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                  data: (properties) {
+                    if (properties.isEmpty) {
+                      return const Center(
+                        child: Text('No other properties from this owner'),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: properties.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final property = properties[index];
+                        return HouseCard(
+                          profileIMG: '',
+                          price: property.displayPrice,
+                          location: property.location,
+                          description: property.description,
+                          thumbnail: property.thumbnailUrl ?? '',
+                          houseType: property.propertyType,
+                          isActive: property.status == 'active',
+                          id: property.id,
+                          uploaderName: property.ownerName ?? '',
+                          unitsNum: property.units,
+                          bedroomNum: property.bedrooms,
+                          starRating: 0,
+                          reviews: 0,
+                          sqft: property.sqft,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (BuildContext context) => DetailedHouseView(
+                                      selectedProduct: property,
+                                    ),
+                              ),
+                            );
+                          },
+                          showDelete: false,
                         );
                       },
-                      showDelete: false,
                     );
                   },
                 ),

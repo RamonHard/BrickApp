@@ -28,9 +28,8 @@ class ClientProfile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userState = ref.watch(userProvider);
-    final accountType = ref.watch(
-      accountTypeProvider,
-    ); // FIXED: Use watch instead of read
+    final accountType =
+        userState.accountType; // FIXED: Use watch instead of read
     final screenSize = MediaQuery.of(context).size.width;
 
     return Container(

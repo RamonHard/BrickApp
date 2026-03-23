@@ -536,39 +536,42 @@ class _AddPostState extends ConsumerState<AddPost> {
                 if (customMonths != null && customMonths! > 0)
                   Text('Duration: $customMonths months'),
                 if (discount != null && discount! > 0)
-                  Text(
-                    'Discount: UGX${currencyFormatter.format(discount ?? 0)}',
-                  ),
-                Text(
-                  'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
-                ),
-
-                // Show total price
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green[100]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calculate, color: Colors.green[700], size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Total Price: UGX${currencyFormatter.format(totalPrice.toInt())}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[800],
+                  //   Text(
+                  //     'Discount: UGX${currencyFormatter.format(discount ?? 0)}',
+                  //   ),
+                  // Text(
+                  //   'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
+                  // ),
+                  // Show total price
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[100]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calculate,
+                          color: Colors.green[700],
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Total Price: UGX${currencyFormatter.format(totalPrice.toInt())}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[800],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
               ],
             ],
 
@@ -633,7 +636,7 @@ class _AddPostState extends ConsumerState<AddPost> {
   // Controllers
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _salePriceController = TextEditingController();
-
+  final TextEditingController _dailyPriceController = TextEditingController();
   final TextEditingController _bedroomsController = TextEditingController();
   final TextEditingController _bathsController = TextEditingController();
   final TextEditingController _sqftController = TextEditingController();
@@ -675,12 +678,17 @@ class _AddPostState extends ConsumerState<AddPost> {
     return amenities;
   }
 
+  bool _isSubmitting = false;
   @override
   Widget build(BuildContext context) {
     bool showHouseSections =
         _propertyType == 'House' ||
         _propertyType == 'Apartments' ||
-        _propertyType == 'Business Shop';
+        _propertyType == 'Business Shop' ||
+        _propertyType == 'Warehouse' ||
+        _propertyType == 'Storage Facility' ||
+        _propertyType == 'Industrial Building' ||
+        _propertyType == 'Office Space';
 
     bool isLandProperty = _propertyType == 'Land';
 
@@ -717,9 +725,43 @@ class _AddPostState extends ConsumerState<AddPost> {
               _buildLocationPicker(),
               const SizedBox(height: 20),
 
-              _buildSectionTitle("Listing Type"),
-              _buildListingTypeButtons(),
+              if (_propertyType != 'Venue') ...[
+                _buildSectionTitle("Listing Type"),
+                _buildListingTypeButtons(),
+                const SizedBox(height: 20),
+              ],
               const SizedBox(height: 20),
+              // After _buildListingTypeButtons()
+              if (_propertyType == 'Venue' ||
+                  _propertyType == 'Ceremony Ground') ...[
+                const SizedBox(height: 20),
+                _buildSectionTitle('Daily Price (UGX)'),
+                Container(
+                  height: 50,
+                  child: TextField(
+                    controller: _dailyPriceController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Enter daily price e.g. 500000',
+                      prefixText: 'UGX ',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
 
               _buildSectionTitle(
                 isLandProperty
@@ -727,23 +769,26 @@ class _AddPostState extends ConsumerState<AddPost> {
                     : 'Set Rental Price Package',
               ),
               showHouseSections || isLandProperty
-                  ? SizedBox(
-                    height: 100,
-                    child:
-                        _isRentSelected || isLandProperty
-                            ? ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: packages.map(buildPackageCard).toList(),
-                            )
-                            : Center(
-                              child: Text(
-                                isLandProperty
-                                    ? "Select a package for land"
-                                    : "Select 'Rent' to choose a package",
-                                style: style,
-                              ),
-                            ),
-                  )
+                  ? (_propertyType == 'Farm House'
+                      ? const SizedBox() // ✅ no packages for venue
+                      : SizedBox(
+                        height: 100,
+                        child:
+                            _isRentSelected || isLandProperty
+                                ? ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children:
+                                      packages.map(buildPackageCard).toList(),
+                                )
+                                : Center(
+                                  child: Text(
+                                    isLandProperty
+                                        ? "Select a package for land"
+                                        : "Select 'Rent' to choose a package",
+                                    style: style,
+                                  ),
+                                ),
+                      ))
                   : _buildPriceField(),
               const SizedBox(height: 10),
 
@@ -1106,7 +1151,9 @@ class _AddPostState extends ConsumerState<AddPost> {
       return;
     }
 
-    if (!_isRentSelected && !_isSaleSelected && !isLandProperty) {
+    final isVenue =
+        _propertyType == 'Venue' || _propertyType == 'Ceremony Ground';
+    if (!_isRentSelected && !_isSaleSelected && !isLandProperty && !isVenue) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select Rent or Sale listing type'),
@@ -1116,17 +1163,13 @@ class _AddPostState extends ConsumerState<AddPost> {
     }
 
     // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    setState(() => _isSubmitting = true);
 
     try {
       final token = ref.read(userProvider).token;
 
       if (token == null) {
-        Navigator.pop(context); // close loading
+        setState(() => _isSubmitting = false); // close loading
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
@@ -1165,7 +1208,13 @@ class _AddPostState extends ConsumerState<AddPost> {
         request.fields['sale_price'] = salePrice.toString();
         request.fields['sale_condition'] = salesCondition;
       }
-
+      // After the rent_price/sale_price fields
+      if (_propertyType == 'Venue' || _propertyType == 'Ceremony Ground') {
+        if (_dailyPriceController.text.isNotEmpty) {
+          request.fields['daily_price'] = _dailyPriceController.text;
+          request.fields['listing_type'] = 'rent'; // venues are always rent
+        }
+      }
       // Duration
       if (selectedPackage != null) {
         final months =
@@ -1234,11 +1283,9 @@ class _AddPostState extends ConsumerState<AddPost> {
 
       print('ADD PROPERTY RESPONSE: $data');
 
-      // Close loading dialog
-      Navigator.pop(context);
+      setState(() => _isSubmitting = false); // ✅ stop loading
 
       if (response.statusCode == 200 && data['status'] == true) {
-        // Also add to local productProvider so MyPostsPage updates
         final newProperty = PropertyModel.fromJson(data['property']);
         ref.read(productProvider.notifier).addProduct(newProperty);
 
@@ -1259,7 +1306,7 @@ class _AddPostState extends ConsumerState<AddPost> {
         );
       }
     } catch (e) {
-      Navigator.pop(context); // close loading
+      setState(() => _isSubmitting = false); // ✅ stop loading on error
       print('Error posting property: $e');
       ScaffoldMessenger.of(
         context,
@@ -1289,20 +1336,32 @@ class _AddPostState extends ConsumerState<AddPost> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _updatePostData, // Simplified call
+        onPressed: _isSubmitting ? null : _updatePostData,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.deepOrange,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(
-          widget.editPostModel != null ? 'Update Property' : 'Post Property',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        child:
+            _isSubmitting
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : Text(
+                  widget.editPostModel != null
+                      ? 'Update Property'
+                      : 'Post Property',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
       ),
     );
   }
@@ -1325,12 +1384,10 @@ class _AddPostState extends ConsumerState<AddPost> {
     List<String> propertyTypes = [
       'House',
       'Land',
-      'Ceremony Ground',
+      'Venue',
       'Apartments',
       'Office Space',
       'Warehouse',
-      'Hotel',
-      'Hostel',
       'Farm House',
       'Industrial Building',
       'Storage Facility',
@@ -2420,5 +2477,20 @@ class _AddPostState extends ConsumerState<AddPost> {
         _selectedVideo = pickedFile;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _salePriceController.dispose();
+    _dailyPriceController.dispose(); // ✅ add this
+    _bedroomsController.dispose();
+    _bathsController.dispose();
+    _sqftController.dispose();
+    _unitsController.dispose();
+    _descriptionController.dispose();
+    _saleConditionsController.dispose();
+    _pendingReasonController.dispose();
+    super.dispose();
   }
 }
