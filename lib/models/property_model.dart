@@ -201,7 +201,12 @@ class PropertyModel {
       ownerPhone: json['owner_phone'],
       ownerEmail: json['owner_email'],
       images: imgs,
-      minimumMonths: json['minimum_months'] ?? 1,
+      minimumMonths:
+          json['rent_duration_months'] != null
+              ? int.tryParse(json['rent_duration_months'].toString()) ?? 1
+              : (json['minimum_months'] != null
+                  ? int.tryParse(json['minimum_months'].toString()) ?? 1
+                  : 1),
       rentDurationMonths: json['rent_duration_months'] ?? 0,
       // Core fields
       id: json['id'] ?? 0,

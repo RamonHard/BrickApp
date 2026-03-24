@@ -36,17 +36,25 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     _loadSettings();
   }
 
+  // In _loadSettings:
   Future<void> _loadSettings() async {
     try {
-      final token = ref.read(userProvider).token;
+      print('🌐 Fetching public settings...');
+
       final res = await http.get(
-        Uri.parse('${AppUrls.baseUrl}/admin/settings'),
-        headers: {'Authorization': 'Bearer $token'},
+        Uri.parse('${AppUrls.baseUrl}/settings/public'),
+        // ✅ No auth header needed — public endpoint
       );
+
+      print('📡 Status: ${res.statusCode}');
+      print('📡 Body: ${res.body}');
+
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final settings = List<Map<String, dynamic>>.from(data['settings']);
+
         for (final s in settings) {
+          print('⚙️ ${s['key']} = ${s['value']}');
           if (s['key'] == 'property_commission_percent') {
             _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
           }
@@ -54,23 +62,40 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             _clientDiscountPercent =
                 double.tryParse(s['value'].toString()) ?? 8.0;
           }
+          if (s['key'] == 'commission_months') {
+            _commissionableMonthsLimit =
+                int.tryParse(s['value'].toString()) ?? 3;
+          }
         }
+
+        print('✅ Commission: $_commissionPercent%');
+        print('✅ Discount: $_clientDiscountPercent%');
+        print('✅ Commission months: $_commissionableMonthsLimit');
       }
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      print('❌ Error: $e');
+      print('❌ Stack: $stackTrace');
+    }
     setState(() => _settingsLoaded = true);
   }
 
   // ─── Calculations ───────────────────────────────────
   double get _pricePerMonth => (widget.productModel.rentPrice ?? 0).toDouble();
 
-  int get _minimumMonths => widget.productModel.minimumMonths ?? 1;
+  int get _minimumMonths {
+    // First try numberOfMonths (rent_duration_months from backend)
+    if (widget.productModel.numberOfMonths.isNotEmpty &&
+        widget.productModel.numberOfMonths != '0' &&
+        widget.productModel.numberOfMonths != 'null') {
+      return int.tryParse(widget.productModel.numberOfMonths) ?? 1;
+    }
+    // Fall back to minimumMonths
+    return widget.productModel.minimumMonths ?? 1;
+  }
 
   int get _totalMonths => _minimumMonths + _extraMonths;
 
   double get _baseTotal => _pricePerMonth * _totalMonths;
-
-  // Commission only on first 1-3 months
-  int get _commissionableMonths => _totalMonths.clamp(1, 3);
 
   double get _commissionableAmount => _pricePerMonth * _commissionableMonths;
 
@@ -85,11 +110,44 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
 
   double get _youSave => _clientDiscount;
 
+  int _commissionableMonthsLimit = 3; // fetched from backend
+
+  int get _commissionableMonths =>
+      _totalMonths < _commissionableMonthsLimit
+          ? _totalMonths
+          : _commissionableMonthsLimit;
   // ─── Build ──────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-
+    if (!_settingsLoaded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Booking Details',
+            style: GoogleFonts.poppins(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.orange),
+              SizedBox(height: 16),
+              Text('Loading pricing...'),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -214,8 +272,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? 's' : ''} '
-          '(set by property manager)',
+          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? 's' : ''} ',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),

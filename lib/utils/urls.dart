@@ -34,7 +34,7 @@ class AppUrls {
   // Payments
   static const String initiatePayment = '$baseUrl/payments/initiate';
   static const String myPayments = '$baseUrl/payments/my-payments';
-
+  static const String publicSettings = '$baseUrl/settings/public';
   static String propertyById(int id) => '$baseUrl/properties/$id';
   static String togglePropertyStatus(int id) =>
       '$baseUrl/properties/$id/toggle-status';

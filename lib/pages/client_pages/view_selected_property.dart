@@ -6,6 +6,7 @@ import 'package:brickapp/pages/client_pages/gallery_view.dart'
     hide FullScreenGallery;
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
+import 'package:brickapp/providers/settings_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
@@ -18,8 +19,7 @@ class ViewSelectedProperty extends ConsumerWidget {
   ViewSelectedProperty({super.key, required this.selectedProduct});
   final PropertyModel selectedProduct;
 
-  final formatter = NumberFormat('#,###');
-
+  // ─── Build ──────────────────────────
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasShownDialog = ref.watch(discountDialogShownProvider);
@@ -670,6 +670,19 @@ class ViewSelectedProperty extends ConsumerWidget {
 
   // ─── Discount Dialog ──────────────────────────────────────
   void _showDiscountDialog(BuildContext context, WidgetRef ref) {
+    // ✅ Read settings from provider
+    final settingsAsync = ref.read(publicSettingsProvider);
+
+    final double clientDiscountPercent = settingsAsync.maybeWhen(
+      data: (s) => s.clientDiscountPercent,
+      orElse: () => 8.0,
+    );
+
+    final int commissionMonths = settingsAsync.maybeWhen(
+      data: (s) => s.commissionMonths,
+      orElse: () => 3,
+    );
+
     showDialog(
       context: context,
       builder:
@@ -692,36 +705,68 @@ class ViewSelectedProperty extends ConsumerWidget {
                   const SizedBox(height: 8),
                 ],
 
-                if (selectedProduct.minimumMonths != null &&
-                    selectedProduct.minimumMonths! > 0)
+                // ✅ Minimum months from backend
+                if (selectedProduct.numberOfMonths.isNotEmpty &&
+                    selectedProduct.numberOfMonths != '0' &&
+                    selectedProduct.numberOfMonths != 'null')
                   Text(
-                    'Minimum package: ${selectedProduct.minimumMonths} month${selectedProduct.minimumMonths! > 1 ? "s" : ""}',
+                    'Minimum package: ${selectedProduct.numberOfMonths} month${int.tryParse(selectedProduct.numberOfMonths) != null && int.parse(selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
 
                 const SizedBox(height: 12),
 
+                // ✅ Real discount % from dashboard
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.green[50],
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text.rich(
+                  child: Text.rich(
                     TextSpan(
                       children: [
-                        TextSpan(text: '🎉 '),
+                        const TextSpan(text: '🎉 '),
                         TextSpan(
                           text: 'Pay through Brick and save!\n',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
                         ),
                         TextSpan(
                           text:
-                              'Get 8% off our platform fee — exclusive to Brick users!',
-                          style: TextStyle(fontSize: 12, color: Colors.green),
+                              'Get ${clientDiscountPercent.toStringAsFixed(0)}% off our platform fee — exclusive to Brick users!',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // ✅ Commission months from dashboard
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: 'ℹ️ '),
+                        TextSpan(
+                          text:
+                              'Platform fee applies on first $commissionMonths month${commissionMonths > 1 ? "s" : ""} only.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue,
+                          ),
                         ),
                       ],
                     ),
