@@ -41,4 +41,17 @@ class AppUrls {
 
   // Property Manager Stats
   static const String managerStats = '$baseUrl/properties/stats';
+
+  // Bookings
+  static const String bookProperty = '$baseUrl/bookings/property';
+  static const String bookTransport = '$baseUrl/bookings/transport';
+  static String refundBooking(int id) =>
+      '$baseUrl/bookings/property/$id/refund';
+  static String respondToTransport(int id) =>
+      '$baseUrl/bookings/transport/$id/respond';
+  static String payForTransport(int id) =>
+      '$baseUrl/bookings/transport/$id/pay';
+  static const String managerRequests = '$baseUrl/bookings/requests/manager';
+  static const String providerRequests = '$baseUrl/bookings/requests/provider';
+  static const String clientRequests = '$baseUrl/bookings/requests/client';
 }

@@ -12,8 +12,9 @@ import 'package:brickapp/pages/client_pages/history_page.dart';
 import 'package:brickapp/pages/client_pages/main_favourite.dart';
 import 'package:brickapp/pages/client_pages/profile_page.dart';
 import 'package:brickapp/pages/client_pages/favorite_s_provider.dart';
+import 'package:brickapp/pages/client_pages/requests_forclient.dart';
 import 'package:brickapp/pages/client_pages/view_more_products.dart';
-import 'package:brickapp/pages/client_pages/view_selected_product.dart';
+import 'package:brickapp/pages/client_pages/view_selected_property.dart';
 import 'package:brickapp/pages/onboardingPages/register_addpost.dart';
 import 'package:brickapp/pages/onboardingPages/truck_driver_register.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
@@ -21,14 +22,16 @@ import 'package:brickapp/pages/pManagerPages/add_post.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
 import 'package:brickapp/pages/pManagerPages/my_posts.dart';
 import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
+import 'package:brickapp/pages/pManagerPages/requests_for_p_m.dart';
 import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/pages/pManagerPages/price_demo.dart';
 import 'package:brickapp/pages/sProviderPages/profile.dart';
-import 'package:brickapp/pages/sProviderPages/requests_for_property_manager.dart';
+import 'package:brickapp/pages/sProviderPages/requests_for_s_p.dart';
 import 'package:brickapp/pages/sProviderPages/your_truck_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_connect/http/src/request/request.dart';
 
 class NavigatorKeys {
   static GlobalKey<NavigatorState> baseKey = GlobalKey<NavigatorState>();
@@ -63,7 +66,11 @@ class MainNavigation {
   static String register_addpostRoute = "/register_addpostRoute";
   static String register_truckerDriverRoute = "/register_truckerDriverRoute";
   static String PManagerSettingsRoute = "/PManagerSettingsRoute";
-  static String requestsForPropertyManagerRoute = "/requestsRoute";
+  static String requestsForPropertyManagerRoute =
+      "/requestsForPropertyManagerRoute";
+  static String requestsForSProviderRoute = "/requestsForSProviderRoute";
+  static String requestsForClientRoute = "/requestsForClientRoute";
+
   static String mainContent = "/mainContent";
 
   static String sortByRoute = "/sortByRoute";
@@ -158,18 +165,14 @@ class MainNavigation {
         builder: (context) => RequestsForPropertyManager(),
       );
     }
-    // if (settings.name == requestsForServiceProviderRoute) {
-    //   return MaterialPageRoute(
-    //     builder: (context) => ,
-    //   );
-    // }
-    // if (settings.name == bookingPageRoute) {
-    //   return MaterialPageRoute(
-    //     builder:
-    //         (context) =>
-    //             BookingPage(selectedItem: settings.arguments as ProductModel),
-    //   );
-    // }
+    if (settings.name == requestsForSProviderRoute) {
+      return MaterialPageRoute(
+        builder: (context) => RequestsForServiceProvider(),
+      );
+    }
+    if (settings.name == requestsForClientRoute) {
+      return MaterialPageRoute(builder: (context) => RequestsForClient());
+    }
     if (settings.name == editPostPae) {
       return MaterialPageRoute(
         builder:
@@ -191,7 +194,7 @@ class MainNavigation {
     if (settings.name == paymentMethodRoute) {
       return MaterialPageRoute(
         builder:
-            (context) => ApartmentBookingPage(
+            (context) => PropertyBookingPage(
               productModel: settings.arguments as PropertyModel,
             ),
         // BookingPageForMore(
@@ -219,7 +222,7 @@ class MainNavigation {
     if (settings.name == viewSelectedProductRoute) {
       return MaterialPageRoute(
         builder:
-            (context) => ViewSelectedProduct(
+            (context) => ViewSelectedProperty(
               selectedProduct: settings.arguments as PropertyModel,
             ),
       );

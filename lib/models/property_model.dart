@@ -9,7 +9,8 @@ class PropertyModel {
   final String? ownerPhone;
   final String? ownerEmail;
   final List<String> images;
-
+  final int? minimumMonths;
+  final int? rentDurationMonths;
   // ─── Core fields (used everywhere) ────────────────────
   final int id;
   final String propertyType;
@@ -82,7 +83,8 @@ class PropertyModel {
     this.ownerPhone,
     this.ownerEmail,
     this.images = const [],
-
+    this.minimumMonths,
+    this.rentDurationMonths,
     // Core fields
     required this.id,
     required this.propertyType,
@@ -199,7 +201,8 @@ class PropertyModel {
       ownerPhone: json['owner_phone'],
       ownerEmail: json['owner_email'],
       images: imgs,
-
+      minimumMonths: json['minimum_months'] ?? 1,
+      rentDurationMonths: json['rent_duration_months'] ?? 0,
       // Core fields
       id: json['id'] ?? 0,
       propertyType: json['property_type'] ?? '',
@@ -295,6 +298,7 @@ class PropertyModel {
     int? units,
     bool? isActive,
     bool? isLand,
+    int? minimumMonths,
     String? pendingReason,
     bool? isRent,
     bool? isSale,
@@ -334,6 +338,7 @@ class PropertyModel {
       id: id ?? this.id,
       propertyType: propertyType ?? this.propertyType,
       location: location ?? this.location,
+      minimumMonths: minimumMonths ?? this.minimumMonths,
       description: description ?? this.description,
       numberOfMonths: numberOfMonths ?? this.numberOfMonths,
       thumbnail: thumbnail ?? this.thumbnail,

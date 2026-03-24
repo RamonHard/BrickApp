@@ -279,12 +279,11 @@ class ClientProfile extends ConsumerWidget {
                               } else if (accountType ==
                                   AccountType.service_provider) {
                                 MainNavigation.navigateToRoute(
-                                  MainNavigation
-                                      .requestsForServiceProviderRoute,
+                                  MainNavigation.requestsForSProviderRoute,
                                 );
                               } else {
                                 MainNavigation.navigateToRoute(
-                                  MainNavigation.requestsForPClientRoute,
+                                  MainNavigation.requestsForClientRoute,
                                 );
                               }
                             },
