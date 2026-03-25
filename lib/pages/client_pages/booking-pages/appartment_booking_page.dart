@@ -29,6 +29,10 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   double _commissionPercent = 10.0;
   double _clientDiscountPercent = 8.0;
   bool _settingsLoaded = false;
+  int _commissionableMonthsLimit = 3;
+
+  // Add a flag to prevent multiple navigation attempts
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -36,14 +40,12 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     _loadSettings();
   }
 
-  // In _loadSettings:
   Future<void> _loadSettings() async {
     try {
       print('🌐 Fetching public settings...');
 
       final res = await http.get(
         Uri.parse('${AppUrls.baseUrl}/settings/public'),
-        // ✅ No auth header needed — public endpoint
       );
 
       print('📡 Status: ${res.statusCode}');
@@ -83,13 +85,11 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   double get _pricePerMonth => (widget.productModel.rentPrice ?? 0).toDouble();
 
   int get _minimumMonths {
-    // First try numberOfMonths (rent_duration_months from backend)
     if (widget.productModel.numberOfMonths.isNotEmpty &&
         widget.productModel.numberOfMonths != '0' &&
         widget.productModel.numberOfMonths != 'null') {
       return int.tryParse(widget.productModel.numberOfMonths) ?? 1;
     }
-    // Fall back to minimumMonths
     return widget.productModel.minimumMonths ?? 1;
   }
 
@@ -102,7 +102,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   double get _platformCommission =>
       _commissionableAmount * (_commissionPercent / 100);
 
-  // Client discount is % of our commission
   double get _clientDiscount =>
       _platformCommission * (_clientDiscountPercent / 100);
 
@@ -110,12 +109,11 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
 
   double get _youSave => _clientDiscount;
 
-  int _commissionableMonthsLimit = 3; // fetched from backend
-
   int get _commissionableMonths =>
       _totalMonths < _commissionableMonthsLimit
           ? _totalMonths
           : _commissionableMonthsLimit;
+
   // ─── Build ──────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -166,15 +164,12 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Property image
             _buildPropertyImage(width),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Property title + location
                   Text(
                     widget.productModel.propertyType,
                     style: const TextStyle(
@@ -201,38 +196,28 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
-
-                  // ─── Months Selector ────────────────
                   _buildMonthsSelector(),
-
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
-
-                  // ─── Price Breakdown ─────────────────
                   _buildPriceBreakdown(),
-
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
-
-                  // ─── Payment Methods ─────────────────
                   const Text(
                     'Select Payment Method',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-
                   _PaymentOption(
                     title: 'Mobile Money',
                     subtitle: 'MTN & Airtel Money',
                     icon: Icons.phone_android,
                     color: Colors.yellow[700]!,
-                    onSelected: () => _showMobileMoneyFlow(),
+                    onSelected: _showMobileMoneyFlow,
                   ),
                   const SizedBox(height: 8),
                   _PaymentOption(
@@ -250,7 +235,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                     color: Colors.blue,
                     onSelected: () => _showComingSoon('Card Payment'),
                   ),
-
                   const SizedBox(height: 32),
                 ],
               ),
@@ -261,7 +245,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     );
   }
 
-  // ─── Months Selector Widget ──────────────────────────
   Widget _buildMonthsSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,8 +259,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
-
-        // Minimum months — fixed
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -299,10 +280,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             ],
           ),
         ),
-
         const SizedBox(height: 12),
-
-        // Extra months selector
         Row(
           children: [
             const Text(
@@ -336,8 +314,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             ),
           ],
         ),
-
-        // Total months display
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -367,7 +343,6 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     );
   }
 
-  // ─── Price Breakdown Widget ──────────────────────────
   Widget _buildPriceBreakdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,79 +352,13 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-
         _buildPriceRow(
           'Price per month',
           'UGX ${formatter.format(_pricePerMonth)}',
         ),
         _buildPriceRow('Total months', '$_totalMonths months'),
         _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
-
         const Divider(height: 20),
-
-        // Commission info
-        // Container(
-        //   padding: const EdgeInsets.all(10),
-        //   decoration: BoxDecoration(
-        //     color: Colors.blue[50],
-        //     borderRadius: BorderRadius.circular(8),
-        //   ),
-        //   child: Column(
-        //     crossAxisAlignment: CrossAxisAlignment.start,
-        //     children: [
-        //       Text(
-        //         'Platform fee (${_commissionPercent.toStringAsFixed(0)}% on first ${_commissionableMonths} month${_commissionableMonths > 1 ? 's' : ''}):',
-        //         style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-        //       ),
-        //       const SizedBox(height: 4),
-        //       Text(
-        //         'UGX ${formatter.format(_platformCommission)}',
-        //         style: TextStyle(
-        //           fontWeight: FontWeight.bold,
-        //           color: Colors.blue[800],
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
-        // const SizedBox(height: 8),
-
-        // // Discount for paying through platform
-        // Container(
-        //   padding: const EdgeInsets.all(10),
-        //   decoration: BoxDecoration(
-        //     color: Colors.green[50],
-        //     borderRadius: BorderRadius.circular(8),
-        //   ),
-        //   child: Row(
-        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //     children: [
-        //       Column(
-        //         crossAxisAlignment: CrossAxisAlignment.start,
-        //         children: [
-        //           Text(
-        //             '🎉 Platform discount (${_clientDiscountPercent.toStringAsFixed(0)}% off fee):',
-        //             style: TextStyle(fontSize: 12, color: Colors.green[700]),
-        //           ),
-        //           Text(
-        //             'Reward for paying through Brick',
-        //             style: TextStyle(fontSize: 11, color: Colors.green[600]),
-        //           ),
-        //         ],
-        //       ),
-        //       Text(
-        //         '- UGX ${formatter.format(_youSave)}',
-        //         style: TextStyle(
-        //           fontWeight: FontWeight.bold,
-        //           color: Colors.green[800],
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
-        const Divider(height: 20),
-
-        // Final total
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -475,10 +384,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             ],
           ),
         ),
-
         const SizedBox(height: 8),
-
-        // You save
         Center(
           child: Text(
             '🎉 You save UGX ${formatter.format(_youSave)} by paying through Brick!',
@@ -655,9 +561,13 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (pinController.text == '1234') {
+                    // Close PIN dialog first
                     Navigator.pop(ctx);
+                    // Small delay to ensure dialog is closed
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    // Then process booking
                     _processBooking(phone);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -681,15 +591,19 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
 
   // ─── Process Booking ─────────────────────────────────
   Future<void> _processBooking(String phone) async {
+    // Check if already navigating to prevent duplicate calls
+    if (_isNavigating) return;
+    _isNavigating = true;
+
     // Show processing dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder:
-          (ctx) => const AlertDialog(
+          (ctx) => AlertDialog(
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: const [
                 CircularProgressIndicator(color: Colors.orange),
                 SizedBox(height: 16),
                 Text('Processing payment...'),
@@ -737,23 +651,34 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
       final data = jsonDecode(res.body);
 
       // Close processing dialog
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
 
       if (res.statusCode == 200 && data['status'] == true) {
-        _showSuccessDialog();
+        if (mounted) {
+          _showSuccessDialog();
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Booking failed'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Booking failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      // Close processing dialog on error
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      _isNavigating = false;
     }
   }
 
@@ -805,8 +730,14 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    // Close the success dialog
                     Navigator.pop(ctx);
-                    Navigator.pop(context); // go back to property
+                    // Navigate back to previous page after a short delay
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,

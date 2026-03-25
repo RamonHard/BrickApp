@@ -14,7 +14,15 @@ class RequestsForClient extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final token = ref.watch(userProvider).token ?? '';
+    final user = ref.watch(userProvider);
+    final token = user.token ?? '';
+
+    // Debug: Check if token exists
+    print('🔑 User token exists: ${token.isNotEmpty}');
+    print(
+      '🔑 Token: ${token.substring(0, token.length > 10 ? 10 : token.length)}...',
+    );
+
     final requestsAsync = ref.watch(clientRequestsProvider(token));
     final formatter = NumberFormat('#,###');
 
@@ -37,28 +45,39 @@ class RequestsForClient extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.refresh(clientRequestsProvider(token)),
+            onPressed: () {
+              print('🔄 Manually refreshing...');
+              ref.refresh(clientRequestsProvider(token));
+            },
           ),
         ],
       ),
       body: requestsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (e, _) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 12),
-                  const Text('Failed to load requests'),
-                  TextButton(
-                    onPressed: () => ref.refresh(clientRequestsProvider(token)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+        error: (error, stackTrace) {
+          print('❌ Error loading requests: $error');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 12),
+                Text(
+                  'Failed to load requests: ${error.toString()}',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => ref.refresh(clientRequestsProvider(token)),
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
+          );
+        },
         data: (bookings) {
+          print('📊 Received ${bookings.length} bookings');
+
           if (bookings.isEmpty) {
             return Center(
               child: Column(
@@ -70,6 +89,11 @@ class RequestsForClient extends ConsumerWidget {
                     'No bookings yet',
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your bookings will appear here',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
                 ],
               ),
             );
@@ -80,6 +104,9 @@ class RequestsForClient extends ConsumerWidget {
             itemCount: bookings.length,
             itemBuilder: (context, index) {
               final booking = bookings[index];
+              print(
+                '📦 Booking $index: ${booking['id']} - ${booking['booking_type']}',
+              );
               return _ClientBookingCard(
                 booking: booking,
                 token: token,
