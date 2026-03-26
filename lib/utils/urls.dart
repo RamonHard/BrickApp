@@ -1,5 +1,5 @@
 class AppUrls {
-  static const String baseUrl = 'http://172.17.0.1:3000';
+  static const String baseUrl = 'http://127.17.0.1:3000';
 
   // Auth
   static const String login = '$baseUrl/users/login';
@@ -54,4 +54,6 @@ class AppUrls {
   static const String managerRequests = '$baseUrl/bookings/requests/manager';
   static const String providerRequests = '$baseUrl/bookings/requests/provider';
   static const String clientRequests = '$baseUrl/bookings/requests/client';
+  static String approveRefund(int id) =>
+      '$baseUrl/bookings/property/$id/approve-refund';
 }

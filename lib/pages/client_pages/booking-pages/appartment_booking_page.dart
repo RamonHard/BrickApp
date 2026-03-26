@@ -81,6 +81,10 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     setState(() => _settingsLoaded = true);
   }
 
+  DateTime? _venueStartDate;
+  DateTime? _venueEndDate;
+  final TextEditingController _landValueController = TextEditingController();
+
   // ─── Calculations ───────────────────────────────────
   double get _pricePerMonth => (widget.productModel.rentPrice ?? 0).toDouble();
 
@@ -95,9 +99,21 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
 
   int get _totalMonths => _minimumMonths + _extraMonths;
 
-  double get _baseTotal => _pricePerMonth * _totalMonths;
+  double get _baseTotal {
+    if (_isVenue) return _dailyPrice * _venueDays;
+    if (_isLand) {
+      final landValue = double.tryParse(_landValueController.text) ?? 0;
+      final percentage = widget.productModel.landPercentage ?? 10.0;
+      return landValue * (percentage / 100);
+    }
+    return _pricePerMonth * _totalMonths;
+  }
 
-  double get _commissionableAmount => _pricePerMonth * _commissionableMonths;
+  // ✅ Replace these two getters
+  double get _commissionableAmount {
+    if (_isVenue || _isLand) return _baseTotal; // full amount for venue/land
+    return _pricePerMonth * _commissionableMonths; // months-based for regular
+  }
 
   double get _platformCommission =>
       _commissionableAmount * (_commissionPercent / 100);
@@ -113,11 +129,27 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
       _totalMonths < _commissionableMonthsLimit
           ? _totalMonths
           : _commissionableMonthsLimit;
+  bool get _isLand => widget.productModel.propertyType == 'Land';
+  bool get _isVenue => widget.productModel.propertyType == 'Venue';
+  bool get _isRegular => !_isLand && !_isVenue;
+
+  int get _venueDays {
+    if (_venueStartDate == null || _venueEndDate == null) return 0;
+    return _venueEndDate!.difference(_venueStartDate!).inDays;
+  }
+
+  double get _dailyPrice => (widget.productModel.rentPrice ?? 0).toDouble();
+  @override
+  void dispose() {
+    _landValueController.dispose();
+    super.dispose();
+  }
 
   // ─── Build ──────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
+
     if (!_settingsLoaded) {
       return Scaffold(
         appBar: AppBar(
@@ -199,7 +231,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
-                  _buildMonthsSelector(),
+                  _buildDurationSelector(),
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
@@ -245,18 +277,24 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     );
   }
 
-  Widget _buildMonthsSelector() {
+  Widget _buildDurationSelector() {
+    if (_isLand) return _buildLandSelector();
+    if (_isVenue) return _buildVenueDateSelector();
+    return _buildMonthsSelector(); // ✅ calls the months selector
+  }
+
+  Widget _buildLandSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Rental Duration',
+          'Land Purchase',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         Text(
-          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? 's' : ''} ',
-          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          'Commission: ${widget.productModel.landPercentage ?? 10}% of total land value',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
         ),
         const SizedBox(height: 16),
         Container(
@@ -266,76 +304,39 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.orange[200]!),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lock, size: 16, color: Colors.orange[700]),
-              const SizedBox(width: 8),
-              Text(
-                'Base: $_minimumMonths month${_minimumMonths > 1 ? 's' : ''} × UGX ${formatter.format(_pricePerMonth)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange[800],
+              const Text(
+                'Enter total land value (UGX):',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _landValueController,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'e.g. 50,000,000',
+                  prefixText: 'UGX ',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Text(
-              'Add extra months:',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed:
-                  _extraMonths > 0
-                      ? () => setState(() => _extraMonths--)
-                      : null,
-              icon: const Icon(Icons.remove_circle_outline),
-              color: _extraMonths > 0 ? Colors.orange : Colors.grey,
-            ),
-            Container(
-              width: 40,
-              alignment: Alignment.center,
-              child: Text(
-                '$_extraMonths',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              if (_landValueController.text.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Our fee (${widget.productModel.landPercentage ?? 10}%): '
+                  'UGX ${formatter.format(_baseTotal)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
+                  ),
                 ),
-              ),
-            ),
-            IconButton(
-              onPressed: () => setState(() => _extraMonths++),
-              icon: const Icon(Icons.add_circle_outline),
-              color: Colors.orange,
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green[50],
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.green[200]!),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total duration:',
-                style: TextStyle(color: Colors.green[800]),
-              ),
-              Text(
-                '$_totalMonths month${_totalMonths > 1 ? 's' : ''}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.green[800],
-                ),
-              ),
+              ],
             ],
           ),
         ),
@@ -343,7 +344,174 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     );
   }
 
+  Widget _buildVenueDateSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Venue Booking',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'UGX ${formatter.format(_dailyPrice)} per day',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+
+        // Start date
+        GestureDetector(
+          onTap: () => _pickDate(isStart: true),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange[200]!),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today,
+                  color: Colors.orange,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _venueStartDate == null
+                      ? 'Select start date'
+                      : 'From: ${_venueStartDate!.toString().substring(0, 10)}',
+                  style: TextStyle(
+                    color: _venueStartDate == null ? Colors.grey : Colors.black,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // End date
+        GestureDetector(
+          onTap:
+              _venueStartDate == null ? null : () => _pickDate(isStart: false),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color:
+                  _venueStartDate == null
+                      ? Colors.grey[100]
+                      : Colors.orange[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color:
+                    _venueStartDate == null
+                        ? Colors.grey[300]!
+                        : Colors.orange[200]!,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  color: _venueStartDate == null ? Colors.grey : Colors.orange,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _venueEndDate == null
+                      ? 'Select end date'
+                      : 'To: ${_venueEndDate!.toString().substring(0, 10)}',
+                  style: TextStyle(
+                    color: _venueEndDate == null ? Colors.grey : Colors.black,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Days summary
+        if (_venueStartDate != null && _venueEndDate != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.green[200]!),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total days:', style: TextStyle(color: Colors.green[800])),
+                Text(
+                  '$_venueDays day${_venueDays > 1 ? "s" : ""}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.green[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate:
+          isStart
+              ? now
+              : (_venueStartDate?.add(const Duration(days: 1)) ?? now),
+      firstDate: isStart ? now : (_venueStartDate ?? now),
+      lastDate: DateTime(now.year + 2),
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _venueStartDate = picked;
+          // Reset end date if it's before new start date
+          if (_venueEndDate != null && _venueEndDate!.isBefore(picked)) {
+            _venueEndDate = null;
+          }
+        } else {
+          _venueEndDate = picked;
+        }
+      });
+    }
+  }
+
   Widget _buildPriceBreakdown() {
+    if (_isLand && _landValueController.text.isEmpty) {
+      return const Center(
+        child: Text(
+          'Enter land value above to see price breakdown',
+          style: TextStyle(color: Colors.grey),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    if (_isVenue && _venueDays == 0) {
+      return const Center(
+        child: Text(
+          'Select dates above to see price breakdown',
+          style: TextStyle(color: Colors.grey),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,13 +520,86 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        _buildPriceRow(
-          'Price per month',
-          'UGX ${formatter.format(_pricePerMonth)}',
-        ),
-        _buildPriceRow('Total months', '$_totalMonths months'),
-        _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
+
+        if (_isVenue) ...[
+          _buildPriceRow(
+            'Price per day',
+            'UGX ${formatter.format(_dailyPrice)}',
+          ),
+          _buildPriceRow('Number of days', '$_venueDays days'),
+          _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
+        ] else if (_isLand) ...[
+          _buildPriceRow(
+            'Land value',
+            'UGX ${formatter.format(double.tryParse(_landValueController.text) ?? 0)}',
+          ),
+          _buildPriceRow(
+            'Our fee (${widget.productModel.landPercentage ?? 10}%)',
+            'UGX ${formatter.format(_baseTotal)}',
+          ),
+        ] else ...[
+          _buildPriceRow(
+            'Price per month',
+            'UGX ${formatter.format(_pricePerMonth)}',
+          ),
+          _buildPriceRow('Total months', '$_totalMonths months'),
+          _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
+        ],
+
         const Divider(height: 20),
+
+        // Commission info
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'Platform fee (${_commissionPercent.toStringAsFixed(0)}%'
+            '${_isRegular ? " on first $_commissionableMonths month${_commissionableMonths > 1 ? "s" : ""}" : ""}): '
+            'UGX ${formatter.format(_platformCommission)}',
+            style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Discount
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🎉 Brick discount (${_clientDiscountPercent.toStringAsFixed(0)}% off fee):',
+                    style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                  ),
+                  Text(
+                    'Reward for paying through Brick',
+                    style: TextStyle(fontSize: 11, color: Colors.green[600]),
+                  ),
+                ],
+              ),
+              Text(
+                '- UGX ${formatter.format(_youSave)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[800],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 20),
+
+        // Final total
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -591,19 +832,36 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
 
   // ─── Process Booking ─────────────────────────────────
   Future<void> _processBooking(String phone) async {
-    // Check if already navigating to prevent duplicate calls
-    if (_isNavigating) return;
-    _isNavigating = true;
+    // Validation
+    if (_isVenue && (_venueStartDate == null || _venueEndDate == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select venue dates'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_isLand && _landValueController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the land value'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Show processing dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder:
-          (ctx) => AlertDialog(
+          (ctx) => const AlertDialog(
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 CircularProgressIndicator(color: Colors.orange),
                 SizedBox(height: 16),
                 Text('Processing payment...'),
@@ -622,20 +880,44 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     try {
       final token = ref.read(userProvider).token;
 
-      final startDate = DateTime.now();
-      final endDate = DateTime(
-        startDate.year,
-        startDate.month + _totalMonths,
-        startDate.day,
-      );
+      // ✅ Build request body based on property type
+      Map<String, dynamic> body;
 
-      final res = await http.post(
-        Uri.parse(AppUrls.bookProperty),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
+      if (_isVenue) {
+        body = {
+          'property_id': widget.productModel.id,
+          'start_date': _venueStartDate!.toIso8601String(),
+          'end_date': _venueEndDate!.toIso8601String(),
+          'total_price': _finalTotal,
+          'booking_days': _venueDays,
+          'payment_method': 'mobile_money',
+          'payment_phone': phone,
+          'platform_commission': _platformCommission,
+          'client_discount': _youSave,
+        };
+      } else if (_isLand) {
+        final landValue = double.tryParse(_landValueController.text) ?? 0;
+        body = {
+          'property_id': widget.productModel.id,
+          'start_date': DateTime.now().toIso8601String(),
+          'end_date': DateTime.now().toIso8601String(),
+          'total_price': _finalTotal,
+          'land_percentage': widget.productModel.landPercentage,
+          'land_total_value': landValue,
+          'payment_method': 'mobile_money',
+          'payment_phone': phone,
+          'platform_commission': _platformCommission,
+          'client_discount': _youSave,
+        };
+      } else {
+        // Regular monthly
+        final startDate = DateTime.now();
+        final endDate = DateTime(
+          startDate.year,
+          startDate.month + _totalMonths,
+          startDate.day,
+        );
+        body = {
           'property_id': widget.productModel.id,
           'start_date': startDate.toIso8601String(),
           'end_date': endDate.toIso8601String(),
@@ -645,40 +927,36 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           'payment_phone': phone,
           'platform_commission': _platformCommission,
           'client_discount': _youSave,
-        }),
+        };
+      }
+
+      final res = await http.post(
+        Uri.parse(AppUrls.bookProperty),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
       );
 
       final data = jsonDecode(res.body);
-
-      // Close processing dialog
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      Navigator.pop(context); // close processing dialog
 
       if (res.statusCode == 200 && data['status'] == true) {
-        if (mounted) {
-          _showSuccessDialog();
-        }
+        _showSuccessDialog();
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Booking failed'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Booking failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      // Close processing dialog on error
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      _isNavigating = false;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -705,7 +983,11 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Duration: $_totalMonths month${_totalMonths > 1 ? 's' : ''}',
+                  _isVenue
+                      ? 'Duration: $_venueDays day${_venueDays > 1 ? "s" : ""}'
+                      : _isLand
+                      ? 'Land purchase completed'
+                      : 'Duration: $_totalMonths month${_totalMonths > 1 ? "s" : ""}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
@@ -757,6 +1039,112 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
         content: Text('$method coming soon!'),
         backgroundColor: Colors.orange,
       ),
+    );
+  }
+
+  Widget _buildMonthsSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Rental Duration',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? "s" : ""} '
+          '(set by property manager)',
+          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 16),
+
+        // Minimum months — fixed/locked
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.orange[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lock, size: 16, color: Colors.orange[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Base: $_minimumMonths month${_minimumMonths > 1 ? "s" : ""} × UGX ${formatter.format(_pricePerMonth)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange[800],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Extra months selector
+        Row(
+          children: [
+            const Text(
+              'Add extra months:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const Spacer(),
+            IconButton(
+              onPressed:
+                  _extraMonths > 0
+                      ? () => setState(() => _extraMonths--)
+                      : null,
+              icon: const Icon(Icons.remove_circle_outline),
+              color: _extraMonths > 0 ? Colors.orange : Colors.grey,
+            ),
+            Container(
+              width: 40,
+              alignment: Alignment.center,
+              child: Text(
+                '$_extraMonths',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () => setState(() => _extraMonths++),
+              icon: const Icon(Icons.add_circle_outline),
+              color: Colors.orange,
+            ),
+          ],
+        ),
+
+        // Total months display
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.green[200]!),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total duration:',
+                style: TextStyle(color: Colors.green[800]),
+              ),
+              Text(
+                '$_totalMonths month${_totalMonths > 1 ? "s" : ""}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.green[800],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

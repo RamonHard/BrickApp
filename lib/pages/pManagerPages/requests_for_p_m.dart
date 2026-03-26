@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 
-class RequestsForPropertyManager extends ConsumerWidget {
-  const RequestsForPropertyManager({super.key});
+class RequestsFromClientsToManager extends ConsumerWidget {
+  const RequestsFromClientsToManager({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

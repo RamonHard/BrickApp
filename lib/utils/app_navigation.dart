@@ -162,16 +162,16 @@ class MainNavigation {
     }
     if (settings.name == requestsForPropertyManagerRoute) {
       return MaterialPageRoute(
-        builder: (context) => RequestsForPropertyManager(),
+        builder: (context) => RequestsFromClientsToManager(),
       );
     }
     if (settings.name == requestsForSProviderRoute) {
       return MaterialPageRoute(
-        builder: (context) => RequestsForServiceProvider(),
+        builder: (context) => RequestsFromClientToServiceProvider(),
       );
     }
     if (settings.name == requestsForClientRoute) {
-      return MaterialPageRoute(builder: (context) => RequestsForClient());
+      return MaterialPageRoute(builder: (context) => RequestsByClient());
     }
     if (settings.name == editPostPae) {
       return MaterialPageRoute(
@@ -237,7 +237,7 @@ class MainNavigation {
         if (isClient) {
           return HomePage();
         } else {
-          return RequestsForPropertyManager();
+          return RequestsFromClientsToManager();
         }
       },
     );

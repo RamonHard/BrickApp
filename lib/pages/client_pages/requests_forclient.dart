@@ -9,8 +9,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-class RequestsForClient extends ConsumerWidget {
-  const RequestsForClient({super.key});
+class RequestsByClient extends ConsumerWidget {
+  const RequestsByClient({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

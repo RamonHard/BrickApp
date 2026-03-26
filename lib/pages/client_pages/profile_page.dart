@@ -271,7 +271,7 @@ class ClientProfile extends ConsumerWidget {
                           ),
                           child: ListTile(
                             onTap: () {
-                              if (accountType == AccountType.client) {
+                              if (accountType == AccountType.property_manager) {
                                 MainNavigation.navigateToRoute(
                                   MainNavigation
                                       .requestsForPropertyManagerRoute,
@@ -282,6 +282,7 @@ class ClientProfile extends ConsumerWidget {
                                   MainNavigation.requestsForSProviderRoute,
                                 );
                               } else {
+                                // client
                                 MainNavigation.navigateToRoute(
                                   MainNavigation.requestsForClientRoute,
                                 );
