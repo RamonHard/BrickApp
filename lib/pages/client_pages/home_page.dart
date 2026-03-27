@@ -1,6 +1,7 @@
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/filter_search.dart';
 import 'package:brickapp/providers/property_providers.dart';
+import 'package:brickapp/providers/search_and_query_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,7 +21,7 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final propertiesAsync = ref.watch(propertiesProvider);
+    final propertiesAsync = ref.watch(filteredPropertiesProvider);
 
     return SafeArea(
       child: Scaffold(
@@ -46,8 +47,8 @@ class HomePage extends ConsumerWidget {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                onSubmitted: (value) {
-                  // TODO: implement search
+                onChanged: (value) {
+                  ref.read(searchQueryProvider.notifier).state = value;
                 },
               ),
             ),

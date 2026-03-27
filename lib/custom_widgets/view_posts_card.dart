@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -54,7 +55,7 @@ class ViewPostsCard extends StatelessWidget {
                         topLeft: Radius.circular(10.0),
                         bottomLeft: Radius.circular(10.0),
                       ),
-                      child: _buildImage(productimage),
+                      child: buildImage(productimage),
                     ),
                   ),
                 ),
@@ -171,22 +172,38 @@ class ViewPostsCard extends StatelessWidget {
   }
 
   /// Helper to display local or network image safely
-  Widget _buildImage(String path) {
-    if (path.startsWith('http')) {
-      // Network image
-      return Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _errorPlaceholder(),
-      );
-    } else {
-      // Local image
-      return Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _errorPlaceholder(),
+  Widget buildImage(
+    String? path, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    if (path == null || path.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey[300],
+        child: const Icon(Icons.image),
       );
     }
+
+    final imageUrl =
+        path.startsWith('http') ? path : '${AppUrls.baseUrl}/$path';
+
+    return Image.network(
+      imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.broken_image),
+        );
+      },
+    );
   }
 
   Widget _errorPlaceholder() => Container(

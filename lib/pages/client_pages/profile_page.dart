@@ -3,11 +3,10 @@ import 'package:brickapp/custom_widgets/custom_expansion_list.dart';
 import 'package:brickapp/custom_widgets/profile_transparent_widget.dart';
 import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
-import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
-import 'package:brickapp/utils/account_type.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,6 +27,7 @@ class ClientProfile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userState = ref.watch(userProvider);
+
     final accountType =
         userState.accountType; // FIXED: Use watch instead of read
     final screenSize = MediaQuery.of(context).size.width;
@@ -62,12 +62,19 @@ class ClientProfile extends ConsumerWidget {
                       SizedBox(height: screenSize / 5),
                       Container(
                         alignment: Alignment.topCenter,
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 60,
                           backgroundColor: Colors.deepOrange,
-                          backgroundImage: NetworkImage(
-                            "https://miro.medium.com/v2/resize:fit:1079/1*G6bWZ2AzAAPVsl86NU-2bQ.png",
-                          ),
+                          backgroundImage:
+                              userState.avatar != null
+                                  ? NetworkImage(
+                                    userState.avatar!.startsWith('http')
+                                        ? userState.avatar!
+                                        : '${AppUrls.baseUrl}/${userState.avatar}',
+                                  )
+                                  : const NetworkImage(
+                                    'https://miro.medium.com/v2/resize:fit:1079/1*G6bWZ2AzAAPVsl86NU-2bQ.png',
+                                  ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -361,34 +368,6 @@ class ClientProfile extends ConsumerWidget {
                         ),
                       ),
 
-                      Container(
-                        alignment: Alignment.center,
-                        child: Card(
-                          color: HexColor("FFFFFF").withOpacity(0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.lock_outline,
-                              color: AppColors.iconColor,
-                            ),
-                            title: Text(
-                              "Change Password",
-                              style: GoogleFonts.actor(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.darkTextColor,
-                              ),
-                            ),
-                            onTap: () {
-                              MainNavigation.navigateToRoute(
-                                MainNavigation.changePasswordRoute,
-                              );
-                            },
-                          ),
-                        ),
-                      ),
                       Container(
                         alignment: Alignment.center,
                         child: Card(

@@ -3,7 +3,6 @@ import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
-import 'package:brickapp/pages/client_pages/change_password.dart';
 import 'package:brickapp/pages/client_pages/client_book_tuck_Services/Home.dart';
 import 'package:brickapp/pages/client_pages/fave_items.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
@@ -31,7 +30,6 @@ import 'package:brickapp/pages/sProviderPages/your_truck_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get_connect/http/src/request/request.dart';
 
 class NavigatorKeys {
   static GlobalKey<NavigatorState> baseKey = GlobalKey<NavigatorState>();
@@ -89,7 +87,6 @@ class MainNavigation {
   static String mainFavouriteDisplayRoute = "/mainFavouriteDisplayRoute";
 
   static String viewFavItemPage = "/viewFavItemPage";
-  static String changePasswordRoute = "/changePasswordRoute";
 
   static String priceDemoRoute = "/priceDemoRoute";
   static String bookingPageForMoreRoute = "/bookingPageForMoreRoute";
@@ -128,9 +125,7 @@ class MainNavigation {
     if (settings.name == viewFavItemPage) {
       return MaterialPageRoute(builder: (context) => FavouriteItemList());
     }
-    if (settings.name == changePasswordRoute) {
-      return MaterialPageRoute(builder: (context) => ChangeClientPassword());
-    }
+
     if (settings.name == myTrucksListRoute) {
       return MaterialPageRoute(builder: (context) => MyTrucksListPage());
     }

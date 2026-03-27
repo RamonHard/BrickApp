@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:brickapp/providers/search_and_query_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/property_model.dart';
@@ -45,7 +46,26 @@ class PropertyFilter {
 final propertyFilterProvider = StateProvider<PropertyFilter>(
   (ref) => const PropertyFilter(),
 );
+final filteredPropertiesProvider = Provider<AsyncValue<List<PropertyModel>>>((
+  ref,
+) {
+  final propertiesAsync = ref.watch(propertiesProvider);
+  final query = ref.watch(searchQueryProvider).toLowerCase();
 
+  return propertiesAsync.whenData((properties) {
+    if (query.isEmpty) return properties;
+
+    return properties.where((property) {
+      final title = property.propertyType.toLowerCase();
+      final location = (property.address ?? '').toLowerCase();
+      final description = (property.description ?? '').toLowerCase();
+
+      return title.contains(query) ||
+          location.contains(query) ||
+          description.contains(query);
+    }).toList();
+  });
+});
 // Properties provider — fetches from backend
 final propertiesProvider = FutureProvider.autoDispose<List<PropertyModel>>((
   ref,
