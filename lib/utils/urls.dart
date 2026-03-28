@@ -22,7 +22,9 @@ class AppUrls {
   static const String transportCalculate = '$baseUrl/transport/calculate';
   static const String transportBook = '$baseUrl/transport/book';
   static const String myTransportBookings = '$baseUrl/transport/my-bookings';
-
+  static const String truckTypes = '$baseUrl/transport/truck-types';
+  static const String calculateTransport = '$baseUrl/transport/calculate';
+  static const String bookTransport = '$baseUrl/bookings/transport';
   // Property Bookings
   static const String createBooking = '$baseUrl/bookings/create';
   static const String myBookings = '$baseUrl/bookings/my-bookings';
@@ -44,7 +46,6 @@ class AppUrls {
 
   // Bookings
   static const String bookProperty = '$baseUrl/bookings/property';
-  static const String bookTransport = '$baseUrl/bookings/transport';
   static String refundBooking(int id) =>
       '$baseUrl/bookings/property/$id/refund';
   static String respondToTransport(int id) =>

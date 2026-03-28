@@ -60,6 +60,11 @@ class RequestsFromClientToServiceProvider extends ConsumerWidget {
               ),
             ),
         data: (bookings) {
+          print('📋 Provider bookings received: ${bookings.length}');
+          print(
+            '📦 First booking: ${bookings.isNotEmpty ? bookings.first : 'None'}',
+          );
+
           if (bookings.isEmpty) {
             return Center(
               child: Column(
@@ -70,6 +75,11 @@ class RequestsFromClientToServiceProvider extends ConsumerWidget {
                   Text(
                     'No transport requests yet',
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'When clients book, they will appear here',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 ],
               ),

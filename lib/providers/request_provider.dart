@@ -19,19 +19,54 @@ final managerRequestsProvider = FutureProvider.autoDispose
     });
 
 // ─── Service Provider Requests ─────────────────────────
-final providerRequestsProvider = FutureProvider.autoDispose
-    .family<List<Map<String, dynamic>>, String>((ref, token) async {
-      final res = await http.get(
-        Uri.parse(AppUrls.providerRequests),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+final providerRequestsProvider = FutureProvider.family<
+  List<Map<String, dynamic>>,
+  String
+>((ref, token) async {
+  if (token.isEmpty) {
+    print('❌ No token provided for provider requests');
+    return [];
+  }
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        return List<Map<String, dynamic>>.from(data['bookings']);
+  try {
+    print('🌐 Fetching provider requests from: ${AppUrls.providerRequests}');
+
+    final response = await http.get(
+      Uri.parse(AppUrls.providerRequests),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print("📡 Provider requests response status: ${response.statusCode}");
+    print("📦 Provider requests response body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      if (data['status'] == true) {
+        final List<dynamic> bookings = data['bookings'] ?? [];
+        print("✅ Found ${bookings.length} provider requests");
+        return List<Map<String, dynamic>>.from(bookings);
+      } else {
+        print("⚠️ Error loading provider requests: ${data['message']}");
+        return [];
       }
-      throw Exception('Failed to load provider requests');
-    });
+    } else if (response.statusCode == 401) {
+      print("🔒 Unauthorized - token may be invalid");
+      return [];
+    } else if (response.statusCode == 403) {
+      print("🚫 Forbidden - user may not have service_provider role");
+      return [];
+    } else {
+      print("❌ Failed to load provider requests: ${response.statusCode}");
+      return [];
+    }
+  } catch (e) {
+    print("💥 Exception loading provider requests: $e");
+    return [];
+  }
+});
 
 // ─── Client Requests ───────────────────────────────────
 

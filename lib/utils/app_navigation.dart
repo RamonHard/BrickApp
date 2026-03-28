@@ -3,7 +3,7 @@ import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/booking_page_for_more_view.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/more_product_booking_page.dart';
-import 'package:brickapp/pages/client_pages/client_book_tuck_Services/Home.dart';
+import 'package:brickapp/pages/client_pages/client_book_tuck_Services/find_transporter.dart';
 import 'package:brickapp/pages/client_pages/fave_items.dart';
 import 'package:brickapp/pages/client_pages/home_page.dart';
 import 'package:brickapp/pages/client_pages/edit_profile.dart';
@@ -26,6 +26,7 @@ import 'package:brickapp/pages/sProviderPages/post_truck.dart';
 import 'package:brickapp/pages/pManagerPages/price_demo.dart';
 import 'package:brickapp/pages/sProviderPages/profile.dart';
 import 'package:brickapp/pages/sProviderPages/requests_for_s_p.dart';
+import 'package:brickapp/pages/sProviderPages/transporter.dart';
 import 'package:brickapp/pages/sProviderPages/your_truck_posts.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/pages/onboardingPages/login.dart';
@@ -74,6 +75,7 @@ class MainNavigation {
   static String sortByRoute = "/sortByRoute";
   static String clientHomePageRoute = "/clientHomePageRoute";
   static String transporterRoute = "/transporterRoute";
+  static String transportBookingRoute = "/transportBookingRoute";
   static String myTrucksListRoute = "/myTrucksListRoute";
   static String myPropertyPosts = "/myPropertyPosts";
   static String landAndTruckProfileRoute = "/landAndTruckProfileRoute";
@@ -108,6 +110,9 @@ class MainNavigation {
     }
     if (settings.name == transporterRoute) {
       return MaterialPageRoute(builder: (context) => FindTransporterPage());
+    }
+    if (settings.name == transportBookingRoute) {
+      return MaterialPageRoute(builder: (context) => TransportBookingPage());
     }
 
     if (settings.name == clientprofilePageRoute) {
