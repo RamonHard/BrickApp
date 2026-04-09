@@ -33,6 +33,11 @@ class TruckNotifier extends StateNotifier<List<Truck>> {
         }).toList();
   }
 
+  // ✅ ADD THIS METHOD
+  void setTrucks(List<Truck> trucks) {
+    state = trucks;
+  }
+
   // Get all available trucks for clients
   List<Truck> getAvailableTrucks() {
     return state.where((truck) => truck.isAvailable).toList();

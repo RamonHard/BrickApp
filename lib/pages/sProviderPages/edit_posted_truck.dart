@@ -1,14 +1,17 @@
 // pages/edit_truck_page.dart
 import 'dart:io';
-
+import 'dart:convert';
 import 'package:brickapp/models/truck_driver_model.dart';
 import 'package:brickapp/providers/truck_driver_provider.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
-import 'package:brickapp/utils/app_navigation.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // Add this for MediaType
 
 class EditTruckPage extends ConsumerStatefulWidget {
   final Truck truck;
@@ -22,6 +25,7 @@ class EditTruckPage extends ConsumerStatefulWidget {
 class _EditTruckPageState extends ConsumerState<EditTruckPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
+  bool _isUpdating = false;
 
   final List<String> vehicleTypes = [
     'Small Truck',
@@ -39,6 +43,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
 
   late String selectedVehicleType;
   File? truckPhoto;
+  String? existingPhotoUrl;
 
   // Form controllers
   final TextEditingController truckModelController = TextEditingController();
@@ -52,7 +57,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
     super.initState();
     // Initialize form with existing truck data
     selectedVehicleType = widget.truck.vehicleType;
-    truckPhoto = widget.truck.photo;
+    existingPhotoUrl = widget.truck.photoUrl;
 
     truckModelController.text = widget.truck.truckModel;
     licensePlateController.text = widget.truck.licensePlate;
@@ -76,33 +81,119 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
     if (pickedFile != null) {
       setState(() {
         truckPhoto = File(pickedFile.path);
+        existingPhotoUrl =
+            null; // Clear existing photo when new one is selected
       });
     }
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final fullPhone = '+256${phoneController.text}';
+      setState(() {
+        _isUpdating = true;
+      });
 
-      // Create updated truck instance
-      final updatedTruck = widget.truck.copyWith(
-        truckModel: truckModelController.text,
-        licensePlate: licensePlateController.text,
-        vehicleType: selectedVehicleType,
-        capacity: capacityController.text,
-        pricePerKm: vehiclePricing[selectedVehicleType]!,
-        phone: fullPhone,
-        email: emailController.text,
-        photo: truckPhoto,
-      );
+      try {
+        final token = ref.read(userProvider).token;
 
-      // Update in Riverpod state
-      ref
-          .read(truckProvider.notifier)
-          .updateTruck(widget.truck.id, updatedTruck);
+        if (token == null) {
+          throw Exception('You must be logged in');
+        }
 
-      // Show success dialog and go back
-      _showSuccessDialog();
+        final fullPhone = '+256${phoneController.text}';
+        final priceValue = vehiclePricing[selectedVehicleType]!;
+
+        // Create multipart request for potential photo upload
+        var request = http.MultipartRequest(
+          'PUT',
+          Uri.parse('${AppUrls.baseUrl}/vehicles/${widget.truck.id}'),
+        );
+
+        request.headers.addAll({'Authorization': 'Bearer $token'});
+
+        // Add text fields
+        request.fields['truck_model'] = truckModelController.text;
+        request.fields['license_plate'] = licensePlateController.text;
+        request.fields['vehicle_type'] = selectedVehicleType;
+        request.fields['capacity'] = capacityController.text;
+        request.fields['price_per_km'] = priceValue.toString();
+        request.fields['phone'] = fullPhone;
+        request.fields['email'] = emailController.text;
+
+        // Add new photo if selected
+        if (truckPhoto != null) {
+          final extension = truckPhoto!.path.split('.').last.toLowerCase();
+          String mimeType;
+          switch (extension) {
+            case 'jpg':
+            case 'jpeg':
+              mimeType = 'image/jpeg';
+              break;
+            case 'png':
+              mimeType = 'image/png';
+              break;
+            default:
+              mimeType = 'image/jpeg';
+          }
+
+          var photoFile = await http.MultipartFile.fromPath(
+            'photo',
+            truckPhoto!.path,
+            contentType: MediaType.parse(mimeType),
+          );
+          request.files.add(photoFile);
+        }
+
+        // Send request
+        final response = await request.send();
+        final responseBody = await response.stream.bytesToString();
+
+        print('Update response status: ${response.statusCode}');
+        print('Update response body: $responseBody');
+
+        setState(() {
+          _isUpdating = false;
+        });
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(responseBody);
+          final updatedVehicle = data['vehicle'];
+
+          // Create updated truck object
+          final updatedTruck = Truck(
+            id: updatedVehicle['id'].toString(),
+            truckModel: updatedVehicle['brand'] ?? '',
+            licensePlate: updatedVehicle['plate_number'] ?? '',
+            vehicleType: selectedVehicleType,
+            capacity:
+                updatedVehicle['capacity']?.toString() ??
+                capacityController.text,
+            pricePerKm: priceValue.toDouble(),
+            phone: fullPhone,
+            email: emailController.text,
+            photo: truckPhoto,
+            photoUrl: updatedVehicle['photo_url'],
+            createdAt: DateTime.parse(updatedVehicle['created_at']),
+            ownerId: updatedVehicle['user_id'].toString(),
+            isAvailable: updatedVehicle['is_available'] ?? true,
+          );
+
+          // Update in Riverpod state
+          ref
+              .read(truckProvider.notifier)
+              .updateTruck(widget.truck.id, updatedTruck);
+
+          _showSuccessDialog();
+        } else {
+          final data = jsonDecode(responseBody);
+          _showErrorDialog(data['message'] ?? 'Failed to update truck');
+        }
+      } catch (e) {
+        setState(() {
+          _isUpdating = false;
+        });
+        _showErrorDialog('Error: $e');
+      }
     }
   }
 
@@ -113,20 +204,49 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 24),
-              SizedBox(width: 8),
-              Text('Success', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Icon(Icons.check_circle, color: Colors.green, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Success',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
-          content: Text('Truck details updated successfully!'),
+          content: const Text('Truck details updated successfully!'),
           actions: [
             TextButton(
               onPressed: () {
-                MainNavigation.navigateToRoute(
-                  MainNavigation.myTrucksListRoute,
-                );
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Go back to previous page
               },
-              child: Text('OK'),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.red, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Error',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
             ),
           ],
         );
@@ -146,7 +266,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
           ),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
@@ -190,7 +310,6 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
     );
   }
 
-  // Reuse the same UI components from PostTruckPage but with existing data
   Widget _buildPhotoSection() {
     return Card(
       elevation: 2,
@@ -203,7 +322,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -214,7 +333,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     color: AppColors.iconColor,
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Vehicle Photo',
                   style: GoogleFonts.poppins(
@@ -225,7 +344,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             _buildPhotoPicker(),
           ],
         ),
@@ -234,9 +353,30 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
   }
 
   Widget _buildPhotoPicker() {
+    // Determine which image to show
+    Widget imageWidget;
+
+    if (truckPhoto != null) {
+      imageWidget = Image.file(truckPhoto!, fit: BoxFit.cover);
+    } else if (existingPhotoUrl != null && existingPhotoUrl!.isNotEmpty) {
+      imageWidget = Image.network(
+        '${AppUrls.baseUrl}${existingPhotoUrl!}',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.broken_image, size: 50);
+        },
+      );
+    } else {
+      imageWidget = const Icon(
+        Icons.local_shipping,
+        size: 50,
+        color: Colors.grey,
+      );
+    }
+
     return Column(
       children: [
-        truckPhoto != null
+        (truckPhoto != null || existingPhotoUrl != null)
             ? Stack(
               children: [
                 Container(
@@ -244,10 +384,10 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                   height: 200,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(
-                      image: FileImage(truckPhoto!),
-                      fit: BoxFit.cover,
-                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: imageWidget,
                   ),
                 ),
                 Positioned(
@@ -257,12 +397,17 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     onTap: () {
                       setState(() {
                         truckPhoto = null;
+                        existingPhotoUrl = null;
                       });
                     },
                     child: CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.black54,
-                      child: Icon(Icons.close, size: 18, color: Colors.white),
+                      child: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -302,25 +447,25 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                icon: Icon(Icons.camera_alt, size: 20),
+                icon: const Icon(Icons.camera_alt, size: 20),
                 label: Text('Take New Photo', style: GoogleFonts.poppins()),
                 onPressed: () => _pickImage(ImageSource.camera),
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                icon: Icon(Icons.photo_library, size: 20),
+                icon: const Icon(Icons.photo_library, size: 20),
                 label: Text('From Gallery', style: GoogleFonts.poppins()),
                 onPressed: () => _pickImage(ImageSource.gallery),
                 style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -332,6 +477,9 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
       ],
     );
   }
+
+  // Reuse all the other UI methods from your existing code...
+  // _buildBasicDetailsSection, _buildPricingSection, etc. remain the same
 
   Widget _buildBasicDetailsSection() {
     return Card(
@@ -345,7 +493,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -356,7 +504,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     color: AppColors.iconColor,
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Basic Details',
                   style: GoogleFonts.poppins(
@@ -367,7 +515,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             _buildTextField(
               controller: truckModelController,
               label: 'Truck Model',
@@ -409,7 +557,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -420,7 +568,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     color: AppColors.iconColor,
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Pricing Details',
                   style: GoogleFonts.poppins(
@@ -431,7 +579,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Card(
               elevation: 2,
               color: Colors.blue.shade50,
@@ -443,7 +591,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     Row(
                       children: [
                         Icon(Icons.info, color: Colors.blue.shade600, size: 20),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           'Pricing Information',
                           style: GoogleFonts.poppins(
@@ -453,7 +601,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'UGX ${vehiclePricing[selectedVehicleType]!.toStringAsFixed(0)} per Km',
                       style: GoogleFonts.poppins(
@@ -462,7 +610,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                         color: AppColors.iconColor,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Price is automatically set based on vehicle type',
                       style: GoogleFonts.poppins(
@@ -492,7 +640,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -503,7 +651,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     color: AppColors.iconColor,
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Capacity Details',
                   style: GoogleFonts.poppins(
@@ -514,7 +662,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             _buildTextField(
               controller: capacityController,
               label: 'Load Capacity (Tons)',
@@ -540,7 +688,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
@@ -551,7 +699,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                     color: AppColors.iconColor,
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Contact Information',
                   style: GoogleFonts.poppins(
@@ -562,7 +710,7 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             _buildPhoneNumberField(),
             _buildTextField(
               controller: emailController,
@@ -696,30 +844,40 @@ class _EditTruckPageState extends ConsumerState<EditTruckPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _submitForm,
+        onPressed: _isUpdating ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.iconColor,
-          padding: EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 2,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.update, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Update Truck Details',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
+        child:
+            _isUpdating
+                ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.update, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Update Truck Details',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
       ),
     );
   }

@@ -1,11 +1,14 @@
 import 'dart:io';
-import 'package:brickapp/models/truck_driver_model.dart';
-import 'package:brickapp/providers/truck_driver_provider.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart'; // Add this for MediaType
 
 class PostTruckPage extends ConsumerStatefulWidget {
   const PostTruckPage({Key? key}) : super(key: key);
@@ -65,6 +68,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     }
   }
 
+  bool _isSubmitting = false;
   void _removePhoto() {
     setState(() {
       truckPhoto = null;
@@ -72,32 +76,98 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
   }
 
   // Update the _submitForm method in PostTruckPage
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate() && selectedVehicleType != null) {
-      final fullPhone = '$selectedCountryCode${phoneController.text}';
-      final currentUserId = ref.read(currentUserIdProvider);
+      setState(() {
+        _isSubmitting = true;
+      });
 
-      // Create a new truck instance
-      final newTruck = Truck(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        truckModel: truckModelController.text,
-        licensePlate: licensePlateController.text,
-        vehicleType: selectedVehicleType!,
-        capacity: capacityController.text,
-        pricePerKm: vehiclePricing[selectedVehicleType]!,
-        phone: fullPhone,
-        email: emailController.text,
-        photo: truckPhoto,
-        createdAt: DateTime.now(),
-        ownerId: currentUserId, // Set the owner ID
-        isAvailable: true,
-      );
+      try {
+        final fullPhone = '$selectedCountryCode${phoneController.text}';
 
-      // Add to Riverpod state
-      ref.read(truckProvider.notifier).addTruck(newTruck);
+        final token = ref.read(userProvider).token;
 
-      // Show success dialog
-      _showSuccessDialog();
+        if (token == null) {
+          _showErrorDialog('You must be logged in to post a truck');
+          setState(() {
+            _isSubmitting = false;
+          });
+          return;
+        }
+
+        // Create multipart request
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${AppUrls.baseUrl}/vehicles'),
+        );
+
+        // Add headers
+        request.headers.addAll({'Authorization': 'Bearer $token'});
+
+        // Add text fields
+        request.fields['truck_model'] = truckModelController.text;
+        request.fields['license_plate'] = licensePlateController.text;
+        request.fields['vehicle_type'] = selectedVehicleType!;
+        request.fields['capacity'] = capacityController.text;
+        request.fields['price_per_km'] =
+            vehiclePricing[selectedVehicleType!].toString();
+        request.fields['phone'] = fullPhone;
+        request.fields['email'] = emailController.text;
+
+        // Add photo with correct MIME type
+        if (truckPhoto != null) {
+          // Get file extension and set correct MIME type
+          final extension = truckPhoto!.path.split('.').last.toLowerCase();
+          String mimeType;
+          switch (extension) {
+            case 'jpg':
+            case 'jpeg':
+              mimeType = 'image/jpeg';
+              break;
+            case 'png':
+              mimeType = 'image/png';
+              break;
+            case 'gif':
+              mimeType = 'image/gif';
+              break;
+            default:
+              mimeType = 'image/jpeg';
+          }
+
+          print('📸 Uploading photo: ${truckPhoto!.path}');
+          print('📸 MIME type: $mimeType');
+
+          var photoFile = await http.MultipartFile.fromPath(
+            'photo',
+            truckPhoto!.path,
+            contentType: MediaType.parse(mimeType), // Add content type
+          );
+          request.files.add(photoFile);
+        }
+
+        // Send request
+        final response = await request.send();
+        final responseBody = await response.stream.bytesToString();
+
+        print('Response status: ${response.statusCode}');
+        print('Response body: $responseBody');
+
+        setState(() {
+          _isSubmitting = false;
+        });
+
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          final data = jsonDecode(responseBody);
+          _showSuccessDialog();
+        } else {
+          _showErrorDialog('Failed to post truck: ${response.statusCode}');
+        }
+      } catch (e) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        _showErrorDialog('Error: $e');
+      }
     }
   }
 
@@ -119,8 +189,8 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
               onPressed: () {
                 Navigator.of(context).pop();
                 _clearForm();
-                // Optionally navigate to trucks list
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => TrucksListPage()));
+                // Optional: Navigate to trucks list
+                // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TrucksListPage()));
               },
               child: Text('OK'),
             ),
@@ -716,7 +786,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _submitForm,
+        onPressed: _isSubmitting ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.iconColor,
           padding: EdgeInsets.symmetric(vertical: 16),
@@ -725,22 +795,56 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
           ),
           elevation: 2,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Post Truck',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+        child:
+            _isSubmitting
+                ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Post Truck',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 24),
+              SizedBox(width: 8),
+              Text('Error', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK'),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

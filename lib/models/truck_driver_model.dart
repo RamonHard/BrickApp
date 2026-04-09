@@ -1,4 +1,3 @@
-// models/truck_model.dart
 import 'dart:io';
 
 class Truck {
@@ -7,13 +6,14 @@ class Truck {
   final String licensePlate;
   final String vehicleType;
   final String capacity;
-  final int pricePerKm;
+  final double pricePerKm;
   final String phone;
   final String email;
   final File? photo;
+  final String? photoUrl; // Add this
   final DateTime createdAt;
-  final String ownerId; // Add owner ID to track who posted the truck
-  final bool isAvailable; // Add availability status
+  final String ownerId;
+  final bool isAvailable;
 
   Truck({
     required this.id,
@@ -25,21 +25,24 @@ class Truck {
     required this.phone,
     required this.email,
     this.photo,
+    this.photoUrl, // Add this
     required this.createdAt,
     required this.ownerId,
-    this.isAvailable = true,
+    required this.isAvailable,
   });
 
+  // Add copyWith method
   Truck copyWith({
     String? id,
     String? truckModel,
     String? licensePlate,
     String? vehicleType,
     String? capacity,
-    int? pricePerKm,
+    double? pricePerKm,
     String? phone,
     String? email,
     File? photo,
+    String? photoUrl,
     DateTime? createdAt,
     String? ownerId,
     bool? isAvailable,
@@ -54,6 +57,7 @@ class Truck {
       phone: phone ?? this.phone,
       email: email ?? this.email,
       photo: photo ?? this.photo,
+      photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       ownerId: ownerId ?? this.ownerId,
       isAvailable: isAvailable ?? this.isAvailable,
