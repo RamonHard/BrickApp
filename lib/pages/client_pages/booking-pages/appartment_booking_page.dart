@@ -109,35 +109,58 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     return _pricePerMonth * _totalMonths;
   }
 
-  // ✅ Replace these two getters
-  double get _commissionableAmount {
-    if (_isVenue || _isLand) return _baseTotal; // full amount for venue/land
-    return _pricePerMonth * _commissionableMonths; // months-based for regular
-  }
-
-  double get _platformCommission =>
-      _commissionableAmount * (_commissionPercent / 100);
-
-  double get _clientDiscount =>
-      _platformCommission * (_clientDiscountPercent / 100);
-
-  double get _finalTotal => _baseTotal - _clientDiscount;
-
-  double get _youSave => _clientDiscount;
-
+  // ✅ NEW: Commissionable months (first N months only)
   int get _commissionableMonths =>
       _totalMonths < _commissionableMonthsLimit
           ? _totalMonths
           : _commissionableMonthsLimit;
-  bool get _isLand => widget.productModel.propertyType == 'Land';
-  bool get _isVenue => widget.productModel.propertyType == 'Venue';
-  bool get _isRegular => !_isLand && !_isVenue;
 
+  // ✅ NEW: Commissionable amount (only the months that earn commission)
+  double get _commissionableAmount {
+    if (_isVenue || _isLand) return _baseTotal; // all for venue/land
+    return _pricePerMonth * _commissionableMonths; // only commission months
+  }
+
+  // ✅ NEW: Company's agreed commission from manager (e.g., 8% of commissionable amount)
+  double get _agreedManagerCommission =>
+      _commissionableAmount * (_commissionPercent / 100);
+
+  // ✅ NEW: Client discount is % of commissionable amount (given from our commission)
+  double get _clientDiscount =>
+      _commissionableAmount * (_clientDiscountPercent / 100);
+
+  // ✅ NEW: Client pays: (commissionableAmount - discount) + remainingAmount
+  double get _finalTotal {
+    if (_isVenue || _isLand) {
+      return _baseTotal - _clientDiscount;
+    }
+    final remainingAmount = _baseTotal - _commissionableAmount;
+    return (_commissionableAmount - _clientDiscount) + remainingAmount;
+  }
+
+  // ✅ NEW: Company keeps: agreed commission minus discount given
+  double get _companyKeeps => _agreedManagerCommission - _clientDiscount;
+
+  // ✅ NEW: Manager gets: commissionableAmount - agreedCommission + remainingAmount
+  double get _managerGets {
+    if (_isVenue || _isLand) {
+      return _baseTotal - _agreedManagerCommission;
+    }
+    final remainingAmount = _baseTotal - _commissionableAmount;
+    return (_commissionableAmount - _agreedManagerCommission) + remainingAmount;
+  }
+
+  // ✅ NEW: You save (discount amount)
+  double get _youSave => _clientDiscount;
   int get _venueDays {
     if (_venueStartDate == null || _venueEndDate == null) return 0;
     return _venueEndDate!.difference(_venueStartDate!).inDays;
   }
 
+  // ✅ Property type checkers
+  bool get _isLand => widget.productModel.propertyType == 'Land';
+  bool get _isVenue => widget.productModel.propertyType == 'Venue';
+  bool get _isRegular => !_isLand && !_isVenue;
   double get _dailyPrice => (widget.productModel.rentPrice ?? 0).toDouble();
   @override
   void dispose() {
@@ -521,21 +544,17 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
         ),
         const SizedBox(height: 12),
 
+        // ─── Base calculation ─────────────────────────
         if (_isVenue) ...[
           _buildPriceRow(
             'Price per day',
             'UGX ${formatter.format(_dailyPrice)}',
           ),
           _buildPriceRow('Number of days', '$_venueDays days'),
-          _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
         ] else if (_isLand) ...[
           _buildPriceRow(
             'Land value',
             'UGX ${formatter.format(double.tryParse(_landValueController.text) ?? 0)}',
-          ),
-          _buildPriceRow(
-            'Our fee (${widget.productModel.landPercentage ?? 10}%)',
-            'UGX ${formatter.format(_baseTotal)}',
           ),
         ] else ...[
           _buildPriceRow(
@@ -543,112 +562,159 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             'UGX ${formatter.format(_pricePerMonth)}',
           ),
           _buildPriceRow('Total months', '$_totalMonths months'),
-          _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}'),
         ],
 
-        const Divider(height: 20),
-
-        // Commission info
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            'Platform fee (${_commissionPercent.toStringAsFixed(0)}%'
-            '${_isRegular ? " on first $_commissionableMonths month${_commissionableMonths > 1 ? "s" : ""}" : ""}): '
-            'UGX ${formatter.format(_platformCommission)}',
-            style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-          ),
+        _buildPriceRow(
+          'Base total',
+          'UGX ${formatter.format(_baseTotal)}',
+          isBold: true,
         ),
-        const SizedBox(height: 8),
 
-        // Discount
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.green[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '🎉 Brick discount (${_clientDiscountPercent.toStringAsFixed(0)}% off fee):',
-                    style: TextStyle(fontSize: 12, color: Colors.green[700]),
-                  ),
-                  Text(
-                    'Reward for paying through Brick',
-                    style: TextStyle(fontSize: 11, color: Colors.green[600]),
-                  ),
-                ],
-              ),
-              Text(
-                '- UGX ${formatter.format(_youSave)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green[800],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 20),
-
-        // Final total
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.orange[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange[300]!),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total to Pay',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'UGX ${formatter.format(_finalTotal)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepOrange,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            '🎉 You save UGX ${formatter.format(_youSave)} by paying through Brick!',
-            style: const TextStyle(
-              color: Colors.green,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+        // ─── Commissionable section ───────────────────
+        if (_isRegular && _commissionableMonths < _totalMonths) ...[
+          const SizedBox(height: 8),
+          // ─── Company's agreed commission (before discount) ───────
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue[200]!),
             ),
-            textAlign: TextAlign.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '🏢 Agreed commission (${_commissionPercent.toStringAsFixed(0)}%'
+                  '${_isRegular ? " on $_commissionableMonths months" : ""}):',
+                  style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                ),
+                Text(
+                  'UGX ${formatter.format(_agreedManagerCommission)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+
+          const SizedBox(height: 8),
+
+          // ─── Discount we give to client ───────────────────────
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green[200]!),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🎉 Discount to you (${_clientDiscountPercent.toStringAsFixed(0)}%):',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'From our commission',
+                      style: TextStyle(fontSize: 11, color: Colors.green[600]),
+                    ),
+                  ],
+                ),
+                Text(
+                  '- UGX ${formatter.format(_clientDiscount)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[800],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // ─── What company actually keeps ───────────────────────
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange[200]!),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '🏢 Brick keeps (after discount):',
+                  style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                ),
+                Text(
+                  'UGX ${formatter.format(_companyKeeps)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // ─── Manager gets ─────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.purple[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.purple[200]!),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '👨‍💼 Property manager receives:',
+                  style: TextStyle(fontSize: 12, color: Colors.purple[700]),
+                ),
+                Text(
+                  'UGX ${formatter.format(_managerGets)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildPriceRow(String label, String value) {
+  Widget _buildPriceRow(String label, String value, {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(color: Colors.grey[700])),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -831,6 +897,8 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   }
 
   // ─── Process Booking ─────────────────────────────────
+  // ─── Process Booking ─────────────────────────────────
+  // ─── Process Booking ─────────────────────────────────
   Future<void> _processBooking(String phone) async {
     // Validation
     if (_isVenue && (_venueStartDate == null || _venueEndDate == null)) {
@@ -888,29 +956,20 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           'property_id': widget.productModel.id,
           'start_date': _venueStartDate!.toIso8601String(),
           'end_date': _venueEndDate!.toIso8601String(),
-          'total_price': _finalTotal,
           'booking_days': _venueDays,
           'payment_method': 'mobile_money',
           'payment_phone': phone,
-          'platform_commission': _platformCommission,
-          'client_discount': _youSave,
         };
       } else if (_isLand) {
         final landValue = double.tryParse(_landValueController.text) ?? 0;
         body = {
           'property_id': widget.productModel.id,
-          'start_date': DateTime.now().toIso8601String(),
-          'end_date': DateTime.now().toIso8601String(),
-          'total_price': _finalTotal,
-          'land_percentage': widget.productModel.landPercentage,
           'land_total_value': landValue,
           'payment_method': 'mobile_money',
           'payment_phone': phone,
-          'platform_commission': _platformCommission,
-          'client_discount': _youSave,
         };
       } else {
-        // Regular monthly
+        // Regular monthly - backend will calculate months from dates
         final startDate = DateTime.now();
         final endDate = DateTime(
           startDate.year,
@@ -921,14 +980,14 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
           'property_id': widget.productModel.id,
           'start_date': startDate.toIso8601String(),
           'end_date': endDate.toIso8601String(),
-          'total_price': _finalTotal,
-          'total_months': _totalMonths,
           'payment_method': 'mobile_money',
           'payment_phone': phone,
-          'platform_commission': _platformCommission,
-          'client_discount': _youSave,
+          // ❌ REMOVED: total_months (backend calculates from dates)
         };
       }
+
+      print('📤 Sending booking request (backend will calculate pricing)');
+      print('📤 Body: $body');
 
       final res = await http.post(
         Uri.parse(AppUrls.bookProperty),
@@ -947,7 +1006,9 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['message'] ?? 'Booking failed'),
+            content: Text(
+              data['message'] ?? 'Booking failed: ${res.statusCode}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
