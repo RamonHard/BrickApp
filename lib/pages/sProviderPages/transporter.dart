@@ -400,15 +400,35 @@ class _TransportBookingPageState extends ConsumerState<TransportBookingPage> {
           ),
 
           // ─── Step 2: Truck Type ─────────────────────
+          // ─── Step 2: Truck Type ─────────────────────
           Step(
-            title: const Text('Select Truck Type'),
+            title: const Text('Select Vehicle Type'),
             isActive: _currentStep >= 1,
             state: _currentStep > 1 ? StepState.complete : StepState.indexed,
             content:
                 _loadingTypes
                     ? const Center(child: CircularProgressIndicator())
                     : _truckTypes.isEmpty
-                    ? const Center(child: Text('No trucks available right now'))
+                    ? Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.local_shipping,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No vehicles available right now.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          const Text(
+                            'Please try again later.',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    )
                     : Column(
                       children:
                           _truckTypes.map((type) {
@@ -418,12 +438,14 @@ class _TransportBookingPageState extends ConsumerState<TransportBookingPage> {
                             final distance =
                                 double.tryParse(_distanceController.text) ?? 0;
                             final estimated = pricePerKm * distance;
+                            final vehicles = List<Map<String, dynamic>>.from(
+                              type['vehicles'] ?? [],
+                            );
 
                             return GestureDetector(
                               onTap: () => setState(() => _selectedType = type),
                               child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
                                   color:
                                       isSelected
@@ -438,95 +460,263 @@ class _TransportBookingPageState extends ConsumerState<TransportBookingPage> {
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
-                                child: Row(
+                                child: Column(
                                   children: [
-                                    // Truck icon
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            isSelected
-                                                ? Colors.orange[100]
-                                                : Colors.grey[100],
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        Icons.local_shipping,
-                                        color:
-                                            isSelected
-                                                ? Colors.orange
-                                                : Colors.grey,
-                                        size: 28,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-
-                                    // Type info
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                    // ─── Type header ───────────────
+                                    Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            type['name'],
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                          // Icon
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
                                               color:
                                                   isSelected
-                                                      ? Colors.orange[800]
-                                                      : Colors.black,
+                                                      ? Colors.orange[100]
+                                                      : Colors.grey[100],
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              _getTypeIcon(type['name']),
+                                              color:
+                                                  isSelected
+                                                      ? Colors.orange
+                                                      : Colors.grey,
+                                              size: 26,
                                             ),
                                           ),
-                                          Text(
-                                            'UGX ${formatter.format(pricePerKm)}/km',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 13,
+                                          const SizedBox(width: 14),
+
+                                          // Type info
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  type['name'],
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color:
+                                                        isSelected
+                                                            ? Colors.orange[800]
+                                                            : Colors.black,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'UGX ${formatter.format(pricePerKm)}/km',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                                if (distance > 0)
+                                                  Text(
+                                                    'Est. UGX ${formatter.format(estimated)}',
+                                                    style: const TextStyle(
+                                                      color: Colors.green,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                           ),
-                                          if (distance > 0)
-                                            Text(
-                                              'Est. UGX ${formatter.format(estimated)} for ${distance.toStringAsFixed(0)}km',
-                                              style: const TextStyle(
-                                                color: Colors.green,
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 13,
+
+                                          // Available count + check
+                                          Column(
+                                            children: [
+                                              Text(
+                                                '${type['available_count']}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 22,
+                                                  color: Colors.green,
+                                                ),
                                               ),
-                                            ),
+                                              const Text(
+                                                'available',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              if (isSelected)
+                                                const Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.orange,
+                                                  size: 20,
+                                                ),
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ),
 
-                                    // Available count
-                                    Column(
-                                      children: [
-                                        Text(
-                                          '${type['available_count']}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20,
-                                            color: Colors.green,
-                                          ),
+                                    // ─── Vehicle list ───────────────
+                                    if (vehicles.isNotEmpty) ...[
+                                      Divider(
+                                        height: 1,
+                                        color: Colors.grey[200],
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          8,
+                                          14,
+                                          12,
                                         ),
-                                        const Text(
-                                          'available',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Available vehicles:',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            ...vehicles.map(
+                                              (v) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 6,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    // Vehicle photo or icon
+                                                    Container(
+                                                      width: 40,
+                                                      height: 40,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.grey[100],
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        image:
+                                                            v['photo_url'] !=
+                                                                        null &&
+                                                                    v['photo_url']
+                                                                        .toString()
+                                                                        .isNotEmpty
+                                                                ? DecorationImage(
+                                                                  image: NetworkImage(
+                                                                    '${AppUrls.baseUrl}/${v['photo_url']}',
+                                                                  ),
+                                                                  fit:
+                                                                      BoxFit
+                                                                          .cover,
+                                                                )
+                                                                : null,
+                                                      ),
+                                                      child:
+                                                          v['photo_url'] ==
+                                                                      null ||
+                                                                  v['photo_url']
+                                                                      .toString()
+                                                                      .isEmpty
+                                                              ? Icon(
+                                                                Icons
+                                                                    .local_shipping,
+                                                                color:
+                                                                    Colors
+                                                                        .grey[400],
+                                                                size: 20,
+                                                              )
+                                                              : null,
+                                                    ),
+                                                    const SizedBox(width: 10),
 
-                                    if (isSelected)
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 8),
-                                        child: Icon(
-                                          Icons.check_circle,
-                                          color: Colors.orange,
+                                                    // Driver + plate
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            v['owner_name'] ??
+                                                                'Driver',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  fontSize: 13,
+                                                                ),
+                                                          ),
+                                                          Text(
+                                                            '${v['brand'] ?? ''} • ${v['plate_number'] ?? ''}',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color:
+                                                                  Colors
+                                                                      .grey[600],
+                                                            ),
+                                                          ),
+                                                          if (v['capacity'] !=
+                                                                  null &&
+                                                              v['capacity']
+                                                                  .toString()
+                                                                  .isNotEmpty)
+                                                            Text(
+                                                              'Capacity: ${v['capacity']}',
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                color:
+                                                                    Colors
+                                                                        .grey[500],
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+
+                                                    // Available badge
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 3,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green[50],
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        border: Border.all(
+                                                          color:
+                                                              Colors
+                                                                  .green[200]!,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        'Available',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color:
+                                                              Colors.green[700],
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -735,5 +925,24 @@ class _TransportBookingPageState extends ConsumerState<TransportBookingPage> {
             ],
           ),
     );
+  }
+
+  IconData _getTypeIcon(String name) {
+    switch (name) {
+      case 'Small Truck':
+        return Icons.local_shipping;
+      case 'Medium Truck':
+        return Icons.fire_truck;
+      case 'Large Truck':
+        return Icons.airport_shuttle;
+      case 'Trailer':
+        return Icons.rv_hookup;
+      case 'Bus':
+        return Icons.directions_bus;
+      case 'Costa':
+        return Icons.directions_bus_filled;
+      default:
+        return Icons.local_shipping;
+    }
   }
 }

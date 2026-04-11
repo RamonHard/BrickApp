@@ -8,7 +8,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:http_parser/http_parser.dart'; // Add this for MediaType
+import 'package:http_parser/http_parser.dart';
 
 class PostTruckPage extends ConsumerStatefulWidget {
   const PostTruckPage({Key? key}) : super(key: key);
@@ -20,206 +20,290 @@ class PostTruckPage extends ConsumerStatefulWidget {
 class _PostTruckPageState extends ConsumerState<PostTruckPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final List<String> vehicleTypes = [
-    'Small Truck',
-    'Medium Truck',
-    'Large Truck',
-    'Trailer',
-  ];
+  // ─── Dynamic vehicle types from backend ─────────────
+  List<Map<String, dynamic>> _vehicleTypes = [];
+  bool _loadingTypes = true;
+  Map<String, dynamic>? _selectedVehicleType;
 
-  final Map<String, int> vehiclePricing = {
-    'Small Truck': 50000,
-    'Medium Truck': 100000,
-    'Large Truck': 150000,
-    'Trailer': 200000,
-  };
-
-  String? selectedVehicleType;
-  File? truckPhoto;
+  File? _vehiclePhoto;
   final ImagePicker _picker = ImagePicker();
+  bool _isSubmitting = false;
 
-  // Form controllers
-  final TextEditingController truckModelController = TextEditingController();
-  final TextEditingController licensePlateController = TextEditingController();
-  final TextEditingController capacityController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController _modelController = TextEditingController();
+  final TextEditingController _plateController = TextEditingController();
+  final TextEditingController _capacityController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  String _selectedCountryCode = '+256';
 
-  // Phone related
-  String selectedCountryCode = '+256';
-  final TextEditingController phoneController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicleTypes();
+  }
 
-  // Pricing display
-  String get pricingInfo {
-    if (selectedVehicleType == null)
-      return 'Select vehicle type to see pricing';
-    final price = vehiclePricing[selectedVehicleType]!;
-    return 'UGX ${price.toStringAsFixed(0)} per Km';
+  @override
+  void dispose() {
+    _modelController.dispose();
+    _plateController.dispose();
+    _capacityController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  // ─── Fetch vehicle types + prices from backend ───────
+  Future<void> _loadVehicleTypes() async {
+    setState(() => _loadingTypes = true);
+    try {
+      final res = await http.get(
+        Uri.parse('${AppUrls.baseUrl}/transport/truck-types-all'),
+      );
+
+      print('📡 Vehicle types response: ${res.statusCode}');
+      print('📡 Response body: ${res.body}');
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        print('📡 Decoded data structure: ${data.keys}');
+
+        final types = List<Map<String, dynamic>>.from(data['types']);
+
+        // ✅ Verify each type has price_per_km
+        for (var type in types) {
+          print(
+            '✅ Type: ${type['name']} - ID: ${type['id']} - Price/km: ${type['price_per_km']}',
+          );
+          if (type['price_per_km'] == null) {
+            print('⚠️ WARNING: ${type['name']} has no price_per_km!');
+          }
+        }
+
+        setState(() {
+          _vehicleTypes = types;
+        });
+      } else {
+        print('❌ Failed to load vehicle types');
+        _useFallbackTypes();
+      }
+    } catch (e) {
+      print('❌ Failed to load vehicle types: $e');
+      _useFallbackTypes();
+    }
+    setState(() => _loadingTypes = false);
+  }
+
+  void _useFallbackTypes() {
+    _vehicleTypes = [
+      {'id': 1, 'name': 'Small Truck', 'price_per_km': 50000},
+      {'id': 2, 'name': 'Medium Truck', 'price_per_km': 80000},
+      {'id': 3, 'name': 'Large Truck', 'price_per_km': 120000},
+      {'id': 4, 'name': 'Trailer', 'price_per_km': 200000},
+      {'id': 5, 'name': 'Bus', 'price_per_km': 45000},
+      {'id': 6, 'name': 'Costa', 'price_per_km': 30000},
+    ];
+  }
+
+  IconData _getVehicleIcon(String name) {
+    switch (name) {
+      case 'Small Truck':
+        return Icons.local_shipping;
+      case 'Medium Truck':
+        return Icons.fire_truck;
+      case 'Large Truck':
+        return Icons.airport_shuttle;
+      case 'Trailer':
+        return Icons.rv_hookup;
+      case 'Bus':
+        return Icons.directions_bus;
+      case 'Costa':
+        return Icons.directions_bus_filled;
+      default:
+        return Icons.local_shipping;
+    }
+  }
+
+  String _formatPrice(dynamic price) {
+    if (price == null) return '0';
+    final num p = price is num ? price : num.tryParse(price.toString()) ?? 0;
+    return p.toInt().toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final XFile? pickedFile = await _picker.pickImage(
+    final XFile? picked = await _picker.pickImage(
       source: source,
       imageQuality: 75,
     );
-    if (pickedFile != null) {
-      setState(() {
-        truckPhoto = File(pickedFile.path);
-      });
+    if (picked != null) setState(() => _vehiclePhoto = File(picked.path));
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedVehicleType == null) {
+      _showSnack('Please select a vehicle type', Colors.red);
+      return;
     }
-  }
 
-  bool _isSubmitting = false;
-  void _removePhoto() {
-    setState(() {
-      truckPhoto = null;
-    });
-  }
+    setState(() => _isSubmitting = true);
 
-  // Update the _submitForm method in PostTruckPage
-  void _submitForm() async {
-    if (_formKey.currentState!.validate() && selectedVehicleType != null) {
-      setState(() {
-        _isSubmitting = true;
-      });
-
-      try {
-        final fullPhone = '$selectedCountryCode${phoneController.text}';
-
-        final token = ref.read(userProvider).token;
-
-        if (token == null) {
-          _showErrorDialog('You must be logged in to post a truck');
-          setState(() {
-            _isSubmitting = false;
-          });
-          return;
-        }
-
-        // Create multipart request
-        var request = http.MultipartRequest(
-          'POST',
-          Uri.parse('${AppUrls.baseUrl}/vehicles'),
-        );
-
-        // Add headers
-        request.headers.addAll({'Authorization': 'Bearer $token'});
-
-        // Add text fields
-        request.fields['truck_model'] = truckModelController.text;
-        request.fields['license_plate'] = licensePlateController.text;
-        request.fields['vehicle_type'] = selectedVehicleType!;
-        request.fields['capacity'] = capacityController.text;
-        request.fields['price_per_km'] =
-            vehiclePricing[selectedVehicleType!].toString();
-        request.fields['phone'] = fullPhone;
-        request.fields['email'] = emailController.text;
-
-        // Add photo with correct MIME type
-        if (truckPhoto != null) {
-          // Get file extension and set correct MIME type
-          final extension = truckPhoto!.path.split('.').last.toLowerCase();
-          String mimeType;
-          switch (extension) {
-            case 'jpg':
-            case 'jpeg':
-              mimeType = 'image/jpeg';
-              break;
-            case 'png':
-              mimeType = 'image/png';
-              break;
-            case 'gif':
-              mimeType = 'image/gif';
-              break;
-            default:
-              mimeType = 'image/jpeg';
-          }
-
-          print('📸 Uploading photo: ${truckPhoto!.path}');
-          print('📸 MIME type: $mimeType');
-
-          var photoFile = await http.MultipartFile.fromPath(
-            'photo',
-            truckPhoto!.path,
-            contentType: MediaType.parse(mimeType), // Add content type
-          );
-          request.files.add(photoFile);
-        }
-
-        // Send request
-        final response = await request.send();
-        final responseBody = await response.stream.bytesToString();
-
-        print('Response status: ${response.statusCode}');
-        print('Response body: $responseBody');
-
-        setState(() {
-          _isSubmitting = false;
-        });
-
-        if (response.statusCode == 201 || response.statusCode == 200) {
-          final data = jsonDecode(responseBody);
-          _showSuccessDialog();
-        } else {
-          _showErrorDialog('Failed to post truck: ${response.statusCode}');
-        }
-      } catch (e) {
-        setState(() {
-          _isSubmitting = false;
-        });
-        _showErrorDialog('Error: $e');
+    try {
+      final token = ref.read(userProvider).token;
+      if (token == null) {
+        _showErrorDialog('You must be logged in');
+        setState(() => _isSubmitting = false);
+        return;
       }
+
+      final fullPhone = '$_selectedCountryCode${_phoneController.text}';
+
+      // ✅ Debug: Check if price_per_km exists
+      print('🔍 Selected vehicle type details:');
+      print('  ID: ${_selectedVehicleType!['id']}');
+      print('  Name: ${_selectedVehicleType!['name']}');
+      print('  Price per km: ${_selectedVehicleType!['price_per_km']}');
+
+      if (_selectedVehicleType!['price_per_km'] == null) {
+        _showErrorDialog(
+          'Vehicle type has no price set. Please contact admin.',
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppUrls.baseUrl}/vehicles'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // ✅ Send all required fields
+      request.fields['brand'] = _modelController.text;
+      request.fields['plate_number'] = _plateController.text;
+      request.fields['vehicle_type_id'] =
+          _selectedVehicleType!['id'].toString();
+      request.fields['capacity'] = _capacityController.text;
+      request.fields['phone'] = fullPhone;
+      request.fields['email'] = _emailController.text;
+
+      // ✅ Optional: Send price_per_km explicitly if backend needs it
+      // request.fields['price_per_km'] = _selectedVehicleType!['price_per_km'].toString();
+      request.fields['price_per_km'] =
+          _selectedVehicleType!['price_per_km'].toString();
+      // ✅ Log the request fields for debugging
+      print('📤 Request fields:');
+      request.fields.forEach((key, value) {
+        print('  $key: $value');
+      });
+
+      if (_vehiclePhoto != null) {
+        final ext = _vehiclePhoto!.path.split('.').last.toLowerCase();
+        final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'photo',
+            _vehiclePhoto!.path,
+            contentType: MediaType.parse(mime),
+          ),
+        );
+        print('📷 Photo attached: ${_vehiclePhoto!.path}');
+      }
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: $body');
+
+      setState(() => _isSubmitting = false);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSuccessDialog();
+      } else {
+        final data = jsonDecode(body);
+        _showErrorDialog(data['message'] ?? 'Failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error: $e');
+      setState(() => _isSubmitting = false);
+      _showErrorDialog('Error: $e');
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _showSuccessDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 24),
-              SizedBox(width: 8),
-              Text('Success', style: TextStyle(fontWeight: FontWeight.bold)),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 24),
+                SizedBox(width: 8),
+                Text('Posted!', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Text(
+              '${_selectedVehicleType!['name']} posted successfully!\nYou\'ll start receiving bookings soon.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _clearForm();
+                },
+                child: const Text('OK'),
+              ),
             ],
           ),
-          content: Text('Your truck has been posted successfully!'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _clearForm();
-                // Optional: Navigate to trucks list
-                // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TrucksListPage()));
-              },
-              child: Text('OK'),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.red, size: 24),
+                SizedBox(width: 8),
+                Text('Error', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
-          ],
-        );
-      },
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
     );
   }
 
   void _clearForm() {
-    truckModelController.clear();
-    licensePlateController.clear();
-    capacityController.clear();
-    phoneController.clear();
-    emailController.clear();
+    _modelController.clear();
+    _plateController.clear();
+    _capacityController.clear();
+    _phoneController.clear();
+    _emailController.clear();
     setState(() {
-      selectedVehicleType = null;
-      truckPhoto = null;
+      _selectedVehicleType = null;
+      _vehiclePhoto = null;
     });
-  }
-
-  @override
-  void dispose() {
-    truckModelController.dispose();
-    licensePlateController.dispose();
-    capacityController.dispose();
-    phoneController.dispose();
-    emailController.dispose();
-    super.dispose();
   }
 
   @override
@@ -227,19 +311,19 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Post Your Truck',
+          'Post Your Vehicle',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        elevation: 0,
         backgroundColor: AppColors.iconColor,
+        elevation: 0,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -259,25 +343,62 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeaderSection(),
+                _buildHeader(),
                 const SizedBox(height: 24),
-
-                _buildBasicDetailsSection(),
+                _buildVehicleTypeSection(),
+                const SizedBox(height: 20),
+                _buildSection(
+                  title: 'Vehicle Details',
+                  icon: Icons.local_shipping,
+                  children: [
+                    _buildTextField(
+                      controller: _modelController,
+                      label: 'Vehicle Model / Brand',
+                      hint: 'e.g. ISUZU NPR, Toyota Coaster',
+                      icon: Icons.directions_car,
+                    ),
+                    _buildTextField(
+                      controller: _plateController,
+                      label: 'License Plate',
+                      hint: 'e.g. UBG 256Y',
+                      icon: Icons.confirmation_number,
+                    ),
+                    _buildTextField(
+                      controller: _capacityController,
+                      label: 'Capacity',
+                      hint: 'e.g. 5 tons / 30 passengers',
+                      icon: Icons.inventory,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildSection(
+                  title: 'Vehicle Photo',
+                  icon: Icons.photo_library,
+                  children: [_buildPhotoPicker()],
+                ),
                 const SizedBox(height: 20),
 
-                _buildPricingSection(),
-                const SizedBox(height: 20),
-
-                _buildCapacitySection(),
-                const SizedBox(height: 20),
-
-                _buildPhotoSection(),
-                const SizedBox(height: 20),
-
-                _buildContactSection(),
+                _buildSection(
+                  title: 'Contact Information',
+                  icon: Icons.contact_phone,
+                  children: [
+                    _buildPhoneField(),
+                    const SizedBox(height: 16), // ✅ Add this
+                    _buildTextField(
+                      // ✅ Add email field back
+                      controller: _emailController,
+                      label: 'Email Address (optional)',
+                      hint: 'e.g. driver@gmail.com',
+                      icon: Icons.email,
+                      keyboardType: TextInputType.emailAddress,
+                      required: false,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 30),
-
                 _buildSubmitButton(),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -286,7 +407,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     );
   }
 
-  Widget _buildHeaderSection() {
+  Widget _buildHeader() {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -297,20 +418,18 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             colors: [AppColors.iconColor, AppColors.iconColor.withOpacity(0.8)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.local_shipping, color: Colors.white, size: 24),
                 SizedBox(width: 8),
                 Text(
-                  'Post Your Truck',
-                  style: GoogleFonts.poppins(
+                  'Post Your Vehicle',
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -318,12 +437,12 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Get deals quickly and efficiently through our platform. Fill in the details below to get started.',
-              style: GoogleFonts.poppins(
+              'List your truck, bus or costa and start receiving bookings.',
+              style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
-                fontSize: 14,
+                fontSize: 13,
               ),
             ),
           ],
@@ -332,197 +451,145 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     );
   }
 
-  Widget _buildBasicDetailsSection() {
+  // ─── Vehicle Type Selector ────────────────────────────
+  Widget _buildVehicleTypeSection() {
     return _buildSection(
-      title: 'Basic Details',
-      icon: Icons.local_shipping,
+      title: 'Vehicle Type',
+      icon: Icons.category,
       children: [
-        _buildTextField(
-          controller: truckModelController,
-          label: 'Truck Model',
-          hint: 'e.g. Ford F-150, Toyota Hilux',
-          icon: Icons.directions_car,
-        ),
-        _buildTextField(
-          controller: licensePlateController,
-          label: 'License Plate',
-          hint: 'Enter license plate number',
-          icon: Icons.confirmation_number,
-        ),
-        _buildDropdownField(
-          label: 'Vehicle Type',
-          value: selectedVehicleType,
-          items: vehicleTypes,
-          onChanged: (value) {
-            setState(() {
-              selectedVehicleType = value;
-            });
-          },
-          icon: Icons.category,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPricingSection() {
-    return _buildSection(
-      title: 'Pricing Details',
-      icon: Icons.attach_money,
-      children: [
-        Card(
-          elevation: 2,
-          color: Colors.blue.shade50,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        if (_loadingTypes)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else
+          Column(
+            children: [
+              // ✅ Prices note
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.info, color: Colors.blue.shade600, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Pricing Information',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade800,
+                    Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Prices per km are set by the platform admin and may change.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue[700]),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
-                Text(
-                  pricingInfo,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.iconColor,
+              ),
+
+              // ✅ Vehicle type cards
+              ..._vehicleTypes.map((type) {
+                final isSelected = _selectedVehicleType?['id'] == type['id'];
+                final pricePerKm = type['price_per_km'];
+
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedVehicleType = type),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected
+                              ? AppColors.iconColor.withOpacity(0.08)
+                              : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color:
+                            isSelected
+                                ? AppColors.iconColor
+                                : Colors.grey[300]!,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Icon
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color:
+                                isSelected
+                                    ? AppColors.iconColor.withOpacity(0.15)
+                                    : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _getVehicleIcon(type['name']),
+                            color:
+                                isSelected
+                                    ? AppColors.iconColor
+                                    : Colors.grey[600],
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Name + price
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                type['name'],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color:
+                                      isSelected
+                                          ? AppColors.iconColor
+                                          : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'UGX ${_formatPrice(pricePerKm)} / km',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color:
+                                      isSelected
+                                          ? AppColors.iconColor.withOpacity(0.8)
+                                          : Colors.grey[600],
+                                  fontWeight:
+                                      isSelected
+                                          ? FontWeight.w500
+                                          : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Checkmark
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle,
+                            color: AppColors.iconColor,
+                            size: 22,
+                          )
+                        else
+                          Icon(
+                            Icons.radio_button_unchecked,
+                            color: Colors.grey[400],
+                            size: 22,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Price is automatically set based on vehicle type',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
+                );
+              }),
+            ],
           ),
-        ),
-        SizedBox(height: 12),
-        _buildPricingTable(),
-      ],
-    );
-  }
-
-  Widget _buildPricingTable() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children:
-            vehicleTypes.map((type) {
-              final isSelected = selectedVehicleType == type;
-              return Container(
-                decoration: BoxDecoration(
-                  color:
-                      isSelected
-                          ? AppColors.iconColor.withOpacity(0.1)
-                          : Colors.white,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
-                  ),
-                ),
-                child: ListTile(
-                  leading: Icon(
-                    _getVehicleIcon(type),
-                    color: isSelected ? AppColors.iconColor : Colors.grey,
-                  ),
-                  title: Text(
-                    type,
-                    style: GoogleFonts.poppins(
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? AppColors.iconColor : Colors.black,
-                    ),
-                  ),
-                  trailing: Text(
-                    'UGX ${vehiclePricing[type]!.toStringAsFixed(0)}/Km',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.iconColor,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-      ),
-    );
-  }
-
-  IconData _getVehicleIcon(String type) {
-    switch (type) {
-      case 'Small Truck':
-        return Icons.local_shipping;
-      case 'Medium Truck':
-        return Icons.fire_truck;
-      case 'Large Truck':
-        return Icons.airport_shuttle;
-      case 'Trailer':
-        return Icons.rv_hookup;
-      default:
-        return Icons.local_shipping;
-    }
-  }
-
-  Widget _buildCapacitySection() {
-    return _buildSection(
-      title: 'Capacity Details',
-      icon: Icons.inventory,
-      children: [
-        _buildTextField(
-          controller: capacityController,
-          label: 'Load Capacity (Tons)',
-          hint: 'e.g. 5, 10, 15',
-          icon: Icons.scale,
-          keyboardType: TextInputType.number,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhotoSection() {
-    return _buildSection(
-      title: 'Vehicle Photos',
-      icon: Icons.photo_library,
-      children: [
-        Text(
-          'Add clear photos of your truck from different angles',
-          style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
-        ),
-        SizedBox(height: 12),
-        _buildPhotoPicker(),
-      ],
-    );
-  }
-
-  Widget _buildContactSection() {
-    return _buildSection(
-      title: 'Contact Information',
-      icon: Icons.contact_phone,
-      children: [
-        _buildPhoneNumberField(),
-        _buildTextField(
-          controller: emailController,
-          label: 'Email Address',
-          hint: 'Enter email address',
-          icon: Icons.email,
-          keyboardType: TextInputType.emailAddress,
-        ),
       ],
     );
   }
@@ -543,14 +610,14 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, size: 18, color: AppColors.iconColor),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   title,
                   style: GoogleFonts.poppins(
@@ -561,7 +628,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             ...children,
           ],
         ),
@@ -575,6 +642,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    bool required = true, // ✅ Add this
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -585,51 +653,16 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
           labelText: label,
           hintText: hint,
           prefixIcon: Icon(icon, color: AppColors.iconColor),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: AppColors.iconColor, width: 2),
           ),
         ),
         validator:
-            (value) => value == null || value.isEmpty ? 'Required' : null,
-      ),
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required Function(String?) onChanged,
-    required IconData icon,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        items:
-            items
-                .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                .toList(),
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: AppColors.iconColor),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: AppColors.iconColor, width: 2),
-          ),
-        ),
-        validator:
-            (value) => value == null || value.isEmpty ? 'Please select' : null,
+            required
+                ? (v) => v == null || v.isEmpty ? 'Required' : null
+                : null, // ✅ Optional fields skip validation
       ),
     );
   }
@@ -637,26 +670,24 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
   Widget _buildPhotoPicker() {
     return Column(
       children: [
-        truckPhoto != null
+        _vehiclePhoto != null
             ? Stack(
               children: [
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(
-                      image: FileImage(truckPhoto!),
-                      fit: BoxFit.cover,
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _vehiclePhoto!,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
                   ),
                 ),
                 Positioned(
                   right: 8,
                   top: 8,
                   child: GestureDetector(
-                    onTap: _removePhoto,
-                    child: CircleAvatar(
+                    onTap: () => setState(() => _vehiclePhoto = null),
+                    child: const CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.black54,
                       child: Icon(Icons.close, size: 18, color: Colors.white),
@@ -667,13 +698,9 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
             )
             : Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
               height: 150,
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  style: BorderStyle.solid,
-                ),
+                border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey.shade50,
               ),
@@ -687,37 +714,37 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Upload Truck Photo\nPNG, JPG up to 10MB',
+                    'Upload Vehicle Photo\nPNG, JPG up to 10MB',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                   ),
                 ],
               ),
             ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                icon: Icon(Icons.camera_alt, size: 20),
-                label: Text('Take Photo', style: GoogleFonts.poppins()),
                 onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt, size: 18),
+                label: const Text('Camera'),
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                icon: Icon(Icons.photo_library, size: 20),
-                label: Text('From Gallery', style: GoogleFonts.poppins()),
                 onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library, size: 18),
+                label: const Text('Gallery'),
                 style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -730,55 +757,47 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
     );
   }
 
-  Widget _buildPhoneNumberField() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Container(
-            width: 140,
-            child: DropdownButtonFormField<String>(
-              value: selectedCountryCode,
-              items:
-                  ['+256', '+255', '+254', '+250'].map((code) {
-                    return DropdownMenuItem(value: code, child: Text(code));
-                  }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedCountryCode = value!;
-                });
-              },
-              decoration: InputDecoration(
-                prefixIcon: Icon(Icons.flag, color: AppColors.iconColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+  Widget _buildPhoneField() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 130,
+          child: DropdownButtonFormField<String>(
+            value: _selectedCountryCode,
+            items:
+                ['+256', '+255', '+254', '+250']
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+            onChanged: (v) => setState(() => _selectedCountryCode = v!),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.flag),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextFormField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                hintText: 'Enter phone number',
-                prefixIcon: Icon(Icons.phone, color: AppColors.iconColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: AppColors.iconColor, width: 2),
-                ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              hintText: '7XX XXX XXX',
+              prefixIcon: Icon(Icons.phone, color: AppColors.iconColor),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
-              validator:
-                  (value) => value == null || value.isEmpty ? 'Required' : null,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: AppColors.iconColor, width: 2),
+              ),
             ),
+            validator: (v) => v == null || v.isEmpty ? 'Required' : null,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -789,7 +808,7 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
         onPressed: _isSubmitting ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.iconColor,
-          padding: EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -808,10 +827,16 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
                 : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      'Post Truck',
+                      _selectedVehicleType != null
+                          ? 'Post ${_selectedVehicleType!['name']}'
+                          : 'Post Vehicle',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -821,30 +846,6 @@ class _PostTruckPageState extends ConsumerState<PostTruckPage> {
                   ],
                 ),
       ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.error, color: Colors.red, size: 24),
-              SizedBox(width: 8),
-              Text('Error', style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

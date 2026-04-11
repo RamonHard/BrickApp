@@ -1,3 +1,5 @@
+import 'package:brickapp/utils/urls.dart';
+
 class PropertyBookingModel {
   final int id;
   final int clientId;
@@ -13,7 +15,13 @@ class PropertyBookingModel {
   final String? thumbnail;
   final String? ownerName;
   final String? ownerPhone;
+  final String? ownerAvatar;
   final DateTime? createdAt;
+  final List<String> insideViews; // ✅ new
+  final String? videoPath; // ✅ new
+  final int? bedrooms; // ✅ new
+  final int? bathrooms; // ✅ new
+  final double? squareFeet; // ✅ new
 
   PropertyBookingModel({
     required this.id,
@@ -30,15 +38,44 @@ class PropertyBookingModel {
     this.thumbnail,
     this.ownerName,
     this.ownerPhone,
+    this.ownerAvatar,
     this.createdAt,
+    this.insideViews = const [],
+    this.videoPath,
+    this.bedrooms,
+    this.bathrooms,
+    this.squareFeet,
   });
 
   String? get thumbnailUrl {
-    if (thumbnail == null) return null;
-    return 'http://10.0.2.2:3000/$thumbnail';
+    if (thumbnail == null || thumbnail!.isEmpty) return null;
+    if (thumbnail!.startsWith('http')) return thumbnail;
+    return '${AppUrls.baseUrl}/$thumbnail';
+  }
+
+  // ✅ Convert relative paths to full URLs
+  List<String> get insideViewUrls =>
+      insideViews.map((img) {
+        if (img.startsWith('http')) return img;
+        return '${AppUrls.baseUrl}/$img';
+      }).toList();
+
+  String? get videoUrl {
+    if (videoPath == null || videoPath!.isEmpty) return null;
+    if (videoPath!.startsWith('http')) return videoPath;
+    return '${AppUrls.baseUrl}/$videoPath';
   }
 
   factory PropertyBookingModel.fromJson(Map<String, dynamic> json) {
+    // ✅ Parse inside_views array
+    List<String> images = [];
+    if (json['inside_views'] != null) {
+      final raw = json['inside_views'];
+      if (raw is List) {
+        images = raw.where((e) => e != null).map((e) => e.toString()).toList();
+      }
+    }
+
     return PropertyBookingModel(
       id: json['id'],
       clientId: json['client_id'],
@@ -55,75 +92,18 @@ class PropertyBookingModel {
       thumbnail: json['thumbnail'],
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
+      ownerAvatar: json['owner_avatar'],
       createdAt:
           json['created_at'] != null
               ? DateTime.tryParse(json['created_at'])
               : null,
-    );
-  }
-}
-
-class TransportBookingModel {
-  final int id;
-  final int clientId;
-  final int vehicleId;
-  final String pickupLocation;
-  final String dropoffLocation;
-  final double distanceKm;
-  final double pricePerKm;
-  final double platformCommission;
-  final double totalPrice;
-  final String status;
-  final DateTime bookingDate;
-  final String? brand;
-  final String? plateNumber;
-  final String? vehicleTypeName;
-  final String? providerName;
-  final String? providerPhone;
-  final DateTime? createdAt;
-
-  TransportBookingModel({
-    required this.id,
-    required this.clientId,
-    required this.vehicleId,
-    required this.pickupLocation,
-    required this.dropoffLocation,
-    required this.distanceKm,
-    required this.pricePerKm,
-    required this.platformCommission,
-    required this.totalPrice,
-    required this.status,
-    required this.bookingDate,
-    this.brand,
-    this.plateNumber,
-    this.vehicleTypeName,
-    this.providerName,
-    this.providerPhone,
-    this.createdAt,
-  });
-
-  factory TransportBookingModel.fromJson(Map<String, dynamic> json) {
-    return TransportBookingModel(
-      id: json['id'],
-      clientId: json['client_id'],
-      vehicleId: json['vehicle_id'],
-      pickupLocation: json['pickup_location'] ?? '',
-      dropoffLocation: json['dropoff_location'] ?? '',
-      distanceKm: double.tryParse(json['distance_km'].toString()) ?? 0,
-      pricePerKm: double.tryParse(json['price_per_km'].toString()) ?? 0,
-      platformCommission:
-          double.tryParse(json['platform_commission'].toString()) ?? 0,
-      totalPrice: double.tryParse(json['total_price'].toString()) ?? 0,
-      status: json['status'] ?? 'pending',
-      bookingDate: DateTime.parse(json['booking_date']),
-      brand: json['brand'],
-      plateNumber: json['plate_number'],
-      vehicleTypeName: json['vehicle_type_name'],
-      providerName: json['provider_name'],
-      providerPhone: json['provider_phone'],
-      createdAt:
-          json['created_at'] != null
-              ? DateTime.tryParse(json['created_at'])
+      insideViews: images,
+      videoPath: json['video_path'],
+      bedrooms: json['bedrooms'],
+      bathrooms: json['bathrooms'],
+      squareFeet:
+          json['square_feet'] != null
+              ? double.tryParse(json['square_feet'].toString())
               : null,
     );
   }

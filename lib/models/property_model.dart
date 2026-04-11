@@ -1,3 +1,5 @@
+import 'package:brickapp/utils/urls.dart';
+
 class PropertyModel {
   // ─── Backend fields ────────────────────────────────────
   final int? userId;
@@ -144,10 +146,11 @@ class PropertyModel {
   double get displayPrice => rentPrice ?? salePrice ?? price;
 
   // Full URL helpers
+  // Find this getter and apply same fix
   String? get thumbnailUrl {
-    if (thumbnail.isEmpty) return null;
-    if (thumbnail.startsWith('http')) return thumbnail;
-    return 'http://10.0.2.2:3000/$thumbnail';
+    if (thumbnail == null || thumbnail!.isEmpty) return null;
+    if (thumbnail!.startsWith('http')) return thumbnail;
+    return '${AppUrls.baseUrl}/$thumbnail';
   }
 
   List<String> get imageUrls {

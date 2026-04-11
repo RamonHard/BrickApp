@@ -21,13 +21,11 @@ class AppUrls {
   // Transport
   static const String transportCalculate = '$baseUrl/transport/calculate';
   static const String transportBook = '$baseUrl/transport/book';
-  static const String myTransportBookings = '$baseUrl/transport/my-bookings';
   static const String truckTypes = '$baseUrl/transport/truck-types';
   static const String calculateTransport = '$baseUrl/transport/calculate';
   static const String bookTransport = '$baseUrl/bookings/transport';
   // Property Bookings
   static const String createBooking = '$baseUrl/bookings/create';
-  static const String myBookings = '$baseUrl/bookings/my-bookings';
 
   // Favourites
   static const String favourites = '$baseUrl/favourites';
@@ -40,7 +38,9 @@ class AppUrls {
   static String propertyById(int id) => '$baseUrl/properties/$id';
   static String togglePropertyStatus(int id) =>
       '$baseUrl/properties/$id/toggle-status';
-
+  static const String myBookings = '$baseUrl/bookings/history/property';
+  static const String myTransportBookings =
+      '$baseUrl/bookings/history/transport';
   // Property Manager Stats
   static const String managerStats = '$baseUrl/properties/stats';
 

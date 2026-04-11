@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:brickapp/models/transport_booking_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -125,17 +126,24 @@ final bookingProvider =
 // Property bookings history
 final myPropertyBookingsProvider = FutureProvider.autoDispose
     .family<List<PropertyBookingModel>, String>((ref, token) async {
+      print('📡 Fetching property bookings...');
+      print('📡 URL: ${AppUrls.myBookings}');
+      print('📡 Token length: ${token.length}');
+
       final response = await http.get(
         Uri.parse(AppUrls.myBookings),
         headers: {'Authorization': 'Bearer $token'},
       );
+
+      print('📡 Status: ${response.statusCode}');
+      print('📡 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List list = data['bookings'];
         return list.map((e) => PropertyBookingModel.fromJson(e)).toList();
       } else {
-        throw Exception('Failed to load bookings');
+        throw Exception('Failed: ${response.statusCode} ${response.body}');
       }
     });
 
