@@ -18,7 +18,10 @@ class DetailedHouseView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasShownDialog = ref.watch(discountDialogShownProvider);
-
+    print('🖼️ Thumbnail: ${selectedProduct.thumbnail}');
+    print('🖼️ Images: ${selectedProduct.images}');
+    print('🖼️ InsideViews: ${selectedProduct.insideViews}');
+    print('🎬 VideoPath: ${selectedProduct.videoPath}');
     if (!hasShownDialog) {
       Future.microtask(() {
         showDialog(

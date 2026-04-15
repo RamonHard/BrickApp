@@ -163,6 +163,7 @@ class PropertyModel {
 
   // ─── Build from backend JSON ───────────────────────────
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
+    // ✅ Parse images array
     final List<String> imgs =
         json['images'] != null
             ? List<String>.from(
@@ -170,6 +171,15 @@ class PropertyModel {
             )
             : [];
 
+    // ✅ Parse videos array — backend returns 'videos' not 'video_path'
+    String? videoPath;
+    if (json['videos'] != null && (json['videos'] as List).isNotEmpty) {
+      videoPath = json['videos'][0].toString();
+    } else if (json['video_path'] != null) {
+      videoPath = json['video_path'].toString();
+    }
+
+    // ✅ Parse amenities
     final List<String> amenitiesList =
         json['amenities'] != null
             ? List<String>.from(
@@ -182,13 +192,12 @@ class PropertyModel {
             ? double.tryParse(json['rent_price'].toString()) ?? 0
             : 0;
 
-    final double sPice =
+    final double sPrice =
         json['sale_price'] != null
             ? double.tryParse(json['sale_price'].toString()) ?? 0
             : 0;
 
     return PropertyModel(
-      // Backend fields
       userId: json['user_id'],
       listingType: json['listing_type'] ?? '',
       status: json['status'] ?? 'active',
@@ -205,32 +214,23 @@ class PropertyModel {
       ownerEmail: json['owner_email'],
       images: imgs,
       minimumMonths:
-          json['rent_duration_months'] != null
-              ? int.tryParse(json['rent_duration_months'].toString()) ?? 1
-              : (json['minimum_months'] != null
-                  ? int.tryParse(json['minimum_months'].toString()) ?? 1
+          json['minimum_months'] != null
+              ? int.tryParse(json['minimum_months'].toString()) ?? 1
+              : (json['rent_duration_months'] != null
+                  ? int.tryParse(json['rent_duration_months'].toString()) ?? 1
                   : 1),
       rentDurationMonths: json['rent_duration_months'] ?? 0,
-      // Core fields
       id: json['id'] ?? 0,
       propertyType: json['property_type'] ?? '',
-
-      // location comes from address in backend
       location: json['address'] ?? '',
-
       description: json['description'] ?? '',
       price: rPrice,
       discount: 0,
       numberOfMonths: json['rent_duration_months']?.toString() ?? '',
       thumbnail: json['thumbnail'] ?? '',
       currency: 'UGX',
-
-      // bedrooms stays bedrooms
       bedrooms: json['bedrooms'] ?? 0,
-
-      // baths comes from bathrooms in backend
       baths: json['bathrooms'] ?? 0,
-
       sqft:
           json['square_feet'] != null
               ? double.tryParse(json['square_feet'].toString())
@@ -240,39 +240,60 @@ class PropertyModel {
       isLand: json['property_type'] == 'Land',
       isRent: json['listing_type'] == 'rent',
       isSale: json['listing_type'] == 'sale',
-      enteredSalePrice: sPice,
+      enteredSalePrice: sPrice,
       saleConditions: json['sale_condition'] ?? '',
       pendingReason: json['pending_reason'],
-
-      // Amenities from list
-      hasParking: amenitiesList.contains('Parking'),
-      isFurnished: amenitiesList.contains('Furnished'),
-      hasAC: amenitiesList.contains('Air Conditioning'),
-      hasInternet: amenitiesList.contains('Internet'),
-      hasSecurity: amenitiesList.contains('Security'),
-      hasCompound: amenitiesList.contains('Compound'),
-      isPetFriendly: amenitiesList.contains('Pet Friendly'),
+      hasParking:
+          amenitiesList.contains('Parking') ||
+          amenitiesList.contains('parking'),
+      isFurnished:
+          amenitiesList.contains('Furnished') ||
+          amenitiesList.contains('furnished'),
+      hasAC:
+          amenitiesList.contains('Air Conditioning') ||
+          amenitiesList.contains('AC'),
+      hasInternet:
+          amenitiesList.contains('Internet') ||
+          amenitiesList.contains('internet'),
+      hasSecurity:
+          amenitiesList.contains('Security') ||
+          amenitiesList.contains('security'),
+      hasCompound:
+          amenitiesList.contains('Compound') ||
+          amenitiesList.contains('Commpound') || // ✅ fix typo from DB
+          amenitiesList.contains('compound'),
+      isPetFriendly:
+          amenitiesList.contains('Pet Friendly') ||
+          amenitiesList.contains('pet friendly'),
       amenities: amenitiesList,
-
-      // Media
       productIMG: imgs.isNotEmpty ? imgs.first : '',
       photoPaths: imgs,
+      // ✅ insideViews = all images
       insideViews: imgs,
-
-      // Ratings default to 0 (not in backend yet)
+      // ✅ videoPath from videos array
+      videoPath: videoPath,
+      landPercentage:
+          json['land_percentage'] != null
+              ? double.tryParse(json['land_percentage'].toString())
+              : null,
       starRating: 0,
       reviews: 0,
-
-      // Owner info mapped from backend
       uploaderName: json['owner_name'] ?? '',
       uploaderEmail: json['owner_email'] ?? '',
-      uploaderIMG: '',
+      uploaderIMG:
+          json['owner_avatar'] != null &&
+                  json['owner_avatar'].toString().isNotEmpty
+              ? '${AppUrls.baseUrl}/${json['owner_avatar']}'
+              : '',
       uploaderPhoneNumber: 0,
-
       dateCreated:
           json['created_at'] != null
               ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
               : DateTime.now(),
+      rulesDocumentPath:
+          json['documents'] != null && (json['documents'] as List).isNotEmpty
+              ? json['documents'][0].toString()
+              : null,
     );
   }
 

@@ -296,7 +296,7 @@ class ClientProfile extends ConsumerWidget {
                               }
                             },
                             leading: Icon(
-                              Icons.camera_alt_outlined,
+                              Icons.request_page_outlined,
                               color: AppColors.iconColor,
                             ),
                             title: Text(

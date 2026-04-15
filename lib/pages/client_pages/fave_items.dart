@@ -30,8 +30,8 @@ class FavouriteItemList extends HookConsumerWidget {
             itemBuilder: (context, index) {
               final PropertyModel product = favList[index];
               return HouseCard(
-                description: product.thumbnail,
-                thumbnail: product.productIMG,
+                description: product.description,
+                thumbnail: product.thumbnail,
                 location: product.location,
                 price: product.price,
                 onTap: () {

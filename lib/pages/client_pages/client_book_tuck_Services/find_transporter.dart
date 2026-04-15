@@ -10,6 +10,7 @@ class FindTransporterPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        leading: Container(),
         title: const Text(
           'Transport',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),

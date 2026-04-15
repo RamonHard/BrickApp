@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
-const String _baseUrl = 'http://10.0.2.2:3000';
+const String _baseUrl =
+    'http://192.168.1.12:3000'; // Change to your backend URL
 
 // Converts a backend path to a full URL
 String toFullUrl(String? path) {

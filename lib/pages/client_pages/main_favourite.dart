@@ -26,9 +26,7 @@ class MainFavoriteDisplay extends StatelessWidget {
             tabs: [Tab(text: 'Items'), Tab(text: 'SProviders')],
           ),
         ),
-        body: TabBarView(
-          children: [FavouriteItemList(), Container(child: Text("Fav Truck"))],
-        ),
+        body: TabBarView(children: [FavouriteItemList(), FavoriteSProvider()]),
       ),
     );
   }
