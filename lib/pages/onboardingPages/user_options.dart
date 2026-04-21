@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:brickapp/pages/onboardingPages/register_addpost.dart';
+import 'package:brickapp/pages/onboardingPages/register_property_manager.dart';
 import 'package:brickapp/pages/onboardingPages/sign_up.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
@@ -70,8 +70,8 @@ class UserOnboardOptions extends ConsumerWidget {
                         height: 150,
                         width: deviceSize,
                         child: Card(
-                          child: Image.network(
-                            'https://nh.rdcpix.com/7e2ab6708c77a1bf427753fac1a95a1ee-f1208602978od-w480_h360.jpg',
+                          child: Image.asset(
+                            'images/serviceProvider.jpeg',
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -108,8 +108,8 @@ class UserOnboardOptions extends ConsumerWidget {
                         height: 150,
                         width: deviceSize,
                         child: Card(
-                          child: Image.network(
-                            'https://www.fortunebuilders.com/wp-content/uploads/2021/01/home-ownership.jpg',
+                          child: Image.asset(
+                            'images/propertyManager.jpeg',
                             fit: BoxFit.cover,
                           ),
                         ),

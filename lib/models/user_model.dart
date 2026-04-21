@@ -1,3 +1,5 @@
+import 'package:brickapp/utils/urls.dart';
+
 enum AccountType { service_provider, property_manager, client, admin }
 
 class User {
@@ -14,7 +16,8 @@ class User {
   final AccountType accountType;
   final bool isVerified;
   final String? status;
-
+  final bool? isSuspended;
+  final String? suspensionReason;
   User({
     this.id,
     this.email,
@@ -29,8 +32,10 @@ class User {
     required this.accountType,
     this.isVerified = false,
     this.status,
+    this.isSuspended,
+    this.suspensionReason,
   });
-
+  bool get isLoggedIn => id != null;
   User copyWith({
     int? id,
     String? email,
@@ -45,6 +50,8 @@ class User {
     AccountType? accountType,
     bool? isVerified,
     String? status,
+    bool? isSuspended,
+    String? suspensionReason,
   }) {
     return User(
       id: id ?? this.id,
@@ -60,6 +67,8 @@ class User {
       accountType: accountType ?? this.accountType,
       isVerified: isVerified ?? this.isVerified,
       status: status ?? this.status,
+      isSuspended: isSuspended ?? this.isSuspended,
+      suspensionReason: suspensionReason ?? this.suspensionReason,
     );
   }
 
@@ -101,6 +110,8 @@ class User {
       gender: map['gender'],
       avatar: map['avatar'],
       isVerified: map['is_verified'] ?? false,
+      isSuspended: map['is_suspended'] ?? false,
+      suspensionReason: map['suspension_reason'],
       accountType: roleToAccountType(map['role']),
       token: token,
     );
@@ -132,10 +143,6 @@ class User {
   // Full avatar URL
   String? get avatarUrl {
     if (avatar == null) return null;
-    return '${AppBaseUrl.base}/$avatar';
+    return '${AppUrls.baseUrl}/$avatar';
   }
-}
-
-class AppBaseUrl {
-  static const String base = 'http://10.0.2.2:3000';
 }

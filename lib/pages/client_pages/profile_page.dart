@@ -13,8 +13,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import '../../utils/app_images.dart' as backImg;
 
-class ClientProfile extends ConsumerWidget {
+class ClientProfile extends ConsumerStatefulWidget {
   ClientProfile({super.key});
+  @override
+  ConsumerState<ClientProfile> createState() => _ClientProfileState();
+}
+
+class _ClientProfileState extends ConsumerState<ClientProfile> {
+  @override
+  void initState() {
+    super.initState();
+    // Ensure auto-refresh is active when widget is mounted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(userProvider).isLoggedIn) {
+        ref.read(userProvider.notifier).refreshProfile();
+      }
+    });
+  }
 
   final double _sigmax = 4.0;
   final double _sigmay = 4.0;
@@ -25,13 +40,83 @@ class ClientProfile extends ConsumerWidget {
   );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final userState = ref.watch(userProvider);
-
-    final accountType =
-        userState.accountType; // FIXED: Use watch instead of read
     final screenSize = MediaQuery.of(context).size.width;
+    // Determine what to display
+    AccountType displayAccountType = userState.accountType!;
+    bool showUpgradedFeatures = false;
 
+    // If they upgraded but not verified yet, still show as client
+    if (userState.isVerified != true) {
+      displayAccountType = AccountType.client;
+    } else {
+      displayAccountType = userState.accountType!;
+      showUpgradedFeatures = true;
+    }
+    if (userState.isSuspended == true &&
+        (userState.accountType == AccountType.property_manager ||
+            userState.accountType == AccountType.service_provider)) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.block, size: 80, color: Colors.red),
+                const SizedBox(height: 24),
+                const Text(
+                  'Account Suspended',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Your listings have been temporarily hidden from clients.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                if (userState.suspensionReason != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Reason:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          userState.suspensionReason!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.orange[800]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                const Text(
+                  'Please contact support if you believe this is a mistake.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Container(
       color: AppColors.backgroundColor,
       child: SafeArea(
@@ -99,7 +184,8 @@ class ClientProfile extends ConsumerWidget {
                       SizedBox(height: screenSize / 10),
 
                       // FIXED: Compare the accountType directly instead of using toString()
-                      if (accountType == AccountType.property_manager)
+                      if (displayAccountType == AccountType.property_manager &&
+                          showUpgradedFeatures)
                         Column(
                           children: [
                             ExpansionTileWidget(
@@ -190,9 +276,9 @@ class ClientProfile extends ConsumerWidget {
                             ),
                           ],
                         )
-                      else if (accountType ==
-                          AccountType
-                              .service_provider) // FIXED: Direct comparison
+                      else if (displayAccountType ==
+                              AccountType.service_provider &&
+                          showUpgradedFeatures) // FIXED: Direct comparison
                         Column(
                           children: [
                             ExpansionTileWidget(
@@ -238,7 +324,8 @@ class ClientProfile extends ConsumerWidget {
                         ),
 
                       // FIXED: Simplified the condition
-                      if (accountType == AccountType.client)
+                      if (displayAccountType == AccountType.client &&
+                          showUpgradedFeatures)
                         Container(
                           alignment: Alignment.center,
                           child: Card(
@@ -278,13 +365,16 @@ class ClientProfile extends ConsumerWidget {
                           ),
                           child: ListTile(
                             onTap: () {
-                              if (accountType == AccountType.property_manager) {
+                              if (displayAccountType ==
+                                      AccountType.property_manager &&
+                                  showUpgradedFeatures) {
                                 MainNavigation.navigateToRoute(
                                   MainNavigation
                                       .requestsForPropertyManagerRoute,
                                 );
-                              } else if (accountType ==
-                                  AccountType.service_provider) {
+                              } else if (displayAccountType ==
+                                      AccountType.service_provider &&
+                                  showUpgradedFeatures) {
                                 MainNavigation.navigateToRoute(
                                   MainNavigation.requestsForSProviderRoute,
                                 );

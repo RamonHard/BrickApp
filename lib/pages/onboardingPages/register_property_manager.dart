@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:brickapp/models/user_model.dart';
-import 'package:brickapp/providers/account_type_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/urls.dart';
