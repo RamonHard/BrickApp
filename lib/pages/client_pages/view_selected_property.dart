@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
@@ -10,23 +12,70 @@ import 'package:brickapp/providers/settings_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-class ViewSelectedProperty extends ConsumerWidget {
+class ViewSelectedProperty extends ConsumerStatefulWidget {
   ViewSelectedProperty({super.key, required this.selectedProduct});
   final PropertyModel selectedProduct;
 
+  @override
+  ConsumerState<ViewSelectedProperty> createState() =>
+      _ViewSelectedPropertyState();
+}
+
+class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
+  // ✅ Store settings locally
+  double _clientDiscountPercent = 5.0;
+  int _commissionMonths = 3;
+  double _commissionPercent = 10.0;
+  bool _settingsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings(); // ✅ Load on init
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppUrls.baseUrl}/settings/public'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final settings = List<Map<String, dynamic>>.from(data['settings']);
+        for (final s in settings) {
+          if (s['key'] == 'client_discount_percent') {
+            _clientDiscountPercent =
+                double.tryParse(s['value'].toString()) ?? 5.0;
+          }
+          if (s['key'] == 'commission_months') {
+            _commissionMonths = int.tryParse(s['value'].toString()) ?? 3;
+          }
+          if (s['key'] == 'property_commission_percent') {
+            _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Settings error: $e');
+    }
+    if (mounted) setState(() => _settingsLoaded = true);
+  }
+
   // ─── Build ──────────────────────────
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final hasShownDialog = ref.watch(discountDialogShownProvider);
     final width = MediaQuery.of(context).size.width;
     final isFavorite = ref.watch(
       favoriteItemListProvider.select(
-        (favorites) => favorites.contains(selectedProduct),
+        (favorites) => favorites.contains(widget.selectedProduct),
       ),
     );
     final favoriteHouseListNotifier = ref.read(
@@ -34,9 +83,18 @@ class ViewSelectedProperty extends ConsumerWidget {
     );
 
     // Show discount dialog once
+    // ✅ Replace the current dialog trigger in build()
     if (!hasShownDialog) {
       Future.microtask(() {
-        _showDiscountDialog(context, ref);
+        if (_settingsLoaded) {
+          // ✅ Settings loaded — show with real values
+          _showDiscountDialog(context);
+        } else {
+          // ✅ Not loaded yet — wait then show
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) _showDiscountDialog(context);
+          });
+        }
         ref.read(discountDialogShownProvider.notifier).state = true;
       });
     }
@@ -73,7 +131,8 @@ class ViewSelectedProperty extends ConsumerWidget {
             Stack(
               children: [
                 buildImage(
-                  selectedProduct.thumbnailUrl ?? selectedProduct.thumbnail,
+                  widget.selectedProduct.thumbnailUrl ??
+                      widget.selectedProduct.thumbnail,
                   width: width,
                   height: 250,
                   fit: BoxFit.cover,
@@ -89,11 +148,11 @@ class ViewSelectedProperty extends ConsumerWidget {
                       onPressed: () {
                         if (isFavorite) {
                           favoriteHouseListNotifier.removeFromFavorites(
-                            selectedProduct,
+                            widget.selectedProduct,
                           );
                         } else {
                           favoriteHouseListNotifier.addToFavorites(
-                            selectedProduct,
+                            widget.selectedProduct,
                           );
                         }
                       },
@@ -106,7 +165,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                 ),
 
                 // Units badge
-                if (selectedProduct.units > 0)
+                if (widget.selectedProduct.units > 0)
                   Positioned(
                     right: 10,
                     bottom: 10,
@@ -128,7 +187,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${selectedProduct.units} Units',
+                            '${widget.selectedProduct.units} Units',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: Colors.white,
@@ -141,7 +200,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                   ),
 
                 // Status badge for pending
-                if (selectedProduct.status == 'pending')
+                if (widget.selectedProduct.status == 'pending')
                   Positioned(
                     left: 10,
                     top: 10,
@@ -173,9 +232,9 @@ class ViewSelectedProperty extends ConsumerWidget {
               child: Column(
                 children: [
                   // Pending reason
-                  if (selectedProduct.status == 'pending' &&
-                      selectedProduct.pendingReason != null &&
-                      selectedProduct.pendingReason!.isNotEmpty)
+                  if (widget.selectedProduct.status == 'pending' &&
+                      widget.selectedProduct.pendingReason != null &&
+                      widget.selectedProduct.pendingReason!.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(10),
@@ -194,7 +253,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              selectedProduct.pendingReason!,
+                              widget.selectedProduct.pendingReason!,
                               style: TextStyle(
                                 color: Colors.orange[800],
                                 fontSize: 13,
@@ -209,8 +268,8 @@ class ViewSelectedProperty extends ConsumerWidget {
                   Row(
                     children: [
                       // ✅ Rent/Book button
-                      if (selectedProduct.listingType == 'rent' ||
-                          selectedProduct.listingType == 'rent_and_sale')
+                      if (widget.selectedProduct.listingType == 'rent' ||
+                          widget.selectedProduct.listingType == 'rent_and_sale')
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
@@ -219,7 +278,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                                 MaterialPageRoute(
                                   builder:
                                       (_) => PropertyBookingPage(
-                                        productModel: selectedProduct,
+                                        productModel: widget.selectedProduct,
                                       ),
                                 ),
                               );
@@ -243,21 +302,23 @@ class ViewSelectedProperty extends ConsumerWidget {
                           ),
                         ),
 
-                      if ((selectedProduct.listingType == 'rent' ||
-                              selectedProduct.listingType == 'rent_and_sale') &&
-                          (selectedProduct.listingType == 'sale' ||
-                              selectedProduct.listingType == 'rent_and_sale'))
+                      if ((widget.selectedProduct.listingType == 'rent' ||
+                              widget.selectedProduct.listingType ==
+                                  'rent_and_sale') &&
+                          (widget.selectedProduct.listingType == 'sale' ||
+                              widget.selectedProduct.listingType ==
+                                  'rent_and_sale'))
                         const SizedBox(width: 10),
 
                       // ✅ Sale/Buy button
-                      if (selectedProduct.listingType == 'sale' ||
-                          selectedProduct.listingType == 'rent_and_sale')
+                      if (widget.selectedProduct.listingType == 'sale' ||
+                          widget.selectedProduct.listingType == 'rent_and_sale')
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed:
                                 () => _showContactDialog(
                                   context,
-                                  selectedProduct,
+                                  widget.selectedProduct,
                                 ),
                             icon: const Icon(
                               Icons.handshake,
@@ -294,17 +355,17 @@ class ViewSelectedProperty extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          selectedProduct.propertyType,
+                          widget.selectedProduct.propertyType,
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (selectedProduct.numberOfMonths.isNotEmpty &&
-                            selectedProduct.numberOfMonths != '0' &&
-                            selectedProduct.numberOfMonths != 'null')
+                        if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
+                            widget.selectedProduct.numberOfMonths != '0' &&
+                            widget.selectedProduct.numberOfMonths != 'null')
                           Text(
-                            'Min. ${selectedProduct.numberOfMonths} month${int.tryParse(selectedProduct.numberOfMonths) != null && int.parse(selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
+                            'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
@@ -316,20 +377,20 @@ class ViewSelectedProperty extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (selectedProduct.rentPrice != null &&
-                          selectedProduct.rentPrice! > 0)
+                      if (widget.selectedProduct.rentPrice != null &&
+                          widget.selectedProduct.rentPrice! > 0)
                         Text(
-                          'UGX ${NumberFormat('#,###').format(selectedProduct.rentPrice)}/mo',
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
                         ),
-                      if (selectedProduct.salePrice != null &&
-                          selectedProduct.salePrice! > 0)
+                      if (widget.selectedProduct.salePrice != null &&
+                          widget.selectedProduct.salePrice! > 0)
                         Text(
-                          'UGX ${NumberFormat('#,###').format(selectedProduct.salePrice)}',
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -343,7 +404,8 @@ class ViewSelectedProperty extends ConsumerWidget {
             ),
 
             // ─── Sale Info ────────────────────────────────
-            if (selectedProduct.isSale && selectedProduct.enteredSalePrice > 0)
+            if (widget.selectedProduct.isSale &&
+                widget.selectedProduct.enteredSalePrice > 0)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.all(12),
@@ -366,7 +428,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          'UGX ${NumberFormat('#,###').format(selectedProduct.enteredSalePrice)}',
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.enteredSalePrice)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -375,10 +437,10 @@ class ViewSelectedProperty extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    if (selectedProduct.saleConditions.isNotEmpty) ...[
+                    if (widget.selectedProduct.saleConditions.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'Conditions: ${selectedProduct.saleConditions}',
+                        'Conditions: ${widget.selectedProduct.saleConditions}',
                         style: TextStyle(color: Colors.grey[700], fontSize: 13),
                       ),
                     ],
@@ -395,7 +457,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      selectedProduct.location,
+                      widget.selectedProduct.location,
                       style: const TextStyle(color: Colors.grey),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -403,10 +465,10 @@ class ViewSelectedProperty extends ConsumerWidget {
                   ),
                   const Icon(Icons.star, color: Colors.amber, size: 16),
                   const SizedBox(width: 2),
-                  Text('${selectedProduct.starRating}'),
+                  Text('${widget.selectedProduct.starRating}'),
                   const SizedBox(width: 4),
                   Text(
-                    '(${selectedProduct.reviews.toInt()} reviews)',
+                    '(${widget.selectedProduct.reviews.toInt()} reviews)',
                     style: const TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -416,7 +478,7 @@ class ViewSelectedProperty extends ConsumerWidget {
             // ─── Amenities ────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: _buildAmenitiesFromList(selectedProduct),
+              child: _buildAmenitiesFromList(widget.selectedProduct),
             ),
 
             // ─── Featured Media ───────────────────────────
@@ -432,17 +494,17 @@ class ViewSelectedProperty extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
 
-            selectedProduct.insideViews.isNotEmpty ||
-                    selectedProduct.videoPath != null
+            widget.selectedProduct.insideViews.isNotEmpty ||
+                    widget.selectedProduct.videoPath != null
                 ? SizedBox(
                   height: 100,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _getMediaCount(selectedProduct),
+                    itemCount: _getMediaCount(widget.selectedProduct),
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
-                      if (selectedProduct.videoPath != null && i == 0) {
+                      if (widget.selectedProduct.videoPath != null && i == 0) {
                         return GestureDetector(
                           onTap:
                               () => Navigator.push(
@@ -451,7 +513,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                                   builder:
                                       (_) => FullScreenGallery(
                                         mediaUrls: _getAllMedia(
-                                          selectedProduct,
+                                          widget.selectedProduct,
                                         ),
                                         initialIndex: i,
                                       ),
@@ -462,7 +524,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                             child: Stack(
                               children: [
                                 buildImage(
-                                  selectedProduct.videoPath!,
+                                  widget.selectedProduct.videoPath!,
                                   width: 120,
                                   height: 100,
                                   fit: BoxFit.cover,
@@ -485,8 +547,11 @@ class ViewSelectedProperty extends ConsumerWidget {
                         );
                       } else {
                         final imgIndex =
-                            selectedProduct.videoPath != null ? i - 1 : i;
-                        final imgPath = selectedProduct.insideViews[imgIndex];
+                            widget.selectedProduct.videoPath != null
+                                ? i - 1
+                                : i;
+                        final imgPath =
+                            widget.selectedProduct.insideViews[imgIndex];
                         return GestureDetector(
                           onTap:
                               () => Navigator.push(
@@ -495,7 +560,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                                   builder:
                                       (_) => FullScreenGallery(
                                         mediaUrls: _getAllMedia(
-                                          selectedProduct,
+                                          widget.selectedProduct,
                                         ),
                                         initialIndex: i,
                                       ),
@@ -526,8 +591,8 @@ class ViewSelectedProperty extends ConsumerWidget {
                   ),
                 ),
 
-            if (selectedProduct.insideViews.isNotEmpty ||
-                selectedProduct.videoPath != null)
+            if (widget.selectedProduct.insideViews.isNotEmpty ||
+                widget.selectedProduct.videoPath != null)
               TextButton(
                 onPressed:
                     () => Navigator.push(
@@ -535,7 +600,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                       MaterialPageRoute(
                         builder:
                             (_) => GalleryView(
-                              mediaUrls: _getAllMedia(selectedProduct),
+                              mediaUrls: _getAllMedia(widget.selectedProduct),
                             ),
                       ),
                     ),
@@ -544,7 +609,9 @@ class ViewSelectedProperty extends ConsumerWidget {
                   children: [
                     const Icon(Icons.photo_library_outlined),
                     const SizedBox(width: 4),
-                    Text('View All Media (${_getMediaCount(selectedProduct)})'),
+                    Text(
+                      'View All Media (${_getMediaCount(widget.selectedProduct)})',
+                    ),
                   ],
                 ),
               ),
@@ -564,13 +631,13 @@ class ViewSelectedProperty extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                selectedProduct.description,
+                widget.selectedProduct.description,
                 style: const TextStyle(height: 1.5),
               ),
             ),
 
             // ─── Rules Document ───────────────────────────
-            if (selectedProduct.rulesDocumentPath != null)
+            if (widget.selectedProduct.rulesDocumentPath != null)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -590,7 +657,8 @@ class ViewSelectedProperty extends ConsumerWidget {
                         MaterialPageRoute(
                           builder:
                               (_) => DocumentPreviewScreen(
-                                filePath: selectedProduct.rulesDocumentPath!,
+                                filePath:
+                                    widget.selectedProduct.rulesDocumentPath!,
                                 title: 'Rules & Regulations',
                               ),
                         ),
@@ -608,17 +676,19 @@ class ViewSelectedProperty extends ConsumerWidget {
                       leading: CircleAvatar(
                         backgroundColor: Colors.grey[300],
                         child:
-                            selectedProduct.uploaderIMG.isNotEmpty
+                            widget.selectedProduct.uploaderIMG.isNotEmpty
                                 ? null
                                 : const Icon(Icons.person),
                         backgroundImage:
-                            selectedProduct.uploaderIMG.isNotEmpty
-                                ? NetworkImage(selectedProduct.uploaderIMG)
+                            widget.selectedProduct.uploaderIMG.isNotEmpty
+                                ? NetworkImage(
+                                  widget.selectedProduct.uploaderIMG,
+                                )
                                 : null,
                       ),
                       title: Text(
-                        selectedProduct.ownerName ??
-                            selectedProduct.uploaderName,
+                        widget.selectedProduct.ownerName ??
+                            widget.selectedProduct.uploaderName,
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -640,7 +710,7 @@ class ViewSelectedProperty extends ConsumerWidget {
                       onPressed:
                           () => MainNavigation.navigateToRoute(
                             MainNavigation.viewMoreProducts,
-                            data: selectedProduct,
+                            data: widget.selectedProduct,
                           ),
                       padding: const EdgeInsets.all(8.0),
                       color: Colors.orange,
@@ -669,19 +739,25 @@ class ViewSelectedProperty extends ConsumerWidget {
   }
 
   // ─── Discount Dialog ──────────────────────────────────────
-  void _showDiscountDialog(BuildContext context, WidgetRef ref) {
-    // ✅ Read settings from provider
-    final settingsAsync = ref.read(publicSettingsProvider);
+  void _showDiscountDialog(BuildContext context) {
+    // ✅ Calculate discounted price for first commissionable months
+    final rentPrice = widget.selectedProduct.rentPrice ?? 0;
+    final minimumMonths =
+        int.tryParse(
+          widget.selectedProduct.numberOfMonths.isEmpty ||
+                  widget.selectedProduct.numberOfMonths == 'null'
+              ? '1'
+              : widget.selectedProduct.numberOfMonths,
+        ) ??
+        1;
 
-    final double clientDiscountPercent = settingsAsync.maybeWhen(
-      data: (s) => s.clientDiscountPercent,
-      orElse: () => 8.0,
-    );
-
-    final int commissionMonths = settingsAsync.maybeWhen(
-      data: (s) => s.commissionMonths,
-      orElse: () => 3,
-    );
+    // Commissionable amount = rent × min(minimumMonths, commissionMonths)
+    final commMonths =
+        minimumMonths < _commissionMonths ? minimumMonths : _commissionMonths;
+    final commissionableAmount = rentPrice * commMonths;
+    final discountAmount =
+        commissionableAmount * (_clientDiscountPercent / 100);
+    final platformFee = commissionableAmount * (_commissionPercent / 100);
 
     showDialog(
       context: context,
@@ -692,10 +768,10 @@ class ViewSelectedProperty extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (selectedProduct.rentPrice != null &&
-                    selectedProduct.rentPrice! > 0) ...[
+                // ✅ Rent price
+                if (rentPrice > 0) ...[
                   Text(
-                    'UGX ${NumberFormat('#,###').format(selectedProduct.rentPrice)}/month',
+                    'UGX ${NumberFormat('#,###').format(rentPrice)}/month',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -705,73 +781,82 @@ class ViewSelectedProperty extends ConsumerWidget {
                   const SizedBox(height: 8),
                 ],
 
-                // ✅ Minimum months from backend
-                if (selectedProduct.numberOfMonths.isNotEmpty &&
-                    selectedProduct.numberOfMonths != '0' &&
-                    selectedProduct.numberOfMonths != 'null')
+                // ✅ Minimum package from property manager
+                if (minimumMonths > 0)
                   Text(
-                    'Minimum package: ${selectedProduct.numberOfMonths} month${int.tryParse(selectedProduct.numberOfMonths) != null && int.parse(selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
+                    'Minimum package: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
 
                 const SizedBox(height: 12),
 
-                // ✅ Real discount % from dashboard
+                // ✅ Discount info with real values
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.green[50],
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green[200]!),
                   ),
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(text: '🎉 '),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
                         TextSpan(
-                          text: 'Pay through Brick and save!\n',
+                          children: [
+                            const TextSpan(text: '🎉 '),
+                            TextSpan(
+                              text: 'Pay through Brick and save!\n',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            TextSpan(
+                              text:
+                                  'Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
+                                  'on first $commMonths month${commMonths > 1 ? "s" : ""}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // ✅ Final price after discount
+                if (rentPrice > 0)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'First month you pay:',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          'UGX ${NumberFormat('#,###').format(rentPrice - (rentPrice * _clientDiscountPercent / 100) * (commMonths))}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        TextSpan(
-                          text:
-                              'Get ${clientDiscountPercent.toStringAsFixed(0)}% off our platform fee — exclusive to Brick users!',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
+                            color: Colors.deepOrange,
+                            fontSize: 15,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // ✅ Commission months from dashboard
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(text: 'ℹ️ '),
-                        TextSpan(
-                          text:
-                              'Platform fee applies on first $commissionMonths month${commissionMonths > 1 ? "s" : ""} only.',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
                 const SizedBox(height: 12),
                 const Text(

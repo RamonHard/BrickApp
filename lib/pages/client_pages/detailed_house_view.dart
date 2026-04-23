@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
 import 'package:brickapp/pages/client_pages/full_screen_view.dart';
@@ -7,28 +9,69 @@ import 'package:brickapp/providers/discount_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
+import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:http/http.dart' as http;
 
-class DetailedHouseView extends ConsumerWidget {
+class DetailedHouseView extends ConsumerStatefulWidget {
   const DetailedHouseView({super.key, required this.selectedProduct});
   final PropertyModel selectedProduct;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DetailedHouseView> createState() => _DetailedHouseViewState();
+}
+
+class _DetailedHouseViewState extends ConsumerState<DetailedHouseView> {
+  double _clientDiscountPercent = 5.0;
+  int _commissionMonths = 3;
+  bool _settingsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppUrls.baseUrl}/settings/public'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final settings = List<Map<String, dynamic>>.from(data['settings']);
+        for (final s in settings) {
+          if (s['key'] == 'client_discount_percent') {
+            _clientDiscountPercent =
+                double.tryParse(s['value'].toString()) ?? 5.0;
+          }
+          if (s['key'] == 'commission_months') {
+            _commissionMonths = int.tryParse(s['value'].toString()) ?? 3;
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Settings error: $e');
+    }
+    setState(() => _settingsLoaded = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final hasShownDialog = ref.watch(discountDialogShownProvider);
-    print('🖼️ Thumbnail: ${selectedProduct.thumbnail}');
-    print('🖼️ Images: ${selectedProduct.images}');
-    print('🖼️ InsideViews: ${selectedProduct.insideViews}');
-    print('🎬 VideoPath: ${selectedProduct.videoPath}');
+    // print('🖼️ Thumbnail: ${selectedProduct.thumbnail}');
+    // print('🖼️ Images: ${selectedProduct.images}');
+    // print('🖼️ InsideViews: ${selectedProduct.insideViews}');
+    // print('🎬 VideoPath: ${selectedProduct.videoPath}');
     if (!hasShownDialog) {
       Future.microtask(() {
         showDialog(
           context: context,
           builder:
               (context) => AlertDialog(
-                title: const Text("🎉 Special Offer"),
+                title: const Text("🎉 Special Offerr"),
                 content: Text.rich(
                   TextSpan(
                     style: GoogleFonts.oxygen(
@@ -37,13 +80,17 @@ class DetailedHouseView extends ConsumerWidget {
                       fontWeight: FontWeight.w400,
                     ),
                     children: [
-                      const TextSpan(
-                        text: "Get 8% discount on your first payment!\n\n",
-                      ),
-                      const TextSpan(text: "Secure the property now at "),
+                      // ✅ Uses real discount from backend
                       TextSpan(
                         text:
-                            "UGX ${(selectedProduct.price - selectedProduct.discount).toStringAsFixed(2)}\n\n",
+                            "Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount on your first $_commissionMonths month${_commissionMonths > 1 ? 's' : ''}!\n\n",
+                      ),
+                      TextSpan(text: "Secure the property now at "),
+                      TextSpan(
+                        text:
+                            widget.selectedProduct.rentPrice != null
+                                ? "UGX ${(widget.selectedProduct.rentPrice! * (1 - _clientDiscountPercent / 100)).toStringAsFixed(0)}/month\n\n"
+                                : "UGX ${(widget.selectedProduct.price * (1 - _clientDiscountPercent / 100)).toStringAsFixed(0)}\n\n",
                         style: GoogleFonts.oxygen(
                           color: Colors.green,
                           fontSize: 16,
@@ -74,7 +121,7 @@ class DetailedHouseView extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     final isFavorite = ref.watch(
       favoriteItemListProvider.select(
-        (favorites) => favorites.contains(selectedProduct),
+        (favorites) => favorites.contains(widget.selectedProduct),
       ),
     );
     final favoriteHouseListNotifier = ref.read(
@@ -111,7 +158,7 @@ class DetailedHouseView extends ConsumerWidget {
             Stack(
               children: [
                 buildImage(
-                  selectedProduct.thumbnail,
+                  widget.selectedProduct.thumbnail,
                   width: width,
                   height: 250,
                   fit: BoxFit.cover,
@@ -126,11 +173,11 @@ class DetailedHouseView extends ConsumerWidget {
                       onPressed: () {
                         if (isFavorite) {
                           favoriteHouseListNotifier.removeFromFavorites(
-                            selectedProduct,
+                            widget.selectedProduct,
                           );
                         } else {
                           favoriteHouseListNotifier.addToFavorites(
-                            selectedProduct,
+                            widget.selectedProduct,
                           );
                         }
                       },
@@ -158,7 +205,7 @@ class DetailedHouseView extends ConsumerWidget {
                       children: [
                         Icon(Icons.house, color: Colors.white),
                         Text(
-                          "${selectedProduct.units}",
+                          "${widget.selectedProduct.units}",
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: AppColors.whiteTextColor,
@@ -171,7 +218,7 @@ class DetailedHouseView extends ConsumerWidget {
                 ),
               ],
             ),
-            selectedProduct.isActive
+            widget.selectedProduct.isActive
                 ? Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
@@ -183,7 +230,7 @@ class DetailedHouseView extends ConsumerWidget {
                           onPressed: () {
                             MainNavigation.navigateToRoute(
                               MainNavigation.paymentMethodRoute,
-                              data: selectedProduct,
+                              data: widget.selectedProduct,
                             );
                           },
 
@@ -202,7 +249,7 @@ class DetailedHouseView extends ConsumerWidget {
                 : Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    "${selectedProduct.pendingReason}",
+                    "${widget.selectedProduct.pendingReason}",
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 14,
@@ -218,7 +265,7 @@ class DetailedHouseView extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      selectedProduct.propertyType,
+                      widget.selectedProduct.propertyType,
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -228,7 +275,7 @@ class DetailedHouseView extends ConsumerWidget {
                   Column(
                     children: [
                       Text(
-                        "UGX ${selectedProduct.price - selectedProduct.discount}",
+                        "UGX ${widget.selectedProduct.price - widget.selectedProduct.discount}",
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -236,7 +283,7 @@ class DetailedHouseView extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        "UGX ${selectedProduct.price}",
+                        "UGX ${widget.selectedProduct.price}",
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -251,7 +298,7 @@ class DetailedHouseView extends ConsumerWidget {
                 ],
               ),
             ),
-            selectedProduct.isSale
+            widget.selectedProduct.isSale
                 ? Container(
                   padding: EdgeInsets.all(16.0),
                   child: Column(
@@ -268,7 +315,7 @@ class DetailedHouseView extends ConsumerWidget {
                           ),
                           Expanded(child: Container()),
                           Text(
-                            'UGX ${selectedProduct.enteredSalePrice.toStringAsFixed(2)}',
+                            'UGX ${widget.selectedProduct.enteredSalePrice.toStringAsFixed(2)}',
                             style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -291,7 +338,7 @@ class DetailedHouseView extends ConsumerWidget {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          "${selectedProduct.saleConditions}",
+                          "${widget.selectedProduct.saleConditions}",
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w400,
@@ -310,14 +357,14 @@ class DetailedHouseView extends ConsumerWidget {
                   Icon(Icons.location_on, color: Colors.grey),
                   SizedBox(width: 4),
                   Text(
-                    selectedProduct.location,
+                    widget.selectedProduct.location,
                     style: TextStyle(color: Colors.grey),
                   ),
                   Spacer(),
                   Icon(Icons.star, color: Colors.amber, size: 16),
-                  Text('${selectedProduct.starRating} '),
+                  Text('${widget.selectedProduct.starRating} '),
                   Text(
-                    '(${selectedProduct.reviews} reviews)',
+                    '(${widget.selectedProduct.reviews} reviews)',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -326,7 +373,7 @@ class DetailedHouseView extends ConsumerWidget {
 
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: _buildAmenitiesFromList(selectedProduct),
+              child: _buildAmenitiesFromList(widget.selectedProduct),
             ),
 
             // Replace your featured images section with this:
@@ -344,19 +391,19 @@ class DetailedHouseView extends ConsumerWidget {
             SizedBox(height: 8),
 
             // Featured Media (Images & Videos)
-            selectedProduct.insideViews.isNotEmpty ||
-                    selectedProduct.videoPath != null
+            widget.selectedProduct.insideViews.isNotEmpty ||
+                    widget.selectedProduct.videoPath != null
                 ? SizedBox(
                   height: 100,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _getMediaCount(
-                      selectedProduct,
+                      widget.selectedProduct,
                     ), // Updated method
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
                       // Check if this is a video or image
-                      if (selectedProduct.videoPath != null && i == 0) {
+                      if (widget.selectedProduct.videoPath != null && i == 0) {
                         // Video thumbnail as first item
                         return GestureDetector(
                           onTap: () {
@@ -366,7 +413,7 @@ class DetailedHouseView extends ConsumerWidget {
                                 builder:
                                     (_) => FullScreenGallery(
                                       mediaUrls: _getAllMedia(
-                                        selectedProduct,
+                                        widget.selectedProduct,
                                       ), // Updated method
                                       initialIndex: i,
                                     ),
@@ -379,7 +426,7 @@ class DetailedHouseView extends ConsumerWidget {
                               children: [
                                 // Video thumbnail with play icon overlay
                                 buildImage(
-                                  selectedProduct.videoPath!,
+                                  widget.selectedProduct.videoPath!,
                                   width: 120,
                                   height: 100,
                                   fit: BoxFit.cover,
@@ -421,8 +468,11 @@ class DetailedHouseView extends ConsumerWidget {
                       } else {
                         // Regular image
                         final imgIndex =
-                            selectedProduct.videoPath != null ? i - 1 : i;
-                        final imgPath = selectedProduct.insideViews[imgIndex];
+                            widget.selectedProduct.videoPath != null
+                                ? i - 1
+                                : i;
+                        final imgPath =
+                            widget.selectedProduct.insideViews[imgIndex];
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -431,7 +481,7 @@ class DetailedHouseView extends ConsumerWidget {
                                 builder:
                                     (_) => FullScreenGallery(
                                       mediaUrls: _getAllMedia(
-                                        selectedProduct,
+                                        widget.selectedProduct,
                                       ), // Updated method
                                       initialIndex: i,
                                     ),
@@ -464,15 +514,17 @@ class DetailedHouseView extends ConsumerWidget {
                 ),
 
             // Show "View All Media" button only if there are media items
-            (selectedProduct.insideViews.isNotEmpty ||
-                    selectedProduct.videoPath != null)
+            (widget.selectedProduct.insideViews.isNotEmpty ||
+                    widget.selectedProduct.videoPath != null)
                 ? TextButton(
                   onPressed: () {
                     // Debug print to verify the data
-                    print("Inside views: ${selectedProduct.insideViews}");
-                    print("Video path: ${selectedProduct.videoPath}");
                     print(
-                      "Number of media items: ${_getMediaCount(selectedProduct)}",
+                      "Inside views: ${widget.selectedProduct.insideViews}",
+                    );
+                    print("Video path: ${widget.selectedProduct.videoPath}");
+                    print(
+                      "Number of media items: ${_getMediaCount(widget.selectedProduct)}",
                     );
 
                     Navigator.push(
@@ -481,7 +533,7 @@ class DetailedHouseView extends ConsumerWidget {
                         builder:
                             (_) => GalleryView(
                               mediaUrls: _getAllMedia(
-                                selectedProduct,
+                                widget.selectedProduct,
                               ), // Updated method
                             ),
                       ),
@@ -493,7 +545,7 @@ class DetailedHouseView extends ConsumerWidget {
                       Icon(Icons.photo_library_outlined),
                       SizedBox(width: 4),
                       Text(
-                        'View All Media (${_getMediaCount(selectedProduct)})', // Updated text
+                        'View All Media (${_getMediaCount(widget.selectedProduct)})', // Updated text
                       ),
                     ],
                   ),
@@ -514,7 +566,7 @@ class DetailedHouseView extends ConsumerWidget {
 
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Text(selectedProduct.description),
+              child: Text(widget.selectedProduct.description),
             ),
 
             Row(
@@ -524,11 +576,11 @@ class DetailedHouseView extends ConsumerWidget {
                     leading: CircleAvatar(
                       backgroundColor: Colors.grey[300],
                       backgroundImage: NetworkImage(
-                        selectedProduct.uploaderIMG,
+                        widget.selectedProduct.uploaderIMG,
                       ),
                     ),
                     title: Text(
-                      selectedProduct.uploaderName,
+                      widget.selectedProduct.uploaderName,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -549,7 +601,7 @@ class DetailedHouseView extends ConsumerWidget {
                   onPressed: () {
                     MainNavigation.navigateToRoute(
                       MainNavigation.viewMoreProducts,
-                      data: selectedProduct,
+                      data: widget.selectedProduct,
                     );
                   },
                   padding: EdgeInsets.all(8.0),

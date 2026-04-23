@@ -14,7 +14,7 @@ import 'package:brickapp/pages/client_pages/favorite_s_provider.dart';
 import 'package:brickapp/pages/client_pages/requests_forclient.dart';
 import 'package:brickapp/pages/client_pages/view_more_products.dart';
 import 'package:brickapp/pages/client_pages/view_selected_property.dart';
-import 'package:brickapp/pages/onboardingPages/register_addpost.dart';
+import 'package:brickapp/pages/onboardingPages/register_property_manager.dart';
 import 'package:brickapp/pages/onboardingPages/truck_driver_register.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/pages/pManagerPages/add_post.dart';
@@ -95,7 +95,7 @@ class MainNavigation {
   // static String truckPageRoute = "/truckPageRoute";
   static String viewSelectedProductRoute = "/viewSelectedProductRoute";
   static String viewMoreProducts = "/viewMoreProductsRoute";
-  static String moreBookingRoute = "/moreBookingRoute";
+  // static String moreBookingRoute = "/moreBookingRoute";
 
   static String editPostPae = "/editPostPageRoute";
   static String paymentMethodRoute = "/paymentMethodRoute";
@@ -211,14 +211,14 @@ class MainNavigation {
             ),
       );
     }
-    if (settings.name == moreBookingRoute) {
-      return MaterialPageRoute(
-        builder:
-            (context) => MoreProductBookingPage(
-              moreProductViewModel: settings.arguments as MoreProductViewModel,
-            ),
-      );
-    }
+    // if (settings.name == moreBookingRoute) {
+    //   return MaterialPageRoute(
+    //     builder:
+    //         (context) => MoreProductBookingPage(
+    //           moreProductViewModel: settings.arguments as MoreProductViewModel,
+    //         ),
+    //   );
+    // }
     if (settings.name == viewSelectedProductRoute) {
       return MaterialPageRoute(
         builder:

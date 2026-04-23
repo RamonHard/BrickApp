@@ -27,9 +27,9 @@ class AddPost extends ConsumerStatefulWidget {
 }
 
 class _AddPostState extends ConsumerState<AddPost> {
-  final style = GoogleFonts.poppins(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
+  final style = GoogleFonts.oxygen(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
     color: AppColors.darkTextColor,
   );
 
@@ -50,6 +50,46 @@ class _AddPostState extends ConsumerState<AddPost> {
     '2 Years',
     'Custom Months',
   ];
+  double _commissionPercent = 10.0;
+  double _clientDiscountPercent = 5.0;
+  int _commissionMonths = 3;
+  bool _settingsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings(); // ✅ Add this
+    if (widget.editPostModel != null) {
+      _initializeEditData();
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${AppUrls.baseUrl}/settings/public'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final settings = List<Map<String, dynamic>>.from(data['settings']);
+        for (final s in settings) {
+          if (s['key'] == 'property_commission_percent') {
+            _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
+          }
+          if (s['key'] == 'client_discount_percent') {
+            _clientDiscountPercent =
+                double.tryParse(s['value'].toString()) ?? 5.0;
+          }
+          if (s['key'] == 'commission_months') {
+            _commissionMonths = int.tryParse(s['value'].toString()) ?? 3;
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Settings error: $e');
+    }
+    if (mounted) setState(() => _settingsLoaded = true);
+  }
 
   String? selectedPackage;
   int? customMonths; // For custom months input
@@ -115,13 +155,6 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   // Initialize data when editing an existing post
-  @override
-  void initState() {
-    super.initState();
-    if (widget.editPostModel != null) {
-      _initializeEditData();
-    }
-  }
 
   void _initializeEditData() {
     final post = widget.editPostModel!;
@@ -138,7 +171,7 @@ class _AddPostState extends ConsumerState<AddPost> {
       discount = post.discount?.toInt();
       commission = post.commission?.toInt();
       landPercentage = post.landPercentage;
-      _currency = post.currency ?? 'USD';
+      _currency = post.currency ?? 'UGX';
 
       // Package info
       selectedPackage = post.package;
@@ -180,13 +213,13 @@ class _AddPostState extends ConsumerState<AddPost> {
     final priceController = TextEditingController(
       text: price?.toString() ?? '600000',
     );
-
     final customMonthsController = TextEditingController(
       text: customMonths?.toString() ?? '',
     );
 
-    int dialogDiscount = discount ?? 30000;
-    int dialogCommission = commission ?? 18000;
+    // ✅ Use real values from backend
+    int dialogDiscount = discount ?? 0;
+    int dialogCommission = commission ?? 0;
 
     bool isLandProperty = _propertyType == 'Land';
 
@@ -202,7 +235,7 @@ class _AddPostState extends ConsumerState<AddPost> {
                       Text(
                         pkg == 'Custom Months'
                             ? 'Set Custom Package'
-                            : 'Set Price for $pkg',
+                            : 'Set monthly price',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -225,7 +258,6 @@ class _AddPostState extends ConsumerState<AddPost> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Custom months input if Custom is selected
                         if (pkg == 'Custom Months') ...[
                           TextField(
                             controller: customMonthsController,
@@ -238,29 +270,19 @@ class _AddPostState extends ConsumerState<AddPost> {
                           const SizedBox(height: 16),
                         ],
 
-                        // For land, show percentage input instead of price
                         if (isLandProperty) ...[
                           TextField(
                             controller: priceController,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Price per Square Meter (%)',
+                              labelText: 'Land Commission Percentage (%)',
                               hintText: 'Enter percentage',
                               suffixText: '%',
                             ),
-                            onChanged: (value) {
-                              final enteredPercentage =
-                                  int.tryParse(value) ?? 0;
-                              setStateDialog(() {
-                                dialogCommission =
-                                    (enteredPercentage * 0.1)
-                                        .toInt(); // 10% commission of percentage
-                              });
-                            },
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Note: For land, this is the percentage of total value',
+                            'Note: This is the % commission on total land value',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -273,117 +295,187 @@ class _AddPostState extends ConsumerState<AddPost> {
                             decoration: InputDecoration(
                               labelText:
                                   pkg == 'Custom Months'
-                                      ? 'Enter Monthly Price'
-                                      : 'Enter Price',
+                                      ? 'Enter Monthly Price (UGX)'
+                                      : 'Enter Monthly Price (UGX)',
+                              prefixText: 'UGX ',
                             ),
                             onChanged: (value) {
                               final enteredPrice = int.tryParse(value) ?? 0;
+                              final months =
+                                  pkg == 'Custom Months'
+                                      ? (int.tryParse(
+                                            customMonthsController.text,
+                                          ) ??
+                                          1)
+                                      : _getMonthCount(pkg);
+                              final commMonths =
+                                  months < _commissionMonths
+                                      ? months
+                                      : _commissionMonths;
+                              final commissionable = enteredPrice * commMonths;
+
                               setStateDialog(() {
-                                dialogDiscount = (enteredPrice * 0.05).toInt();
+                                // ✅ Use real % from backend
+                                dialogDiscount =
+                                    (commissionable *
+                                            (_clientDiscountPercent / 100))
+                                        .toInt();
                                 dialogCommission =
-                                    (enteredPrice * 0.03).toInt();
+                                    (commissionable *
+                                            (_commissionPercent / 100))
+                                        .toInt();
                               });
                             },
                           ),
                         ],
 
                         const SizedBox(height: 16),
-                        Text(
-                          'Selected Package: ${pkg == 'Custom Months' ? 'Custom' : pkg}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.darkTextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        if (isLandProperty) ...[
-                          Text(
-                            'Percentage: ${int.tryParse(priceController.text) ?? 0}%',
-                            style: style,
-                          ),
-                        ] else ...[
-                          Text(
-                            '${pkg == 'Custom Months' ? 'Monthly' : ''} Price: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
-                            style: style,
-                          ),
-                        ],
 
                         if (!isLandProperty) ...[
-                          Text(
-                            'Discount: UGX${currencyFormatter.format(dialogDiscount)}',
-                            style: style,
+                          // ✅ Show commission months info
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Commission applies on first $_commissionMonths month${_commissionMonths > 1 ? "s" : ""}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue[700],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          Text(
-                            'Commission: UGX${currencyFormatter.format(dialogCommission)}',
-                            style: style,
-                          ),
-                        ],
+                          const SizedBox(height: 8),
 
-                        if (pkg != 'Custom Months' &&
-                            pkg.contains('Month') &&
-                            !isLandProperty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Total for $pkg: UGX${currencyFormatter.format((int.tryParse(priceController.text) ?? 0) * _getMonthCount(pkg))}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
+                          Text(
+                            'Monthly Price: UGX ${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
+                            style: style,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color.fromARGB(255, 245, 240, 232),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Total Amount for ${pkg == 'Custom Months' ? (customMonthsController.text.isNotEmpty ? customMonthsController.text : 'X') : _getMonthCount(pkg)} month${(pkg == 'Custom Months' && customMonthsController.text != '1') || (pkg != 'Custom Months' && _getMonthCount(pkg) > 1) ? "s" : ""}: UGX ${currencyFormatter.format(((int.tryParse(priceController.text) ?? 0) * (pkg == 'Custom Months' ? (int.tryParse(customMonthsController.text) ?? 0) : _getMonthCount(pkg))))}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: const Color.fromARGB(
+                                      255,
+                                      216,
+                                      119,
+                                      9,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
-                        if (pkg == 'Custom Months' &&
-                            customMonthsController.text.isNotEmpty &&
-                            !isLandProperty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Container(
+                          // ✅ Client discount row
+                          // Container(
+                          //   padding: const EdgeInsets.all(8),
+                          //   decoration: BoxDecoration(
+                          //     color: Colors.green[50],
+                          //     borderRadius: BorderRadius.circular(8),
+                          //   ),
+                          //   child: Row(
+                          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          //     children: [
+                          //       Text(
+                          //         '🎉 Client discount (${_clientDiscountPercent.toStringAsFixed(0)}%):',
+                          //         style: TextStyle(
+                          //           fontSize: 12,
+                          //           color: Colors.green[700],
+                          //         ),
+                          //       ),
+                          //       Text(
+                          //         '- UGX ${currencyFormatter.format(dialogDiscount)}',
+                          //         style: TextStyle(
+                          //           color: Colors.green[800],
+                          //           fontWeight: FontWeight.bold,
+                          //         ),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
+                          const SizedBox(height: 4),
+
+                          // ✅ Platform commission row
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.purple[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '🏢 Platform fee (${_commissionPercent.toStringAsFixed(0)}%):',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.purple[700],
+                                  ),
+                                ),
+                                Text(
+                                  'UGX ${currencyFormatter.format(dialogCommission)}',
+                                  style: TextStyle(
+                                    color: Colors.purple[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          if (pkg != 'Custom Months') ...[
+                            const SizedBox(height: 8),
+                            Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.green[50],
+                                color: Colors.orange[50],
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Total Price Breakdown:',
+                                  const Text(
+                                    'Amount to be received:',
                                     style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'UGX ${currencyFormatter.format(((int.tryParse(priceController.text) ?? 0) * _getMonthCount(pkg)) - dialogCommission)}',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.green[800],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Monthly: UGX${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
-                                  Text(
-                                    'Duration: ${customMonthsController.text} months',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
-                                  const Divider(color: Colors.green),
-                                  Text(
-                                    'Total: UGX${currencyFormatter.format((int.tryParse(priceController.text) ?? 0) * (int.tryParse(customMonthsController.text) ?? 1))}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[900],
-                                      fontSize: 14,
+                                      color: Colors.deepOrange,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                          ],
+                        ] else ...[
+                          Text(
+                            'Land Percentage: ${int.tryParse(priceController.text) ?? 0}%',
+                            style: style,
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -399,26 +491,31 @@ class _AddPostState extends ConsumerState<AddPost> {
                           selectedPackage = pkg;
 
                           if (isLandProperty) {
-                            // For land, store percentage
                             landPercentage = enteredPrice.toDouble();
-                            price =
-                                enteredPrice; // Still use price for backward compatibility
+                            price = enteredPrice;
                           } else {
                             price = enteredPrice;
+                            final months =
+                                pkg == 'Custom Months'
+                                    ? enteredCustomMonths
+                                    : _getMonthCount(pkg);
+                            final commMonths =
+                                months < _commissionMonths
+                                    ? months
+                                    : _commissionMonths;
+                            final commissionable = enteredPrice * commMonths;
+                            // ✅ Use real % from backend
+                            discount =
+                                (commissionable *
+                                        (_clientDiscountPercent / 100))
+                                    .toInt();
+                            commission =
+                                (commissionable * (_commissionPercent / 100))
+                                    .toInt();
                           }
 
                           if (pkg == 'Custom Months') {
                             customMonths = enteredCustomMonths;
-                          }
-
-                          if (!isLandProperty) {
-                            discount = (enteredPrice * 0.05).toInt();
-                            commission = (enteredPrice * 0.03).toInt();
-                          } else {
-                            // For land, commission might be percentage of sale price
-                            commission =
-                                (enteredPrice * 0.1)
-                                    .toInt(); // 10% of the percentage
                           }
                         });
                         Navigator.pop(context);
@@ -688,7 +785,8 @@ class _AddPostState extends ConsumerState<AddPost> {
         _propertyType == 'Warehouse' ||
         _propertyType == 'Storage Facility' ||
         _propertyType == 'Industrial Building' ||
-        _propertyType == 'Office Space';
+        _propertyType == 'Office Space' ||
+        _propertyType == 'Farm House';
 
     bool isLandProperty = _propertyType == 'Land';
 
@@ -769,7 +867,7 @@ class _AddPostState extends ConsumerState<AddPost> {
                     : 'Set Rental Price Package',
               ),
               showHouseSections || isLandProperty
-                  ? (_propertyType == 'Farm House'
+                  ? (_propertyType == 'Fish Pond'
                       ? const SizedBox() // ✅ no packages for venue
                       : SizedBox(
                         height: 100,

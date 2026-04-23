@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import '../pages/onboardingPages/login.dart';
-import '../pages/onboardingPages/register_addpost.dart';
+import '../pages/onboardingPages/register_property_manager.dart';
 import '../utils/app_colors.dart';
 
 class DrawerWidget extends StatelessWidget {

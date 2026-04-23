@@ -573,33 +573,33 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
         // ─── Commissionable section ───────────────────
         if (_isRegular && _commissionableMonths < _totalMonths) ...[
           const SizedBox(height: 8),
-          // ─── Company's agreed commission (before discount) ───────
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '🏢 Agreed commission (${_commissionPercent.toStringAsFixed(0)}%'
-                  '${_isRegular ? " on $_commissionableMonths months" : ""}):',
-                  style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-                ),
-                Text(
-                  'UGX ${formatter.format(_agreedManagerCommission)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
-                  ),
-                ),
-              ],
-            ),
-          ),
 
+          // ─── Company's agreed commission (before discount) ───────
+          // Container(
+          //   padding: const EdgeInsets.all(10),
+          //   decoration: BoxDecoration(
+          //     color: Colors.blue[50],
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.blue[200]!),
+          //   ),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //     children: [
+          //       Text(
+          //         '🏢 Agreed commission (${_commissionPercent.toStringAsFixed(0)}%'
+          //         '${_isRegular ? " on $_commissionableMonths months" : ""}):',
+          //         style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+          //       ),
+          //       Text(
+          //         'UGX ${formatter.format(_agreedManagerCommission)}',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold,
+          //           color: Colors.blue[800],
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
           const SizedBox(height: 8),
 
           // ─── Discount we give to client ───────────────────────
@@ -625,7 +625,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                       ),
                     ),
                     Text(
-                      'From our commission',
+                      'From first {$_commissionableMonths} month${_commissionableMonths > 1 ? "s" : ""} only',
                       style: TextStyle(fontSize: 11, color: Colors.green[600]),
                     ),
                   ],
@@ -642,61 +642,61 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
             ),
           ),
 
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
 
-          // ─── What company actually keeps ───────────────────────
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '🏢 Brick keeps (after discount):',
-                  style: TextStyle(fontSize: 12, color: Colors.orange[700]),
-                ),
-                Text(
-                  'UGX ${formatter.format(_companyKeeps)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange[800],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // // ─── What company actually keeps ───────────────────────
+          // Container(
+          //   padding: const EdgeInsets.all(10),
+          //   decoration: BoxDecoration(
+          //     color: Colors.orange[50],
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.orange[200]!),
+          //   ),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //     children: [
+          //       Text(
+          //         '🏢 Brick keeps (after discount):',
+          //         style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+          //       ),
+          //       Text(
+          //         'UGX ${formatter.format(_companyKeeps)}',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold,
+          //           color: Colors.orange[800],
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
 
           // ─── Manager gets ─────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.purple[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '👨‍💼 Property manager receives:',
-                  style: TextStyle(fontSize: 12, color: Colors.purple[700]),
-                ),
-                Text(
-                  'UGX ${formatter.format(_managerGets)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple[800],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(10),
+          //   decoration: BoxDecoration(
+          //     color: Colors.purple[50],
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.purple[200]!),
+          //   ),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //     children: [
+          //       Text(
+          //         '👨‍💼 Property manager receives:',
+          //         style: TextStyle(fontSize: 12, color: Colors.purple[700]),
+          //       ),
+          //       Text(
+          //         'UGX ${formatter.format(_managerGets)}',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold,
+          //           color: Colors.purple[800],
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ],
     );
@@ -1113,8 +1113,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? "s" : ""} '
-          '(set by property manager)',
+          'Minimum package: $_minimumMonths month${_minimumMonths > 1 ? "s" : ""} ',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),

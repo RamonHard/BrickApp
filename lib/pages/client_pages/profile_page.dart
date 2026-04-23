@@ -223,7 +223,7 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                                     );
                                   },
                                   leading: Icon(
-                                    Icons.camera_alt_outlined,
+                                    Icons.settings,
                                     color: AppColors.iconColor,
                                   ),
                                   title: Text(
@@ -260,7 +260,7 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                                     );
                                   },
                                   leading: Icon(
-                                    Icons.camera_alt_outlined,
+                                    Icons.list,
                                     color: AppColors.iconColor,
                                   ),
                                   title: Text(
