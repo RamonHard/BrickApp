@@ -1,5 +1,5 @@
 class AppUrls {
-  static const String baseUrl = 'http://127.17.0.1:3000';
+  static const String baseUrl = 'http://192.168.122.1:3000';
 
   // Auth
   static const String login = '$baseUrl/users/login';
@@ -11,7 +11,8 @@ class AppUrls {
   // Properties
   static const String properties = '$baseUrl/properties';
   static const String myListings = '$baseUrl/properties/my-listings';
-
+static String nearbyProperties(double lat, double lng, double radiusKm) =>
+    '$baseUrl/properties/nearby?lat=$lat&lng=$lng&radius_km=$radiusKm';
   // Vehicles
   static const String vehicles = '$baseUrl/vehicles';
   static const String vehicleTypes = '$baseUrl/vehicles/types';

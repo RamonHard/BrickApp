@@ -1,25 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
+  <meta name="description" content="BrickApp - Property Management Platform">
+  
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -28,7 +14,27 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
+  
+  <!-- Google Maps API with Places library and callback -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB9Fjaa-iGsyLpYem5ksiuMj9MYPi8cVMo&libraries=places,geometry&callback=initGoogleMaps" async defer></script>
+  
+  <script>
+    // Initialize Google Maps
+    window.initGoogleMaps = function() {
+      console.log('✅ Google Maps API loaded with Places library');
+      window.googleMapsReady = true;
+      window.dispatchEvent(new Event('googleMapsLoaded'));
+    };
+    
+    // Function to check if Google Maps is ready
+    window.isGoogleMapsReady = function() {
+      return typeof google !== 'undefined' && 
+             google.maps && 
+             google.maps.places &&
+             window.googleMapsReady === true;
+    };
+  </script>
+  
   <title>brickapp</title>
   <link rel="manifest" href="manifest.json">
 </head>

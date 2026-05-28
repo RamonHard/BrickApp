@@ -20,7 +20,7 @@ import 'package:brickapp/providers/user_provider.dart';
 class AddPost extends ConsumerStatefulWidget {
   final PropertyModel? editPostModel; // Add this for editing existing post
 
-  const AddPost({super.key, this.editPostModel});
+  const AddPost({super.key, this.editPostModel,});
 
   @override
   ConsumerState<AddPost> createState() => _AddPostState();
@@ -54,7 +54,8 @@ class _AddPostState extends ConsumerState<AddPost> {
   double _clientDiscountPercent = 5.0;
   int _commissionMonths = 3;
   bool _settingsLoaded = false;
-
+double? _selectedLat;
+double? _selectedLng;
   @override
   void initState() {
     super.initState();
@@ -1241,14 +1242,46 @@ class _AddPostState extends ConsumerState<AddPost> {
       ).showSnackBar(const SnackBar(content: Text('Please add a description')));
       return;
     }
-
+  
     if (_selectedPhotos.isEmpty && _thumbnailPhoto == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one photo')),
       );
       return;
     }
+      setState(() => _isSubmitting = true);
 
+  try {
+    final token = ref.read(userProvider).token;
+
+    if (token == null) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in'))
+      );
+      return;
+    }
+
+    // Build multipart request
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse(AppUrls.properties + '/create'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    // ✅ MOVED HERE - Add latitude and longitude
+    if (_selectedLat != null) {
+      request.fields['latitude'] = _selectedLat.toString();
+    }
+    if (_selectedLng != null) {
+      request.fields['longitude'] = _selectedLng.toString();
+    }
+
+    // Text fields (keep all your existing fields)
+    request.fields['property_type'] = _propertyType;
+    request.fields['description'] = _descriptionController.text.trim();
+    request.fields['address'] = _location;
     final isVenue =
         _propertyType == 'Venue' || _propertyType == 'Ceremony Ground';
     if (!_isRentSelected && !_isSaleSelected && !isLandProperty && !isVenue) {
@@ -1410,6 +1443,12 @@ class _AddPostState extends ConsumerState<AddPost> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  } catch (e) {
+    // Outer try catch to ensure try is followed by a catch/finally
+    setState(() => _isSubmitting = false);
+    print('Error updating post (outer): $e');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+  }
   }
 
   Future<void> _pickPhotos() async {
@@ -1972,55 +2011,76 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   Widget _buildLocationPicker() {
-    return GestureDetector(
-      onTap: _showLocationOptions,
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.white,
+  return GestureDetector(
+    onTap: _showLocationOptions,
+    child: Container(
+      height: 56,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: _selectedLat != null ? Colors.orange : Colors.grey,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(Icons.location_on_outlined, color: Colors.grey),
-              const SizedBox(width: 12),
-              Expanded(
-                child:
-                    _isLoadingLocation
-                        ? const Row(
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              "Getting location...",
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        )
-                        : Text(
+        borderRadius: BorderRadius.circular(8),
+        color: _selectedLat != null ? Colors.orange[50] : Colors.white,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(
+              _selectedLat != null
+                  ? Icons.location_on
+                  : Icons.location_on_outlined,
+              color: _selectedLat != null ? Colors.orange : Colors.grey,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _isLoadingLocation
+                  ? const Row(
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text("Getting location...",
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
                           _location,
                           style: TextStyle(
-                            color:
-                                _location == "Kampala, Uganda"
-                                    ? Colors.grey
-                                    : Colors.black,
+                            color: _location == "Kampala, Uganda"
+                                ? Colors.grey
+                                : Colors.black,
+                            fontSize: 14,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-              ),
-              const Icon(Icons.arrow_drop_down, color: Colors.grey),
-            ],
-          ),
+                        // ✅ Show coordinates if set
+                        if (_selectedLat != null)
+                          Text(
+                            '${_selectedLat!.toStringAsFixed(4)}, ${_selectedLng!.toStringAsFixed(4)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange[600],
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showLocationOptions() {
     showModalBottomSheet(
@@ -2196,13 +2256,12 @@ class _AddPostState extends ConsumerState<AddPost> {
   }
 
   void _saveLocationData(double lat, double lng, String address) {
-    // Save the location data for your form submission
-    // You can store these in your state variables
-    print("Location selected: $address ($lat, $lng)");
-
-    // Add these variables to your state if needed:
-    // double _selectedLat = lat;
-    // double _selectedLng = lng;
+    setState(() {
+    _location = address;
+    _selectedLat = lat;
+    _selectedLng = lng;
+  });
+  print("📍 Location saved: $address ($lat, $lng)");
   }
 
   void _showError(String message) {

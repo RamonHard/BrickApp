@@ -29,7 +29,7 @@
         />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_MAPS_API_KEY"/>
+            android:value="AIzaSyB9Fjaa-iGsyLpYem5ksiuMj9MYPi8cVMo"/>
     </application>
 
     <!-- Add these location permissions -->
