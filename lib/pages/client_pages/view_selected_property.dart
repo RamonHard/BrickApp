@@ -387,22 +387,36 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                             color: Colors.green,
                           ),
                         ),
-                      if (widget.selectedProduct.salePrice != null &&
-                          widget.selectedProduct.salePrice! > 0)
-                        Text(
-                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
+                     
                     ],
                   ),
                 ],
               ),
             ),
-
+             if (widget.selectedProduct.salePrice != null &&
+                            widget.selectedProduct.salePrice! > 0)
+             Padding(
+               padding: const EdgeInsets.all(8.0),
+               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children:[
+                  Text("Sale Price: ",style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),),
+                  
+                          Text(
+                            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                ]
+               ),
+             ),
             // ─── Sale Info ────────────────────────────────
             if (widget.selectedProduct.isSale &&
                 widget.selectedProduct.enteredSalePrice > 0)

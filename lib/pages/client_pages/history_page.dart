@@ -40,7 +40,7 @@ class ClientHistoryPage extends ConsumerWidget {
             unselectedLabelColor: Colors.grey,
             tabs: const [
               Tab(icon: Icon(Icons.home), text: 'Properties'),
-              Tab(icon: Icon(Icons.local_shipping), text: 'Transport'),
+              // Tab(icon: Icon(Icons.local_shipping), text: 'Transport'),
             ],
           ),
         ),
@@ -72,29 +72,29 @@ class ClientHistoryPage extends ConsumerWidget {
             ),
 
             // ─── Transport Bookings Tab ─────────────────
-            transportBookings.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error:
-                  (err, _) => _buildError(
-                    'Failed to load transport bookings',
-                    () => ref.refresh(myTransportBookingsProvider(token)),
-                  ),
-              data: (bookings) {
-                if (bookings.isEmpty) {
-                  return _buildEmpty(
-                    icon: Icons.local_shipping_outlined,
-                    message: 'No transport bookings yet',
-                    subtitle: 'Your truck and bus bookings will appear here',
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: bookings.length,
-                  itemBuilder:
-                      (_, i) => _TransportBookingCard(booking: bookings[i]),
-                );
-              },
-            ),
+            // transportBookings.when(
+            //   loading: () => const Center(child: CircularProgressIndicator()),
+            //   error:
+            //       (err, _) => _buildError(
+            //         'Failed to load transport bookings',
+            //         () => ref.refresh(myTransportBookingsProvider(token)),
+            //       ),
+            //   data: (bookings) {
+            //     if (bookings.isEmpty) {
+            //       return _buildEmpty(
+            //         icon: Icons.local_shipping_outlined,
+            //         message: 'No transport bookings yet',
+            //         subtitle: 'Your truck and bus bookings will appear here',
+            //       );
+            //     }
+            //     return ListView.builder(
+            //       padding: const EdgeInsets.all(12),
+            //       itemCount: bookings.length,
+            //       itemBuilder:
+            //           (_, i) => _TransportBookingCard(booking: bookings[i]),
+            //     );
+            //   },
+            // ),
           ],
         ),
       ),
