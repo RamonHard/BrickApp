@@ -290,10 +290,11 @@ class PropertyModel {
           json['created_at'] != null
               ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
               : DateTime.now(),
-      rulesDocumentPath:
-          json['documents'] != null && (json['documents'] as List).isNotEmpty
-              ? json['documents'][0].toString()
-              : null,
+    // In PropertyModel.fromJson
+rulesDocumentPath:
+    json['documents'] != null && (json['documents'] as List).isNotEmpty
+        ? json['documents'][0].toString()
+        : null,
     );
   }
 

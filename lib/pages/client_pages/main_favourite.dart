@@ -10,7 +10,7 @@ class MainFavoriteDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // Two tabs: Item and SProvider
+      length: 1, // Two tabs: Item and SProvider
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -23,10 +23,15 @@ class MainFavoriteDisplay extends StatelessWidget {
           ),
           bottom: const TabBar(
             indicatorColor: Color.fromARGB(172, 255, 115, 0),
-            tabs: [Tab(text: 'Items'), Tab(text: 'SProviders')],
+            tabs: [Tab(text: 'Items'),
+            //  Tab(text: 'SProviders')
+             ],
           ),
         ),
-        body: TabBarView(children: [FavouriteItemList(), FavoriteSProvider()]),
+        body: TabBarView(children: [
+          FavouriteItemList(), 
+          // FavoriteSProvider()
+          ]),
       ),
     );
   }

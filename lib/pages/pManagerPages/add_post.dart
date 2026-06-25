@@ -1,10 +1,11 @@
-import 'dart:io';
+
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/product_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -100,12 +101,18 @@ double? _selectedLng;
   int? discount;
   int? commission;
   XFile? _thumbnailPhoto;
-
+  Uint8List? _thumbnailBytes;
+ Uint8List? _selectedVideoBytes;
+ Uint8List? _rulesDocumentBytes;
+String? _rulesDocumentName;
   // Add this for rules and regulations document
   XFile? _rulesDocument;
 
   final currencyFormatter = NumberFormat("#,##0", "en_US");
-
+// Add these with your other state variables
+List<Uint8List> _selectedPhotoBytes = [];
+List<String> _selectedPhotoNames = [];
+List<String> _selectedPhotoPaths = [];
   // Helper method to get month count from package string
   int _getMonthCount(String pkg) {
     switch (pkg) {
@@ -934,129 +941,127 @@ double? _selectedLng;
   }
 
   // Add this new method for rules document upload
-  Widget _buildRulesDocumentSection() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            leading: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _rulesDocument != null
-                    ? Icons.picture_as_pdf
-                    : Icons.upload_file,
-              ),
+ Widget _buildRulesDocumentSection() {
+  return Container(
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey.shade300),
+      borderRadius: BorderRadius.circular(8),
+      color: Colors.white,
+    ),
+    child: Column(
+      children: [
+        ListTile(
+          leading: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              shape: BoxShape.circle,
             ),
-            title: Text(
-              _rulesDocument != null
-                  ? _rulesDocument!.name
-                  : 'Upload Rules & Regulations',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            subtitle: Text(
-              _rulesDocument != null
-                  ? 'Tap to replace'
-                  : 'PDF, DOC, or TXT (Max 10MB)',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_rulesDocument != null)
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _rulesDocument = null;
-                      });
-                    },
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.cloud_upload, color: Colors.blue),
-                  onPressed: _pickRulesDocument,
-                ),
-              ],
+            child: Icon(
+              _rulesDocument != null ? Icons.picture_as_pdf : Icons.upload_file,
             ),
           ),
-          if (_rulesDocument != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-              child: LinearProgressIndicator(
-                value: 1.0, // Show 100% when uploaded
-                backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+          title: Text(
+            _rulesDocument != null
+                ? _rulesDocument!.name
+                : 'Upload Rules & Regulations',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          subtitle: Text(
+            _rulesDocument != null
+                ? 'Tap to replace'
+                : 'PDF, DOC, or TXT (Max 10MB)',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_rulesDocument != null)
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _rulesDocument = null;
+                      _rulesDocumentBytes = null;
+                      _rulesDocumentName = null;
+                    });
+                  },
+                ),
+              IconButton(
+                icon: const Icon(Icons.cloud_upload, color: Colors.blue),
+                onPressed: _pickRulesDocument,
               ),
-            ),
-          if (_rulesDocument != null)
-            TextButton.icon(
-              icon: const Icon(Icons.visibility),
-              label: const Text("Preview Document"),
+            ],
+          ),
+        ),
+        if (_rulesDocument != null && _rulesDocumentBytes != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextButton.icon(
+              icon: const Icon(Icons.visibility, color: Colors.blue),
+              label: const Text('Preview Document'),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (_) => DocumentPreviewScreen(
-                          filePath: _rulesDocument!.path,
-                          title: "Preview Document",
-                        ),
+                    builder: (_) => DocumentPreviewScreen(
+                      fileBytes: _rulesDocumentBytes!,
+                      fileName: _rulesDocumentName ?? 'document.pdf',
+                      title: 'Preview Document',
+                    ),
                   ),
                 );
               },
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
   // Add method to pick document
   Future<void> _pickRulesDocument() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
-        allowMultiple: false,
-      );
+  try {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
+      allowMultiple: false,
+      withData: true,
+    );
 
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-
-        // File size check (10MB)
-        final size = await file.length();
-        if (size > 10 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('File must be less than 10MB')),
-          );
-          return;
-        }
-
-        setState(() {
-          _rulesDocument = XFile(file.path); // keep your existing model
-        });
-
+    if (result != null && result.files.single.bytes != null) {
+      final file = result.files.single;
+      
+      if (file.bytes!.length > 10 * 1024 * 1024) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${result.files.single.name} uploaded successfully'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('File must be less than 10MB')),
         );
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
+
+      setState(() {
+        _rulesDocument = XFile.fromData(
+          file.bytes!,
+          name: file.name,
+        );
+        _rulesDocumentBytes = file.bytes;
+        _rulesDocumentName = file.name;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${file.name} uploaded successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking file: $e')),
+    );
   }
+}
 
   // Add house type dropdown
   Widget _buildHouseTypeDropdown() {
@@ -1233,26 +1238,48 @@ double? _selectedLng;
 
   // Updated _updatePostData method with rules document and total price
   Future<void> _updatePostData() async {
-    bool isLandProperty = _propertyType == 'Land';
+  bool isLandProperty = _propertyType == 'Land';
 
-    // Basic validation
-    if (_descriptionController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please add a description')));
-      return;
-    }
+  // ─── VALIDATION ──────────────────────────────────────────
+  print('🔍 Starting validation...');
   
-    if (_selectedPhotos.isEmpty && _thumbnailPhoto == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one photo')),
-      );
-      return;
-    }
-      setState(() => _isSubmitting = true);
+  if (_descriptionController.text.isEmpty) {
+    print('❌ Description is empty');
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Please add a description')));
+    return;
+  }
+
+  if (_selectedPhotoBytes.isEmpty && _thumbnailBytes == null) {
+    print('❌ No photos selected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please add at least one photo')),
+    );
+    return;
+  }
+
+  // Check listing type
+  final isVenue = _propertyType == 'Venue' || _propertyType == 'Ceremony Ground';
+  if (!_isRentSelected && !_isSaleSelected && !isLandProperty && !isVenue) {
+    print('❌ No listing type selected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select Rent or Sale listing type'),
+      ),
+    );
+    return;
+  }
+
+  print('✅ Validation passed');
+
+  // ─── START SUBMITTING ──────────────────────────────────
+  setState(() => _isSubmitting = true);
 
   try {
+    // ─── GET TOKEN ──────────────────────────────────────
     final token = ref.read(userProvider).token;
+    print('🔑 Token: ${token != null ? 'Present (${token.substring(0, 20)}...)' : 'NULL'}');
 
     if (token == null) {
       setState(() => _isSubmitting = false);
@@ -1262,211 +1289,286 @@ double? _selectedLng;
       return;
     }
 
-    // Build multipart request
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse(AppUrls.properties + '/create'),
-    );
-
+    // ─── BUILD REQUEST ──────────────────────────────────
+    final url = Uri.parse('${AppUrls.properties}/create');
+    print('📡 URL: $url');
+    
+    var request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
 
-    // ✅ MOVED HERE - Add latitude and longitude
+    // ─── ADD LOCATION ──────────────────────────────────
     if (_selectedLat != null) {
       request.fields['latitude'] = _selectedLat.toString();
+      print('📍 Latitude: $_selectedLat');
     }
     if (_selectedLng != null) {
       request.fields['longitude'] = _selectedLng.toString();
+      print('📍 Longitude: $_selectedLng');
     }
 
-    // Text fields (keep all your existing fields)
+    // ─── ADD TEXT FIELDS ──────────────────────────────
     request.fields['property_type'] = _propertyType;
     request.fields['description'] = _descriptionController.text.trim();
     request.fields['address'] = _location;
-    final isVenue =
-        _propertyType == 'Venue' || _propertyType == 'Ceremony Ground';
-    if (!_isRentSelected && !_isSaleSelected && !isLandProperty && !isVenue) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select Rent or Sale listing type'),
-        ),
-      );
-      return;
+    request.fields['status'] = _isActive ? 'active' : 'pending';
+    request.fields['currency'] = _currency;
+
+    // Listing type
+    if (_isRentSelected && _isSaleSelected) {
+      request.fields['listing_type'] = 'rent_and_sale';
+    } else if (_isRentSelected) {
+      request.fields['listing_type'] = 'rent';
+    } else if (_isSaleSelected) {
+      request.fields['listing_type'] = 'sale';
+    }
+    print('📝 Listing type: ${request.fields['listing_type']}');
+
+    // Pricing
+    if (price != null && price! > 0) {
+      request.fields['rent_price'] = price.toString();
+      print('💰 Rent price: $price');
+    }
+    if (salePrice != null && salePrice! > 0) {
+      request.fields['sale_price'] = salePrice.toString();
+      request.fields['sale_condition'] = salesCondition;
+      print('💰 Sale price: $salePrice');
+    }
+    
+    // Venue daily price
+    if (isVenue && _dailyPriceController.text.isNotEmpty) {
+      request.fields['daily_price'] = _dailyPriceController.text;
+      request.fields['listing_type'] = 'rent';
+      print('💰 Daily price: ${_dailyPriceController.text}');
+    }
+    
+    // Duration
+    if (selectedPackage != null) {
+      final months = selectedPackage == 'Custom Months'
+          ? (customMonths ?? 1)
+          : _getMonthCount(selectedPackage!);
+      request.fields['rent_duration_months'] = months.toString();
+      print('📅 Duration months: $months');
     }
 
-    // Show loading
-    setState(() => _isSubmitting = true);
+    // Property details
+    if (_bedroomsController.text.isNotEmpty) {
+      request.fields['bedrooms'] = _bedroomsController.text;
+    }
+    if (_bathsController.text.isNotEmpty) {
+      request.fields['bathrooms'] = _bathsController.text;
+    }
+    if (_sqftController.text.isNotEmpty) {
+      request.fields['square_feet'] = _sqftController.text;
+    }
+    if (_unitsController.text.isNotEmpty) {
+      request.fields['units'] = _unitsController.text;
+    }
+    if (!_isActive && _pendingReasonController.text.isNotEmpty) {
+      request.fields['pending_reason'] = _pendingReasonController.text;
+    }
 
-    try {
-      final token = ref.read(userProvider).token;
+    // Amenities
+    request.fields['amenities'] = _amenities.join(',');
+    print('🏷️ Amenities: ${request.fields['amenities']}');
 
-      if (token == null) {
-        setState(() => _isSubmitting = false); // close loading
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
-        return;
-      }
+    // Land specific
+    if (isLandProperty && landPercentage != null) {
+      request.fields['land_percentage'] = landPercentage.toString();
+      print('🌾 Land percentage: $landPercentage');
+    }
 
-      // Build multipart request
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse(AppUrls.properties + '/create'),
+    // ─── ADD FILES ──────────────────────────────────────
+    print('📁 Adding files...');
+
+    // Photos
+    for (int i = 0; i < _selectedPhotoBytes.length; i++) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'images',
+          _selectedPhotoBytes[i],
+          filename: _selectedPhotoNames[i],
+        ),
       );
+      print('📸 Added photo ${i + 1}: ${_selectedPhotoNames[i]} (${_selectedPhotoBytes[i].length} bytes)');
+    }
 
-      request.headers['Authorization'] = 'Bearer $token';
+    // Thumbnail
+    if (_thumbnailBytes != null && _thumbnailPhoto != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'thumbnail',
+          _thumbnailBytes!,
+          filename: _thumbnailPhoto!.name,
+        ),
+      );
+      print('🖼️ Added thumbnail: ${_thumbnailPhoto!.name} (${_thumbnailBytes!.length} bytes)');
+    }
 
-      // Text fields
-      request.fields['property_type'] = _propertyType;
-      request.fields['description'] = _descriptionController.text.trim();
-      request.fields['address'] = _location;
-      request.fields['status'] = _isActive ? 'active' : 'pending';
-      request.fields['currency'] = _currency;
+    // Video
+    if (_selectedVideo != null && _selectedVideoBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'video',
+          _selectedVideoBytes!,
+          filename: _selectedVideo!.name,
+        ),
+      );
+      print('🎬 Added video: ${_selectedVideo!.name} (${_selectedVideoBytes!.length} bytes)');
+    }
 
-      // Listing type
-      if (_isRentSelected && _isSaleSelected) {
-        request.fields['listing_type'] = 'rent_and_sale';
-      } else if (_isRentSelected) {
-        request.fields['listing_type'] = 'rent';
-      } else if (_isSaleSelected) {
-        request.fields['listing_type'] = 'sale';
-      }
+    // Rules document
+    if (_rulesDocument != null && _rulesDocumentBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'document',
+          _rulesDocumentBytes!,
+          filename: _rulesDocument!.name,
+        ),
+      );
+      print('📄 Added document: ${_rulesDocument!.name} (${_rulesDocumentBytes!.length} bytes)');
+    }
 
-      // Pricing
-      if (price != null && price! > 0) {
-        request.fields['rent_price'] = price.toString();
-      }
-      if (salePrice != null && salePrice! > 0) {
-        request.fields['sale_price'] = salePrice.toString();
-        request.fields['sale_condition'] = salesCondition;
-      }
-      // After the rent_price/sale_price fields
-      if (_propertyType == 'Venue' || _propertyType == 'Ceremony Ground') {
-        if (_dailyPriceController.text.isNotEmpty) {
-          request.fields['daily_price'] = _dailyPriceController.text;
-          request.fields['listing_type'] = 'rent'; // venues are always rent
+    print('📤 Total files: ${request.files.length}');
+    print('📤 Fields: ${request.fields.keys.join(', ')}');
+
+    // ─── SEND REQUEST ───────────────────────────────────
+    print('🚀 Sending request...');
+    
+    final streamedResponse = await request.send();
+    print('📡 Response status: ${streamedResponse.statusCode}');
+    
+    final response = await http.Response.fromStream(streamedResponse);
+    print('📡 Response body: ${response.body}');
+
+    setState(() => _isSubmitting = false);
+
+    // ─── PARSE RESPONSE ──────────────────────────────────
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        final data = jsonDecode(response.body);
+        print('✅ Parsed response: $data');
+        
+        if (data['status'] == true) {
+          final newProperty = PropertyModel.fromJson(data['property']);
+          ref.read(productProvider.notifier).addProduct(newProperty);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Property posted successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          Navigator.pop(context);
+        } else {
+          // Server returned status: false
+          print('❌ Server returned error: ${data['message']}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Failed to post property'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-      }
-      // Duration
-      if (selectedPackage != null) {
-        final months =
-            selectedPackage == 'Custom Months'
-                ? (customMonths ?? 1)
-                : _getMonthCount(selectedPackage!);
-        request.fields['rent_duration_months'] = months.toString();
-      }
-
-      // Property details
-      if (_bedroomsController.text.isNotEmpty) {
-        request.fields['bedrooms'] = _bedroomsController.text;
-      }
-      if (_bathsController.text.isNotEmpty) {
-        request.fields['bathrooms'] = _bathsController.text;
-      }
-      if (_sqftController.text.isNotEmpty) {
-        request.fields['square_feet'] = _sqftController.text;
-      }
-      if (_unitsController.text.isNotEmpty) {
-        request.fields['units'] = _unitsController.text;
-      }
-      if (!_isActive && _pendingReasonController.text.isNotEmpty) {
-        request.fields['pending_reason'] = _pendingReasonController.text;
-      }
-
-      // Amenities as comma separated string
-      request.fields['amenities'] = _amenities.join(',');
-
-      // Land specific
-      if (isLandProperty && landPercentage != null) {
-        request.fields['land_percentage'] = landPercentage.toString();
-      }
-
-      // Images
-      for (final photo in _selectedPhotos) {
-        request.files.add(
-          await http.MultipartFile.fromPath('images', photo.path),
-        );
-      }
-
-      // Thumbnail (add as first image if no other photos)
-      if (_thumbnailPhoto != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('images', _thumbnailPhoto!.path),
-        );
-      }
-
-      // Video
-      if (_selectedVideo != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('video', _selectedVideo!.path),
-        );
-      }
-
-      // Rules document
-      if (_rulesDocument != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('document', _rulesDocument!.path),
-        );
-      }
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      final data = jsonDecode(response.body);
-
-      print('ADD PROPERTY RESPONSE: $data');
-
-      setState(() => _isSubmitting = false); // ✅ stop loading
-
-      if (response.statusCode == 200 && data['status'] == true) {
-        final newProperty = PropertyModel.fromJson(data['property']);
-        ref.read(productProvider.notifier).addProduct(newProperty);
-
+      } catch (parseError) {
+        // JSON parsing error
+        print('❌ Failed to parse JSON response: $parseError');
+        print('❌ Raw response: ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Property posted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Failed to post property'),
+            content: Text('Invalid response from server'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      setState(() => _isSubmitting = false); // ✅ stop loading on error
-      print('Error posting property: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } else {
+      // HTTP error status
+      print('❌ HTTP error: ${response.statusCode}');
+      print('❌ Response: ${response.body}');
+      
+      String errorMessage = 'Server error: ${response.statusCode}';
+      try {
+        final data = jsonDecode(response.body);
+        if (data['message'] != null) {
+          errorMessage = data['message'];
+        }
+      } catch (e) {
+        // If response is HTML or not JSON
+        if (response.body.contains('<!DOCTYPE html>')) {
+          errorMessage = 'Server returned HTML error page (500 Internal Server Error)';
+        }
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-  } catch (e) {
-    // Outer try catch to ensure try is followed by a catch/finally
-    setState(() => _isSubmitting = false);
-    print('Error updating post (outer): $e');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-  }
-  }
 
-  Future<void> _pickPhotos() async {
+  } catch (e, stackTrace) {
+    // ─── CATCH ANY OTHER ERRORS ──────────────────────────
+    setState(() => _isSubmitting = false);
+    print('❌❌❌ UNEXPECTED ERROR: $e');
+    print('❌❌❌ Stack trace: $stackTrace');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
+
+void _debugFile(String name, Uint8List? bytes) {
+  if (bytes == null) {
+    print('⚠️ $name: NULL');
+  } else {
+    print('✅ $name: ${bytes.length} bytes');
+    // Check if it's a valid image (JPEG/PNG header)
+    if (bytes.length > 4) {
+      final header = bytes.sublist(0, 4);
+      if (header[0] == 0xFF && header[1] == 0xD8) {
+        print('   📸 JPEG image detected');
+      } else if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) {
+        print('   📸 PNG image detected');
+      } else {
+        print('   ⚠️ Unknown file type');
+      }
+    }
+  }
+}
+ // ✅ Add these state variables at the top (replace existing ones)
+ // For mobile paths
+
+Future<void> _pickPhotos() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final List<XFile>? pickedFiles = await picker.pickMultiImage();
 
     if (pickedFiles != null) {
-      setState(() {
-        // Only keep up to 10 photos
-        if (_selectedPhotos.length + pickedFiles.length <= 10) {
-          _selectedPhotos.addAll(pickedFiles);
-        } else {
-          final remainingSlots = 10 - _selectedPhotos.length;
-          _selectedPhotos.addAll(pickedFiles.take(remainingSlots));
-        }
-      });
+      final remaining = 10 - _selectedPhotos.length;
+      final toAdd = pickedFiles.take(remaining).toList();
+      
+      for (final file in toAdd) {
+        final bytes = await file.readAsBytes();
+        setState(() {
+          _selectedPhotos.add(file);
+          _selectedPhotoBytes.add(bytes);
+          _selectedPhotoNames.add(file.name);
+          _selectedPhotoPaths.add(file.path);
+        });
+      }
     }
+  } catch (e) {
+    print('Error picking photos: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking photos: $e')),
+    );
   }
+}
 
   // Update the post button to call the correct method
   Widget _buildPostButton() {
@@ -2321,94 +2423,95 @@ double? _selectedLng;
   }
 
   Widget _buildImageSection() {
-    return Column(
-      children: [
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.grey.shade300,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: GestureDetector(
-            onTap: _pickPhotos,
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.camera_alt, color: Colors.grey),
+  return Column(
+    children: [
+      Container(
+        height: 50,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: GestureDetector(
+          onTap: _pickPhotos,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Add up to 10 photos',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
+                  child: const Icon(Icons.camera_alt, color: Colors.grey),
+                ),
+                const SizedBox(width: 8),
+                const Text('Add up to 10 photos',
+                    style: TextStyle(color: Colors.grey)),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        if (_selectedPhotos.isNotEmpty)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedPhotos.length,
-              itemBuilder: (context, index) {
-                return Stack(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: FileImage(File(_selectedPhotos[index].path)),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedPhotos.removeAt(index);
-                          });
-                        },
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+      ),
+      const SizedBox(height: 10),
+      // In _buildImageSection(), update the image display:
+if (_selectedPhotoBytes.isNotEmpty)
+  SizedBox(
+    height: 100,
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: _selectedPhotoBytes.length,
+      itemBuilder: (context, index) {
+        return Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  _selectedPhotoBytes[index],
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-          ),
-      ],
-    );
-  }
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedPhotos.removeAt(index);
+                    _selectedPhotoBytes.removeAt(index);
+                    _selectedPhotoNames.removeAt(index);
+                    if (index < _selectedPhotoPaths.length) {
+                      _selectedPhotoPaths.removeAt(index);
+                    }
+                  });
+                },
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  ),
+    ],
+  );
+}
 
   Widget _buildVideoSection() {
     return Column(
@@ -2530,9 +2633,8 @@ double? _selectedLng;
               borderRadius: BorderRadius.circular(8),
               color: Colors.white,
             ),
-            child:
-                _thumbnailPhoto == null &&
-                        widget.editPostModel?.thumbnail == null
+           child: _thumbnailBytes == null && widget.editPostModel?.thumbnail == null
+
                     ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -2549,9 +2651,9 @@ double? _selectedLng;
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child:
-                              _thumbnailPhoto != null
-                                  ? Image.file(
-                                    File(_thumbnailPhoto!.path),
+                              _thumbnailBytes != null
+                                ? Image.memory(
+                                    _thumbnailBytes!,
                                     width: double.infinity,
                                     height: 150,
                                     fit: BoxFit.cover,
@@ -2573,11 +2675,12 @@ double? _selectedLng;
                           top: 8,
                           right: 8,
                           child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _thumbnailPhoto = null;
-                              });
-                            },
+                           onTap: () {
+                            setState(() {
+                              _thumbnailPhoto = null;
+                              _thumbnailBytes = null; // ✅ also clear bytes
+                            });
+                          },
                             child: Container(
                               decoration: const BoxDecoration(
                                 color: Colors.black54,
@@ -2599,42 +2702,53 @@ double? _selectedLng;
     );
   }
 
-  Future<void> _pickThumbnail() async {
+ Future<void> _pickThumbnail() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
     );
 
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
         _thumbnailPhoto = pickedFile;
+        _thumbnailBytes = bytes;
       });
     }
+  } catch (e) {
+    print('Error picking thumbnail: $e');
   }
+}
 
   Future<void> _pickVideo() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickVideo(
       source: ImageSource.gallery,
-      maxDuration: const Duration(seconds: 30), // Limit to 30 seconds
+      maxDuration: const Duration(seconds: 30),
     );
 
     if (pickedFile != null) {
-      // Check file size (limit to 10MB)
-      final file = File(pickedFile.path);
-      final stat = await file.stat();
-      if (stat.size > 10 * 1024 * 1024) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Video must be less than 10MB')));
+      final bytes = await pickedFile.readAsBytes();
+      if (bytes.length > 10 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video must be less than 10MB')),
+        );
         return;
       }
-
       setState(() {
         _selectedVideo = pickedFile;
+        _selectedVideoBytes = bytes; // Add this state variable
       });
     }
+  } catch (e) {
+    print('Error picking video: $e');
   }
+}
 
   @override
   void dispose() {

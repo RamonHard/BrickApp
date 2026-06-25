@@ -38,7 +38,29 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
   @override
   void initState() {
     super.initState();
-    _loadSettings(); // ✅ Load on init
+    _loadSettings();
+  }
+
+  // ─── Helper: Get document URL ────────────────────────────
+  String? _getDocumentUrl() {
+    final path = widget.selectedProduct.rulesDocumentPath;
+    if (path == null || path.isEmpty) return null;
+    
+    // Already a full URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    
+    // Handle different path formats
+    if (path.startsWith('/uploads/')) {
+      return '${AppUrls.baseUrl}$path';
+    }
+    if (path.startsWith('uploads/')) {
+      return '${AppUrls.baseUrl}/$path';
+    }
+    
+    // Fallback
+    return '${AppUrls.baseUrl}/$path';
   }
 
   Future<void> _loadSettings() async {
@@ -83,14 +105,11 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
     );
 
     // Show discount dialog once
-    // ✅ Replace the current dialog trigger in build()
     if (!hasShownDialog) {
       Future.microtask(() {
         if (_settingsLoaded) {
-          // ✅ Settings loaded — show with real values
           _showDiscountDialog(context);
         } else {
-          // ✅ Not loaded yet — wait then show
           Future.delayed(const Duration(milliseconds: 800), () {
             if (mounted) _showDiscountDialog(context);
           });
@@ -98,6 +117,9 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
         ref.read(discountDialogShownProvider.notifier).state = true;
       });
     }
+
+    // ✅ Get document URL here
+    final docUrl = _getDocumentUrl();
 
     return Scaffold(
       appBar: AppBar(
@@ -132,7 +154,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
               children: [
                 buildImage(
                   widget.selectedProduct.thumbnailUrl ??
-                      widget.selectedProduct.thumbnail,
+                      widget.selectedProduct.thumbnailUrl,
                   width: width,
                   height: 250,
                   fit: BoxFit.cover,
@@ -387,13 +409,12 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                             color: Colors.green,
                           ),
                         ),
-                     
                     ],
                   ),
                 ],
               ),
             ),
-             if (widget.selectedProduct.salePrice != null &&
+            if (widget.selectedProduct.salePrice != null &&
                             widget.selectedProduct.salePrice! > 0)
              Padding(
                padding: const EdgeInsets.all(8.0),
@@ -651,32 +672,33 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
             ),
 
             // ─── Rules Document ───────────────────────────
-            if (widget.selectedProduct.rulesDocumentPath != null)
+            if (docUrl != null)
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: ListTile(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(color: AppColors.orangeTextColor),
                   ),
-                  leading: const Icon(Icons.description),
-                  title: const Text('View Rules & Regulations'),
+                  leading: const Icon(Icons.description, color: Colors.orange),
+                  title: const Text(
+                    'View Rules & Regulations',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => DocumentPreviewScreen(
-                                filePath:
-                                    widget.selectedProduct.rulesDocumentPath!,
-                                title: 'Rules & Regulations',
-                              ),
+                  onTap: () {
+                    print('📄 Opening document: $docUrl');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DocumentPreviewScreen(
+                          networkUrl: docUrl,
+                          fileName: 'Rules & Regulations',
+                          title: 'Rules & Regulations',
                         ),
                       ),
+                    );
+                  },
                 ),
               ),
 
@@ -754,7 +776,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
 
   // ─── Discount Dialog ──────────────────────────────────────
   void _showDiscountDialog(BuildContext context) {
-    // ✅ Calculate discounted price for first commissionable months
     final rentPrice = widget.selectedProduct.rentPrice ?? 0;
     final minimumMonths =
         int.tryParse(
@@ -765,7 +786,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
         ) ??
         1;
 
-    // Commissionable amount = rent × min(minimumMonths, commissionMonths)
     final commMonths =
         minimumMonths < _commissionMonths ? minimumMonths : _commissionMonths;
     final commissionableAmount = rentPrice * commMonths;
@@ -782,7 +802,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Rent price
                 if (rentPrice > 0) ...[
                   Text(
                     'UGX ${NumberFormat('#,###').format(rentPrice)}/month',
@@ -794,17 +813,12 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                   ),
                   const SizedBox(height: 8),
                 ],
-
-                // ✅ Minimum package from property manager
                 if (minimumMonths > 0)
                   Text(
                     'Minimum package: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
-
                 const SizedBox(height: 12),
-
-                // ✅ Discount info with real values
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -841,10 +855,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // ✅ Final price after discount
                 if (rentPrice > 0)
                   Container(
                     padding: const EdgeInsets.all(10),
@@ -871,7 +882,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       ],
                     ),
                   ),
-
                 const SizedBox(height: 12),
                 const Text(
                   '💡 You can request a refund within 2 hours of booking if you change your mind.',

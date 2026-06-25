@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:brickapp/models/add_post_model.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
@@ -16,6 +17,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 
 class EditPost extends ConsumerStatefulWidget {
   final PropertyModel property; // Pass existing property data
@@ -38,6 +41,7 @@ class _EditPostState extends ConsumerState<EditPost> {
   bool _isLoadingLocation = false;
   List<XFile> _selectedVideos = [];
   XFile? _selectedVideo;
+ Uint8List? _selectedVideoBytes;
   XFile? _rulesDocument;
   bool _isVideo = false;
   final List<String> packages = ['1 Month', '2 Months', '3 Months'];
@@ -281,11 +285,17 @@ class _EditPostState extends ConsumerState<EditPost> {
   List<XFile> _selectedPhotos = [];
 
   @override
-  void initState() {
-    super.initState();
-    _initializeForm();
-  }
+void initState() {
+  super.initState();
+  _initializeForm();
+  _debugPrintImageUrls();
+}
 
+void _debugPrintImageUrls() {
+  print('🖼️ Existing photos: ${_existingPhotos}');
+  print('📸 Thumbnail: ${widget.property.thumbnail}');
+  print('🌐 Base URL: ${AppUrls.baseUrl}');
+}
   void _initializeForm() {
     final property = widget.property;
 
@@ -367,6 +377,10 @@ class _EditPostState extends ConsumerState<EditPost> {
   }
 
   bool _isSubmitting = false;
+  
+  List<Uint8List> _selectedPhotoBytes = [];
+List<String> _selectedPhotoNames = [];
+
 
   @override
   Widget build(BuildContext context) {
@@ -648,85 +662,125 @@ class _EditPostState extends ConsumerState<EditPost> {
   }
 
   Future<void> _updateProperty() async {
-    setState(() => _isSubmitting = true);
+  setState(() => _isSubmitting = true);
 
-    try {
-      final token = ref.read(userProvider).token;
-      if (token == null) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
-        return;
-      }
-
-      var request = http.MultipartRequest(
-        'PATCH',
-        Uri.parse('${AppUrls.properties}/${widget.property.id}'),
-      );
-
-      request.headers['Authorization'] = 'Bearer $token';
-
-      request.fields['property_type'] = _propertyType;
-      request.fields['description'] = _descriptionController.text.trim();
-      request.fields['address'] = _location;
-      request.fields['status'] = _isActive ? 'active' : 'pending';
-      request.fields['currency'] = _currency;
-
-      if (_isRentSelected) request.fields['listing_type'] = 'rent';
-      if (_isSaleSelected) request.fields['listing_type'] = 'sale';
-      if (_isRentSelected && _isSaleSelected) {
-        request.fields['listing_type'] = 'rent_and_sale';
-      }
-
-      if (price != null && price! > 0) {
-        request.fields['rent_price'] = price.toString();
-      }
-      if (salePrice != null && salePrice! > 0) {
-        request.fields['sale_price'] = salePrice.toString();
-        request.fields['sale_condition'] = salesCondition;
-      }
-      if (_bedroomsController.text.isNotEmpty) {
-        request.fields['bedrooms'] = _bedroomsController.text;
-      }
-      if (_bathsController.text.isNotEmpty) {
-        request.fields['bathrooms'] = _bathsController.text;
-      }
-      if (_sqftController.text.isNotEmpty) {
-        request.fields['square_feet'] = _sqftController.text;
-      }
-      if (_unitsController.text.isNotEmpty) {
-        request.fields['units'] = _unitsController.text;
-      }
-      if (!_isActive && _pendingReasonController.text.isNotEmpty) {
-        request.fields['pending_reason'] = _pendingReasonController.text;
-      }
-
-      request.fields['amenities'] = _amenities.join(',');
-
-      for (final photo in _selectedPhotos) {
-        request.files.add(
-          await http.MultipartFile.fromPath('images', photo.path),
-        );
-      }
-      if (_thumbnailPhoto != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('images', _thumbnailPhoto!.path),
-        );
-      }
-      if (_selectedVideo != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('video', _selectedVideo!.path),
-        );
-      }
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      final data = jsonDecode(response.body);
-
+  try {
+    final token = ref.read(userProvider).token;
+    if (token == null) {
       setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('You must be logged in')));
+      return;
+    }
 
-      if (response.statusCode == 200 && data['status'] == true) {
+    var request = http.MultipartRequest(
+      'PATCH',
+      Uri.parse('${AppUrls.properties}/${widget.property.id}'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    // ─── TEXT FIELDS ──────────────────────────────────────
+    request.fields['property_type'] = _propertyType;
+    request.fields['description'] = _descriptionController.text.trim();
+    request.fields['address'] = _location;
+    request.fields['status'] = _isActive ? 'active' : 'pending';
+    request.fields['currency'] = _currency;
+
+    if (_isRentSelected) request.fields['listing_type'] = 'rent';
+    if (_isSaleSelected) request.fields['listing_type'] = 'sale';
+    if (_isRentSelected && _isSaleSelected) {
+      request.fields['listing_type'] = 'rent_and_sale';
+    }
+
+    if (price != null && price! > 0) {
+      request.fields['rent_price'] = price.toString();
+    }
+    if (salePrice != null && salePrice! > 0) {
+      request.fields['sale_price'] = salePrice.toString();
+      request.fields['sale_condition'] = salesCondition;
+    }
+    if (_bedroomsController.text.isNotEmpty) {
+      request.fields['bedrooms'] = _bedroomsController.text;
+    }
+    if (_bathsController.text.isNotEmpty) {
+      request.fields['bathrooms'] = _bathsController.text;
+    }
+    if (_sqftController.text.isNotEmpty) {
+      request.fields['square_feet'] = _sqftController.text;
+    }
+    if (_unitsController.text.isNotEmpty) {
+      request.fields['units'] = _unitsController.text;
+    }
+    if (!_isActive && _pendingReasonController.text.isNotEmpty) {
+      request.fields['pending_reason'] = _pendingReasonController.text;
+    }
+
+    request.fields['amenities'] = _amenities.join(',');
+
+    // ─── FILES - READ AS BYTES (WEB COMPATIBLE) ─────────
+    
+    // Photos - read as bytes
+    for (final photo in _selectedPhotos) {
+      final bytes = await photo.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'images',
+          bytes,
+          filename: photo.name,
+        ),
+      );
+      print('📸 Added photo: ${photo.name} (${bytes.length} bytes)');
+    }
+    
+    // Thumbnail - read as bytes
+    if (_thumbnailPhoto != null) {
+      final bytes = await _thumbnailPhoto!.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'thumbnail',
+          bytes,
+          filename: _thumbnailPhoto!.name,
+        ),
+      );
+      print('🖼️ Added thumbnail: ${_thumbnailPhoto!.name} (${bytes.length} bytes)');
+    }
+    
+    // Video - read as bytes
+    if (_selectedVideo != null && _selectedVideoBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'video',
+          _selectedVideoBytes!,
+          filename: _selectedVideo!.name,
+        ),
+      );
+      print('🎬 Added video: ${_selectedVideo!.name} (${_selectedVideoBytes!.length} bytes)');
+    }
+
+    // ─── PHOTOS TO DELETE ──────────────────────────────────
+    if (_photosToDelete.isNotEmpty) {
+      request.fields['photos_to_delete'] = _photosToDelete.join(',');
+      print('🗑️ Photos to delete: ${_photosToDelete.join(', ')}');
+    }
+
+    print('📤 Sending update request...');
+    print('📤 Fields: ${request.fields.keys.join(', ')}');
+    print('📤 Files: ${request.files.length}');
+
+    // ─── SEND REQUEST ──────────────────────────────────────
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    print('📡 Response status: ${response.statusCode}');
+    print('📡 Response body: ${response.body}');
+
+    setState(() => _isSubmitting = false);
+
+    if (response.statusCode == 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      if (data['status'] == true) {
         final updated = PropertyModel.fromJson(data['property']);
         ref.read(productProvider.notifier).updateProduct(updated);
 
@@ -736,7 +790,7 @@ class _EditPostState extends ConsumerState<EditPost> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -745,112 +799,175 @@ class _EditPostState extends ConsumerState<EditPost> {
           ),
         );
       }
-    } catch (e) {
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } else {
+      // Try to parse error response
+      try {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Server error: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Server error: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  } catch (e, stackTrace) {
+    setState(() => _isSubmitting = false);
+    print('❌ Error updating property: $e');
+    print('❌ Stack trace: $stackTrace');
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Error: $e')));
   }
+}
 
   Widget _buildExistingPhotosSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Existing Photos'),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _existingPhotos.length,
-            itemBuilder: (context, index) {
-              return Stack(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image: DecorationImage(
-                        image:
-                            _existingPhotos[index].startsWith('http')
-                                ? NetworkImage(_existingPhotos[index])
-                                : FileImage(File(_existingPhotos[index]))
-                                    as ImageProvider,
-                        fit: BoxFit.cover,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _buildSectionTitle('Existing Photos'),
+      const SizedBox(height: 8),
+      SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: _existingPhotos.length,
+          itemBuilder: (context, index) {
+            final photoUrl = _existingPhotos[index];
+            final isMarkedForDelete = _photosToDelete.contains(photoUrl);
+            
+            return Stack(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    image: DecorationImage(
+                      image: _getImageProvider(photoUrl),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isMarkedForDelete) {
+                          _photosToDelete.remove(photoUrl);
+                        } else {
+                          _photosToDelete.add(photoUrl);
+                        }
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isMarkedForDelete ? Colors.red : Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isMarkedForDelete ? Icons.delete_forever : Icons.delete,
+                        color: Colors.white,
+                        size: 20,
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _photosToDelete.add(_existingPhotos[index]);
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color:
-                              _photosToDelete.contains(_existingPhotos[index])
-                                  ? Colors.red
-                                  : Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _photosToDelete.contains(_existingPhotos[index])
-                              ? Icons.delete_forever
-                              : Icons.delete,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      if (_photosToDelete.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            '${_photosToDelete.length} photo(s) marked for deletion',
+            style: const TextStyle(color: Colors.red, fontSize: 12),
           ),
         ),
-        if (_photosToDelete.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: Text(
-              '${_photosToDelete.length} photo(s) marked for deletion',
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ),
-      ],
-    );
+    ],
+  );
+}
+
+// Helper method to get the correct ImageProvider
+ImageProvider _getImageProvider(String url) {
+  if (url.isEmpty) {
+    return const AssetImage('assets/placeholder.png'); // Add a placeholder
   }
+  
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return NetworkImage(url);
+  }
+  
+  // Construct full URL
+  String baseUrl = AppUrls.baseUrl;
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+  }
+  
+  String fullUrl = url.startsWith('/') 
+      ? '$baseUrl$url' 
+      : '$baseUrl/$url';
+  
+  print('📸 Loading image from: $fullUrl'); // Debug
+  return NetworkImage(fullUrl);
+}
 
   Future<void> _pickPhotos() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final List<XFile>? pickedFiles = await picker.pickMultiImage();
 
     if (pickedFiles != null) {
-      setState(() {
-        // Calculate total photos including existing ones not marked for deletion
-        final remainingExisting =
-            _existingPhotos
-                .where((photo) => !_photosToDelete.contains(photo))
-                .length;
-        final availableSlots = 10 - remainingExisting;
+      // Calculate available slots
+      final remainingExisting = _existingPhotos
+          .where((photo) => !_photosToDelete.contains(photo))
+          .length;
+      final availableSlots = 10 - remainingExisting;
+      final currentCount = _selectedPhotos.length;
+      final canAdd = availableSlots - currentCount;
 
-        if (_selectedPhotos.length + pickedFiles.length <= availableSlots) {
-          _selectedPhotos.addAll(pickedFiles);
-        } else {
-          final remainingSlots = availableSlots - _selectedPhotos.length;
-          if (remainingSlots > 0) {
-            _selectedPhotos.addAll(pickedFiles.take(remainingSlots));
-          }
-        }
-      });
+      if (canAdd <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Maximum 10 photos allowed'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final toAdd = pickedFiles.take(canAdd).toList();
+      
+      for (final file in toAdd) {
+        final bytes = await file.readAsBytes();
+        setState(() {
+          _selectedPhotos.add(file);
+          _selectedPhotoBytes.add(bytes);
+          _selectedPhotoNames.add(file.name);
+        });
+      }
+      
+      print('📸 Added ${toAdd.length} photos');
     }
+  } catch (e) {
+    print('Error picking photos: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking photos: $e')),
+    );
   }
+}
 
   Widget _buildUpdateButton() {
     return SizedBox(
@@ -1657,94 +1774,122 @@ class _EditPostState extends ConsumerState<EditPost> {
   }
 
   Widget _buildImageSection() {
-    return Column(
-      children: [
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.grey.shade300,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: GestureDetector(
-            onTap: _pickPhotos,
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.camera_alt, color: Colors.grey),
+  return Column(
+    children: [
+      Container(
+        height: 50,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: GestureDetector(
+          onTap: _pickPhotos,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Add more photos',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
+                  child: const Icon(Icons.camera_alt, color: Colors.grey),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Add more photos',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        if (_selectedPhotos.isNotEmpty)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedPhotos.length,
-              itemBuilder: (context, index) {
-                return Stack(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: FileImage(File(_selectedPhotos[index].path)),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+      ),
+      const SizedBox(height: 10),
+      if (_selectedPhotos.isNotEmpty)
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _selectedPhotos.length,
+            itemBuilder: (context, index) {
+              return Stack(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[300],
                     ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedPhotos.removeAt(index);
-                          });
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: FutureBuilder<Uint8List>(
+                        future: _selectedPhotos[index].readAsBytes(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                            return Image.memory(
+                              snapshot.data!,
+                              fit: BoxFit.cover,
+                            );
+                          } else if (snapshot.hasError) {
+                            return const Icon(Icons.error, color: Colors.red);
+                          }
+                          return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
                         },
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedPhotos.removeAt(index);
+                          if (index < _selectedPhotoBytes.length) {
+                            _selectedPhotoBytes.removeAt(index);
+                            _selectedPhotoNames.removeAt(index);
+                          }
+                        });
+                      },
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ],
+              );
+            },
           ),
-      ],
-    );
+        ),
+    ],
+  );
+}
+
+// Helper to show selected photos (works on web and mobile)
+ImageProvider _getImageProviderForFile(XFile file) {
+  if (kIsWeb) {
+    // For web, return a FutureBuilder approach instead
+    // This method will be called in the build, so we'll use MemoryImage
+    return MemoryImage(Uint8List(0)); // Placeholder, will be replaced
+  } else {
+    return FileImage(File(file.path));
   }
+}
 
   Widget _buildVideoSection() {
     return Column(
@@ -1849,105 +1994,144 @@ class _EditPostState extends ConsumerState<EditPost> {
   }
 
   Widget _buildThumbnailSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Thumbnail Image",
+        style: GoogleFonts.poppins(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppColors.lightGrey,
+        ),
+      ),
+      const SizedBox(height: 8),
+      GestureDetector(
+        onTap: _pickThumbnail,
+        child: Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.white,
+          ),
+          child: _getThumbnailWidget(),
+        ),
+      ),
+    ],
+  );
+}
+Widget _getThumbnailWidget() {
+  // If user picked a new thumbnail
+  if (_thumbnailPhoto != null) {
+    return Stack(
       children: [
-        Text(
-          "Thumbnail Image",
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.lightGrey,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            // For web, we need to use a different approach
+            // Since we have the file, we need to read it as bytes
+            '', // Placeholder - we'll handle this differently
+            width: double.infinity,
+            height: 150,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to showing file name
+              return Container(
+                color: Colors.grey[300],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image, size: 40, color: Colors.grey[600]),
+                    const SizedBox(height: 8),
+                    Text(
+                      _thumbnailPhoto!.name,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _pickThumbnail,
-          child: Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.white,
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _thumbnailPhoto = null;
+              });
+            },
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            child:
-                _thumbnailPhoto == null &&
-                        (widget.property.thumbnail == null ||
-                            widget.property.thumbnail!.isEmpty)
-                    ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.image, size: 40, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          "Tap to add thumbnail",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    )
-                    : Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child:
-                              _thumbnailPhoto != null
-                                  ? Image.file(
-                                    File(_thumbnailPhoto!.path),
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                  )
-                                  : widget.property.thumbnail!.startsWith(
-                                    'http',
-                                  )
-                                  ? Image.network(
-                                    widget.property.thumbnail!,
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                  )
-                                  : Image.file(
-                                    File(widget.property.thumbnail!),
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                  ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _thumbnailPhoto = null;
-                              });
-                            },
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _pickThumbnail() async {
+  // If there's an existing thumbnail from the property
+  if (widget.property.thumbnail != null && widget.property.thumbnail!.isNotEmpty) {
+    final thumbnailUrl = widget.property.thumbnail!.startsWith('http')
+        ? widget.property.thumbnail!
+        : '${AppUrls.baseUrl}/${widget.property.thumbnail}';
+    
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            thumbnailUrl,
+            width: double.infinity,
+            height: 150,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Empty state
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: const [
+      Icon(Icons.image, size: 40, color: Colors.grey),
+      SizedBox(height: 8),
+      Text(
+        "Tap to add thumbnail",
+        style: TextStyle(color: Colors.grey),
+      ),
+    ],
+  );
+}
+
+ Future<void> _pickThumbnail() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
     );
 
     if (pickedFile != null) {
@@ -1955,7 +2139,13 @@ class _EditPostState extends ConsumerState<EditPost> {
         _thumbnailPhoto = pickedFile;
       });
     }
+  } catch (e) {
+    print('Error picking thumbnail: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking thumbnail: $e')),
+    );
   }
+}
 
   Future<void> _pickNewDocument(BuildContext context) async {
     try {
@@ -1974,6 +2164,7 @@ class _EditPostState extends ConsumerState<EditPost> {
   }
 
   Future<void> _pickVideo() async {
+  try {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickVideo(
       source: ImageSource.gallery,
@@ -1981,18 +2172,22 @@ class _EditPostState extends ConsumerState<EditPost> {
     );
 
     if (pickedFile != null) {
-      final file = File(pickedFile.path);
-      final stat = await file.stat();
-      if (stat.size > 10 * 1024 * 1024) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Video must be less than 10MB')));
+      final bytes = await pickedFile.readAsBytes();
+      if (bytes.length > 10 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video must be less than 10MB')),
+        );
         return;
       }
-
       setState(() {
         _selectedVideo = pickedFile;
+        _selectedVideoBytes = bytes; // Add this state variable
       });
     }
+  } catch (e) {
+    print('Error picking video: $e');
   }
+}
+
+
 }
