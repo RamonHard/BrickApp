@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
+import 'package:brickapp/pages/pManagerPages/payment_settings.dart';
 import 'package:brickapp/utils/urls.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -18,7 +19,7 @@ final managerStatsProvider = FutureProvider.autoDispose
     });
 
 // Payment settings state
-final paymentSettingsProvider =
-    StateNotifierProvider<PaymentSettingsNotifier, PaymentSettingsState>(
-      (ref) => PaymentSettingsNotifier(),
-    );
+// final paymentSettingsProvider =
+//     StateNotifierProvider<PaymentSettingsNotifier, PaymentSettingsState>(
+//       (ref) => PaymentSettingsNotifier(),
+//     );

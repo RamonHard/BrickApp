@@ -113,7 +113,7 @@ class HomePage extends ConsumerWidget {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: HouseCard(
-                          profileIMG: '',
+                          profileIMG: property.uploaderIMG ?? '',
                           price: property.displayPrice,
                           location: property.address ?? 'Location not set',
                           description: property.description ?? '',

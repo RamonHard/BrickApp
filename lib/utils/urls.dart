@@ -27,7 +27,7 @@ static String nearbyProperties(double lat, double lng, double radiusKm) =>
   static const String bookTransport = '$baseUrl/bookings/transport';
   // Property Bookings
   static const String createBooking = '$baseUrl/bookings/create';
-
+ 
   // Favourites
   static const String favourites = '$baseUrl/favourites';
   static const String addFavourite = '$baseUrl/favourites/add';
@@ -42,6 +42,8 @@ static String nearbyProperties(double lat, double lng, double radiusKm) =>
   static const String myBookings = '$baseUrl/bookings/history/property';
   static const String myTransportBookings =
       '$baseUrl/bookings/history/transport';
+      static const String platformPaymentMethods = '$baseUrl/admin/payment-methods/public';
+static const String withdrawalRequest = '$baseUrl/admin/withdrawals';
   // Property Manager Stats
   static const String managerStats = '$baseUrl/properties/stats';
 
@@ -58,4 +60,17 @@ static String nearbyProperties(double lat, double lng, double radiusKm) =>
   static const String clientRequests = '$baseUrl/bookings/requests/client';
   static String approveRefund(int id) =>
       '$baseUrl/bookings/property/$id/approve-refund';
+static const String managerWallet = '$baseUrl/bookings/wallet';
+static const String withdrawMoney = '$baseUrl/bookings/withdraw';
+static const String savePaymentMethods = '$baseUrl/bookings/payment-methods';
+static String getPaymentMethods(int userId) => 
+    '$baseUrl/bookings/payment-methods/$userId';
+
+
+    // ✅ Add to AppUrls class
+static const String paymentMethods = '$baseUrl/payment-methods';
+static String managerPaymentMethods(int userId) => '$baseUrl/payment-methods/$userId';
+static String confirmPropertyVisit(int bookingId) => '$baseUrl/bookings/property/$bookingId/confirm-visit';
+static const String wallet = '$baseUrl/bookings/wallet';
+static const String withdrawWallet = '$baseUrl/bookings/wallet/withdraw';
 }

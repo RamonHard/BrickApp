@@ -2,7 +2,7 @@ import 'package:brickapp/utils/urls.dart';
 
 class PropertyModel {
   // ─── Backend fields ────────────────────────────────────
-  final int? userId;
+  final int userId;
   final String listingType;
   final String status;
   final double? rentPrice;
@@ -76,7 +76,7 @@ class PropertyModel {
 
   PropertyModel({
     // Backend fields
-    this.userId,
+    required this.userId,
     this.listingType = '',
     this.status = 'active',
     this.rentPrice,
@@ -145,21 +145,18 @@ class PropertyModel {
   // display price: prefer rentPrice from backend, fall back to price
   double get displayPrice => rentPrice ?? salePrice ?? price;
 
-  // Full URL helpers
-  // Find this getter and apply same fix
+  
   String? get thumbnailUrl {
-    if (thumbnail == null || thumbnail!.isEmpty) return null;
-    if (thumbnail!.startsWith('http')) return thumbnail;
-    return '${AppUrls.baseUrl}/$thumbnail';
-  }
+  if (thumbnail.isEmpty) return null;
+  if (thumbnail.startsWith('http')) return thumbnail;
+  return '${AppUrls.baseUrl}/$thumbnail';
+}
 
-  List<String> get imageUrls {
-    return images
-        .map(
-          (img) => img.startsWith('http') ? img : 'http://10.0.2.2:3000/$img',
-        )
-        .toList();
-  }
+List<String> get imageUrls {
+  return images
+      .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
+      .toList();
+}
 
   // ─── Build from backend JSON ───────────────────────────
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
@@ -267,9 +264,14 @@ class PropertyModel {
           amenitiesList.contains('pet friendly'),
       amenities: amenitiesList,
       productIMG: imgs.isNotEmpty ? imgs.first : '',
-      photoPaths: imgs,
+      // ✅ Also fix photoPaths
+photoPaths: imgs
+    .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
+    .toList(),
       // ✅ insideViews = all images
-      insideViews: imgs,
+     insideViews: imgs
+    .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
+    .toList(),
       // ✅ videoPath from videos array
       videoPath: videoPath,
       landPercentage:

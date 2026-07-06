@@ -387,7 +387,9 @@ List<String> _selectedPhotoNames = [];
     bool showHouseSections =
         _propertyType == 'House' ||
         _propertyType == 'Apartments' ||
-        _propertyType == 'Business Shop';
+        _propertyType == 'Business Shop' ||
+        _propertyType == 'Office Space'
+        ;
 
     return Scaffold(
       appBar: AppBar(
@@ -2023,35 +2025,24 @@ ImageProvider _getImageProviderForFile(XFile file) {
   );
 }
 Widget _getThumbnailWidget() {
-  // If user picked a new thumbnail
+  // ✅ New thumbnail picked — show from bytes
   if (_thumbnailPhoto != null) {
     return Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            // For web, we need to use a different approach
-            // Since we have the file, we need to read it as bytes
-            '', // Placeholder - we'll handle this differently
-            width: double.infinity,
-            height: 150,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              // Fallback to showing file name
-              return Container(
-                color: Colors.grey[300],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.image, size: 40, color: Colors.grey[600]),
-                    const SizedBox(height: 8),
-                    Text(
-                      _thumbnailPhoto!.name,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              );
+          child: FutureBuilder<Uint8List>(
+            future: _thumbnailPhoto!.readAsBytes(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return Image.memory(
+                  snapshot.data!,
+                  width: double.infinity,
+                  height: 150,
+                  fit: BoxFit.cover,
+                );
+              }
+              return const Center(child: CircularProgressIndicator());
             },
           ),
         ),
@@ -2059,21 +2050,13 @@ Widget _getThumbnailWidget() {
           top: 8,
           right: 8,
           child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _thumbnailPhoto = null;
-              });
-            },
+            onTap: () => setState(() => _thumbnailPhoto = null),
             child: Container(
               decoration: const BoxDecoration(
                 color: Colors.black54,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 20),
             ),
           ),
         ),
@@ -2081,12 +2064,14 @@ Widget _getThumbnailWidget() {
     );
   }
 
-  // If there's an existing thumbnail from the property
-  if (widget.property.thumbnail != null && widget.property.thumbnail!.isNotEmpty) {
-    final thumbnailUrl = widget.property.thumbnail!.startsWith('http')
-        ? widget.property.thumbnail!
-        : '${AppUrls.baseUrl}/${widget.property.thumbnail}';
-    
+  // ✅ Existing thumbnail from backend
+  if (widget.property.thumbnail != null &&
+      widget.property.thumbnail!.isNotEmpty) {
+    final raw = widget.property.thumbnail!;
+    final thumbnailUrl = raw.startsWith('http')
+        ? raw
+        : '${AppUrls.baseUrl}/$raw';
+
     return Stack(
       children: [
         ClipRRect(
@@ -2096,30 +2081,39 @@ Widget _getThumbnailWidget() {
             width: double.infinity,
             height: 150,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.grey[300],
-                child: const Center(
-                  child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
-                ),
-              );
-            },
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.grey[300],
+              child: const Center(
+                child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: () => setState(() => _thumbnailPhoto = null),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 20),
+            ),
           ),
         ),
       ],
     );
   }
 
-  // Empty state
+  // ✅ Empty state
   return Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: const [
       Icon(Icons.image, size: 40, color: Colors.grey),
       SizedBox(height: 8),
-      Text(
-        "Tap to add thumbnail",
-        style: TextStyle(color: Colors.grey),
-      ),
+      Text("Tap to add thumbnail", style: TextStyle(color: Colors.grey)),
     ],
   );
 }

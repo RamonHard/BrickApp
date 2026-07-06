@@ -18,6 +18,11 @@ class User {
   final String? status;
   final bool? isSuspended;
   final String? suspensionReason;
+  
+  // ✅ New wallet fields
+  final double? withdrawableBalance;
+  final double? lockedBalance;
+
   User({
     this.id,
     this.email,
@@ -34,8 +39,21 @@ class User {
     this.status,
     this.isSuspended,
     this.suspensionReason,
+    this.withdrawableBalance,
+    this.lockedBalance,
   });
+
   bool get isLoggedIn => id != null;
+  
+  // ✅ Total balance getter
+  double get totalBalance => (withdrawableBalance ?? 0) + (lockedBalance ?? 0);
+  
+  // ✅ Check if user has withdrawable funds
+  bool get hasWithdrawableFunds => (withdrawableBalance ?? 0) > 0;
+  
+  // ✅ Check if user has locked funds
+  bool get hasLockedFunds => (lockedBalance ?? 0) > 0;
+
   User copyWith({
     int? id,
     String? email,
@@ -52,6 +70,8 @@ class User {
     String? status,
     bool? isSuspended,
     String? suspensionReason,
+    double? withdrawableBalance,
+    double? lockedBalance,
   }) {
     return User(
       id: id ?? this.id,
@@ -69,6 +89,8 @@ class User {
       status: status ?? this.status,
       isSuspended: isSuspended ?? this.isSuspended,
       suspensionReason: suspensionReason ?? this.suspensionReason,
+      withdrawableBalance: withdrawableBalance ?? this.withdrawableBalance,
+      lockedBalance: lockedBalance ?? this.lockedBalance,
     );
   }
 
@@ -114,6 +136,13 @@ class User {
       suspensionReason: map['suspension_reason'],
       accountType: roleToAccountType(map['role']),
       token: token,
+      // ✅ Parse wallet balances from backend response
+      withdrawableBalance: map['withdrawable_balance'] != null 
+          ? double.tryParse(map['withdrawable_balance'].toString()) 
+          : null,
+      lockedBalance: map['locked_balance'] != null 
+          ? double.tryParse(map['locked_balance'].toString()) 
+          : null,
     );
   }
 

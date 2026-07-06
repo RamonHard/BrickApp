@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
-import 'package:brickapp/pages/client_pages/full_screen_view.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart'
-    hide FullScreenGallery;
+   ;
 import 'package:brickapp/providers/discount_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';

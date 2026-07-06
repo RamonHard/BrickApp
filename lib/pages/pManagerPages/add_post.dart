@@ -17,6 +17,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:brickapp/utils/urls.dart';
 import 'package:brickapp/providers/user_provider.dart';
+import 'dart:typed_data';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class AddPost extends ConsumerStatefulWidget {
   final PropertyModel? editPostModel; // Add this for editing existing post
@@ -40,6 +42,7 @@ class _AddPostState extends ConsumerState<AddPost> {
   List<XFile> _selectedVideos = [];
   XFile? _selectedVideo;
   bool _isVideo = false;
+  Uint8List? _videoThumbnail;
 
   // Updated packages with custom option
   final List<String> packages = [
@@ -2727,26 +2730,39 @@ if (_selectedPhotoBytes.isNotEmpty)
   Future<void> _pickVideo() async {
   try {
     final ImagePicker picker = ImagePicker();
+
     final XFile? pickedFile = await picker.pickVideo(
       source: ImageSource.gallery,
       maxDuration: const Duration(seconds: 30),
     );
 
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      if (bytes.length > 10 * 1024 * 1024) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Video must be less than 10MB')),
-        );
-        return;
-      }
-      setState(() {
-        _selectedVideo = pickedFile;
-        _selectedVideoBytes = bytes; // Add this state variable
-      });
+    if (pickedFile == null) return;
+
+    final bytes = await pickedFile.readAsBytes();
+
+    if (bytes.length > 10 * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Video must be less than 10MB"),
+        ),
+      );
+      return;
     }
+
+    final thumbnail = await VideoThumbnail.thumbnailData(
+      video: pickedFile.path,
+      imageFormat: ImageFormat.JPEG,
+      maxWidth: 400,
+      quality: 80,
+    );
+
+    setState(() {
+      _selectedVideo = pickedFile;
+      _selectedVideoBytes = bytes;
+      _videoThumbnail = thumbnail;
+    });
   } catch (e) {
-    print('Error picking video: $e');
+    print(e);
   }
 }
 

@@ -111,6 +111,32 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
+                Container(
+                        alignment: Alignment.center,
+                        child: Card(
+                          color: HexColor("FFFFFF").withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              _showLogoutConfirmationDialog(context);
+                            },
+                            leading: Icon(
+                              Icons.logout_outlined,
+                              color: AppColors.iconColor,
+                            ),
+                            title: Text(
+                              "Logout",
+                              style: GoogleFonts.actor(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.darkTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
               ],
             ),
           ),
@@ -324,8 +350,8 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                         ),
 
                       // FIXED: Simplified the condition
-                      if (displayAccountType == AccountType.client &&
-                          showUpgradedFeatures)
+                      if (userState.accountType == AccountType.client &&
+    userState.isVerified != true)
                         Container(
                           alignment: Alignment.center,
                           child: Card(

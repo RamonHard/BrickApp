@@ -203,6 +203,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ref
             .read(userProvider.notifier)
             .setFromBackend(data['user'], data['token']);
+            
 
         ScaffoldMessenger.of(
           context,
@@ -220,6 +221,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ref
               .read(userProvider.notifier)
               .setFromBackend(profileData['user'], data['token']);
+              print(user.withdrawableBalance);
+              print("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+print(user.lockedBalance);
         }
         Navigator.pushAndRemoveUntil(
           context,

@@ -20,7 +20,8 @@ class PropertyBookingPage extends ConsumerStatefulWidget {
 
 class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   final formatter = NumberFormat('#,###');
-
+// ✅ Add with other state variables
+String? _selectedPaymentMethod;
   // Months state
   int _extraMonths = 0;
   bool _isSubmitting = false;
@@ -38,6 +39,7 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   void initState() {
     super.initState();
     _loadSettings();
+       _loadPMPaymentMethods();
   }
 
   Future<void> _loadSettings() async {
@@ -149,6 +151,9 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
     final remainingAmount = _baseTotal - _commissionableAmount;
     return (_commissionableAmount - _agreedManagerCommission) + remainingAmount;
   }
+  // Add these with other state variables
+Map<String, dynamic>? _pmPaymentMethods;
+bool _isLoadingPaymentMethods = false;
 
   // ✅ NEW: You save (discount amount)
   double get _youSave => _clientDiscount;
@@ -262,35 +267,62 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Select Payment Method',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _PaymentOption(
-                    title: 'Mobile Money',
-                    subtitle: 'MTN & Airtel Money',
-                    icon: Icons.phone_android,
-                    color: Colors.yellow[700]!,
-                    onSelected: _showMobileMoneyFlow,
-                  ),
-                  const SizedBox(height: 8),
-                  _PaymentOption(
-                    title: 'Bank Transfer',
-                    subtitle: 'Direct bank payment',
-                    icon: Icons.account_balance,
-                    color: Colors.brown,
-                    onSelected: () => _showComingSoon('Bank Transfer'),
-                  ),
-                  const SizedBox(height: 8),
-                  _PaymentOption(
-                    title: 'Visa / Mastercard',
-                    subtitle: 'Credit or debit card',
-                    icon: Icons.credit_card,
-                    color: Colors.blue,
-                    onSelected: () => _showComingSoon('Card Payment'),
-                  ),
-                  const SizedBox(height: 32),
+                 // ─── Payment Methods Section ───────────────────
+// ─── Payment Methods Section ───────────────────
+// ✅ Replace the hardcoded payment options section
+const Text('Select Payment Method',
+    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+const SizedBox(height: 12),
+
+// ✅ Replace the payment options section
+if (_isLoadingPaymentMethods)
+  const Center(child: CircularProgressIndicator())
+else if (_pmPaymentMethods == null)
+  _buildNoPaymentMethods()
+else ...[
+  // MTN Mobile Money
+  if (_pmPaymentMethods!['payment_mobile_money_enabled'] == 'true')
+    _PaymentOption(
+      title: '${_pmPaymentMethods!['payment_mobile_money_provider'] ?? 'MTN'} Mobile Money',
+      subtitle: _pmPaymentMethods!['payment_mobile_money_number'] ?? '',
+      icon: Icons.phone_android,
+      color: Colors.yellow[700]!,
+      isSelected: _selectedPaymentMethod == 'mobile_money',
+      onSelected: () {
+        setState(() => _selectedPaymentMethod = 'mobile_money');
+        _showMobileMoneyFlow();
+      },
+    ),
+  if (_pmPaymentMethods!['payment_mobile_money_enabled'] == 'true')
+    const SizedBox(height: 8),
+
+  // Airtel Money
+  if (_pmPaymentMethods!['payment_airtel_enabled'] == 'true')
+    _PaymentOption(
+      title: 'Airtel Money',
+      subtitle: _pmPaymentMethods!['payment_airtel_number'] ?? '',
+      icon: Icons.phone_android,
+      color: Colors.red,
+      isSelected: _selectedPaymentMethod == 'airtel',
+      onSelected: () {
+        setState(() => _selectedPaymentMethod = 'airtel');
+        _showMobileMoneyFlow();
+      },
+    ),
+  if (_pmPaymentMethods!['payment_airtel_enabled'] == 'true')
+    const SizedBox(height: 8),
+
+  // Bank Transfer
+  if (_pmPaymentMethods!['payment_bank_enabled'] == 'true')
+    _PaymentOption(
+      title: _pmPaymentMethods!['payment_bank_name'] ?? 'Bank Transfer',
+      subtitle: 'Acc: ${_pmPaymentMethods!['payment_bank_account_number'] ?? ''}',
+      icon: Icons.account_balance,
+      color: Colors.brown,
+      isSelected: _selectedPaymentMethod == 'bank',
+      onSelected: () => setState(() => _selectedPaymentMethod = 'bank'),
+    ),
+],
                 ],
               ),
             ),
@@ -299,7 +331,21 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
       ),
     );
   }
-
+Future<void> _loadPMPaymentMethods() async {
+  try {
+    // ✅ Load platform payment methods set by admin
+    final res = await http.get(
+      Uri.parse(AppUrls.platformPaymentMethods),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      setState(() => _pmPaymentMethods = data['methods']);
+    }
+  } catch (e) {
+    print('❌ Load payment methods: $e');
+  }
+  setState(() => _isLoadingPaymentMethods = false);
+}
   Widget _buildDurationSelector() {
     if (_isLand) return _buildLandSelector();
     if (_isVenue) return _buildVenueDateSelector();
@@ -1209,13 +1255,40 @@ class _PropertyBookingPageState extends ConsumerState<PropertyBookingPage> {
   }
 }
 
+extension on _PropertyBookingPageState {
+  Widget _buildNoPaymentMethods() {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.orange[50],
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.orange[200]!),
+    ),
+    child: const Row(
+      children: [
+        Icon(Icons.info_outline, color: Colors.orange),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'No payment methods available yet. Please contact support.',
+            style: TextStyle(color: Colors.orange),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+}
+
 // ─── Payment Option Widget ───────────────────────────────
+// ✅ Replace the entire _PaymentOption class
 class _PaymentOption extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onSelected;
+  final bool isSelected;
 
   const _PaymentOption({
     required this.title,
@@ -1223,29 +1296,61 @@ class _PaymentOption extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onSelected,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected ? color : Colors.transparent,
+          width: 2,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ]
+            : [],
+      ),
+      child: Card(
+        elevation: isSelected ? 0 : 2,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        color: isSelected ? color.withOpacity(0.05) : Colors.white,
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(isSelected ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 26),
           ),
-          child: Icon(icon, color: color, size: 26),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isSelected ? color : Colors.black87,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          trailing: isSelected
+              ? Icon(Icons.check_circle, color: color)
+              : const Icon(Icons.chevron_right, color: Colors.grey),
+          onTap: onSelected,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onSelected,
       ),
     );
   }

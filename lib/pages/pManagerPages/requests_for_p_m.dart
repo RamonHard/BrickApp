@@ -188,7 +188,50 @@ class RequestsFromClientsToManager extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-
+                     // ✅ Add after the status chip in manager requests card
+if (booking['escrow_status'] == 'held') ...[
+  const SizedBox(height: 8),
+  Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.orange[50],
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.orange[200]!),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.lock, color: Colors.orange[700], size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '💰 Payment is locked in escrow. Waiting for client to visit and confirm the property.',
+            style: TextStyle(color: Colors.orange[800], fontSize: 12),
+          ),
+        ),
+      ],
+    ),
+  ),
+],
+if (booking['escrow_status'] == 'released') ...[
+  const SizedBox(height: 8),
+  Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.green[50],
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: const Row(
+      children: [
+        Icon(Icons.check_circle, color: Colors.green, size: 16),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text('✅ Client confirmed visit. Payment released to your wallet.',
+              style: TextStyle(color: Colors.green, fontSize: 12)),
+        ),
+      ],
+    ),
+  ),
+],
                       // Dates
                       if (booking['start_date'] != null) ...[
                         Row(

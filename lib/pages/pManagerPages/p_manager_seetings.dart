@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:brickapp/pages/pManagerPages/payment_settings.dart';
 import 'package:brickapp/providers/stats_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
+import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,690 +10,740 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
-// Stats provider
-
-class PaymentSettingsState {
-  final bool mobileMoneyEnabled;
-  final bool bankTransferEnabled;
-  final bool cardPaymentEnabled;
-  final bool hasChanges;
-  final String bankName;
-  final String accountNumber;
-  final String accountHolder;
-  final String branchCode;
-
-  PaymentSettingsState({
-    this.mobileMoneyEnabled = false,
-    this.bankTransferEnabled = false,
-    this.cardPaymentEnabled = false,
-    this.hasChanges = false,
-    this.bankName = '',
-    this.accountNumber = '',
-    this.accountHolder = '',
-    this.branchCode = '',
-  });
-
-  PaymentSettingsState copyWith({
-    bool? mobileMoneyEnabled,
-    bool? bankTransferEnabled,
-    bool? cardPaymentEnabled,
-    bool? hasChanges,
-    String? bankName,
-    String? accountNumber,
-    String? accountHolder,
-    String? branchCode,
-  }) {
-    return PaymentSettingsState(
-      mobileMoneyEnabled: mobileMoneyEnabled ?? this.mobileMoneyEnabled,
-      bankTransferEnabled: bankTransferEnabled ?? this.bankTransferEnabled,
-      cardPaymentEnabled: cardPaymentEnabled ?? this.cardPaymentEnabled,
-      hasChanges: hasChanges ?? this.hasChanges,
-      bankName: bankName ?? this.bankName,
-      accountNumber: accountNumber ?? this.accountNumber,
-      accountHolder: accountHolder ?? this.accountHolder,
-      branchCode: branchCode ?? this.branchCode,
-    );
-  }
-}
-
-class PaymentSettingsNotifier extends StateNotifier<PaymentSettingsState> {
-  PaymentSettingsNotifier() : super(PaymentSettingsState());
-
-  void toggleMobileMoney(bool value) =>
-      state = state.copyWith(mobileMoneyEnabled: value, hasChanges: true);
-
-  void toggleBankTransfer(bool value) =>
-      state = state.copyWith(bankTransferEnabled: value, hasChanges: true);
-
-  void toggleCardPayment(bool value) =>
-      state = state.copyWith(cardPaymentEnabled: value, hasChanges: true);
-
-  void updateBankDetails({
-    String? bankName,
-    String? accountNumber,
-    String? accountHolder,
-    String? branchCode,
-  }) {
-    state = state.copyWith(
-      bankName: bankName ?? state.bankName,
-      accountNumber: accountNumber ?? state.accountNumber,
-      accountHolder: accountHolder ?? state.accountHolder,
-      branchCode: branchCode ?? state.branchCode,
-      hasChanges: true,
-    );
-  }
-
-  void applyChanges() => state = state.copyWith(hasChanges: false);
-}
-
-class PManagerSettings extends ConsumerWidget {
+class PManagerSettings extends ConsumerStatefulWidget {
   const PManagerSettings({super.key});
+  @override
+  ConsumerState<PManagerSettings> createState() => _PManagerSettingsState();
+}
+
+class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
+  // Payment method state
+  bool _mobileMoneyEnabled = false;
+  String _mobileMoneyNumber = '';
+  String _mobileMoneyProvider = 'MTN';
+  bool _bankEnabled = false;
+  String _bankName = '';
+  String _accountNumber = '';
+  String _accountHolder = '';
+  String _branchCode = '';
+  bool _hasChanges = false;
+  bool _isSaving = false;
+  bool _isLoadingMethods = true;
+
+  // Wallet state
+  double _withdrawableBalance = 0;
+  double _lockedBalance = 0;
+  bool _isLoadingWallet = true;
+
+  final _mobileNumberController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _accountNumberController = TextEditingController();
+  final _accountHolderController = TextEditingController();
+  final _branchCodeController = TextEditingController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final token = ref.watch(userProvider).token ?? '';
-    final statsAsync = ref.watch(managerStatsProvider(token));
-    final paymentState = ref.watch(paymentSettingsProvider);
-    final paymentNotifier = ref.read(paymentSettingsProvider.notifier);
-    final formatter = NumberFormat('#,###');
+  void initState() {
+    super.initState();
+    _loadPaymentMethods();
+    _loadWallet();
+  }
 
-    return PopScope(
-      canPop: !paymentState.hasChanges,
-      onPopInvoked: (bool didPop) {
-        if (!didPop && paymentState.hasChanges) {
-          _showUnsavedChangesDialog(context, ref);
+  @override
+  void dispose() {
+    _mobileNumberController.dispose();
+    _bankNameController.dispose();
+    _accountNumberController.dispose();
+    _accountHolderController.dispose();
+    _branchCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPaymentMethods() async {
+    try {
+      final token = ref.read(userProvider).token ?? '';
+      final res = await http.get(
+        Uri.parse(AppUrls.paymentMethods),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final methods = data['methods'];
+        if (methods != null) {
+          setState(() {
+            _mobileMoneyEnabled = methods['mobile_money_enabled'] ?? false;
+            _mobileMoneyNumber = methods['mobile_money_number'] ?? '';
+            _mobileMoneyProvider = methods['mobile_money_provider'] ?? 'MTN';
+            _bankEnabled = methods['bank_enabled'] ?? false;
+            _bankName = methods['bank_name'] ?? '';
+            _accountNumber = methods['bank_account_number'] ?? '';
+            _accountHolder = methods['bank_account_holder'] ?? '';
+            _branchCode = methods['bank_branch_code'] ?? '';
+            _mobileNumberController.text = _mobileMoneyNumber;
+            _bankNameController.text = _bankName;
+            _accountNumberController.text = _accountNumber;
+            _accountHolderController.text = _accountHolder;
+            _branchCodeController.text = _branchCode;
+          });
         }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Manager Settings'),
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              if (paymentState.hasChanges) {
-                _showUnsavedChangesDialog(context, ref);
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-          actions: [
-            if (paymentState.hasChanges)
-              IconButton(
-                icon: const Icon(Icons.save),
-                onPressed: () => _applyChanges(context, ref),
-                tooltip: 'Save Changes',
-              ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => ref.refresh(managerStatsProvider(token)),
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── Stats Overview ───────────────────────
-              statsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error:
-                    (e, _) => Center(
-                      child: Column(
-                        children: [
-                          Text('Failed to load stats: $e'),
-                          TextButton(
-                            onPressed:
-                                () => ref.refresh(managerStatsProvider(token)),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                data:
-                    (stats) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Property stats
-                        _buildSectionTitle('My Properties'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Active',
-                                '${stats['properties']['active']}',
-                                Icons.home,
-                                Colors.green,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Pending',
-                                '${stats['properties']['pending']}',
-                                Icons.pending,
-                                Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Inactive',
-                                '${stats['properties']['inactive']}',
-                                Icons.visibility_off,
-                                Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Revenue stats
-                        _buildSectionTitle('Revenue'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Total Revenue',
-                                'UGX ${formatter.format(double.tryParse(stats['revenue']['total_revenue'].toString()) ?? 0)}',
-                                Icons.attach_money,
-                                Colors.blue,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Net Earnings',
-                                'UGX ${formatter.format(double.tryParse(stats['revenue']['net_revenue'].toString()) ?? 0)}',
-                                Icons.trending_up,
-                                Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Confirmed Bookings',
-                                '${stats['bookings']['confirmed']}',
-                                Icons.check_circle,
-                                Colors.green,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Pending Bookings',
-                                '${stats['bookings']['pending']}',
-                                Icons.hourglass_empty,
-                                Colors.orange,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Monthly revenue chart
-                        if ((stats['monthly_revenue'] as List).isNotEmpty) ...[
-                          _buildSectionTitle('Monthly Revenue'),
-                          Card(
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SizedBox(
-                                height: 250,
-                                child: SfCartesianChart(
-                                  primaryXAxis: const CategoryAxis(),
-                                  legend: const Legend(isVisible: true),
-                                  tooltipBehavior: TooltipBehavior(
-                                    enable: true,
-                                  ),
-                                  series: <CartesianSeries>[
-                                    LineSeries<Map<String, dynamic>, String>(
-                                      name: 'Revenue',
-                                      dataSource:
-                                          List<Map<String, dynamic>>.from(
-                                            stats['monthly_revenue'],
-                                          ),
-                                      xValueMapper:
-                                          (data, _) => data['month'].toString(),
-                                      yValueMapper:
-                                          (data, _) =>
-                                              double.tryParse(
-                                                data['revenue'].toString(),
-                                              ) ??
-                                              0,
-                                      markerSettings: const MarkerSettings(
-                                        isVisible: true,
-                                      ),
-                                      color: Colors.deepOrange,
-                                    ),
-                                    LineSeries<Map<String, dynamic>, String>(
-                                      name: 'Payout',
-                                      dataSource:
-                                          List<Map<String, dynamic>>.from(
-                                            stats['monthly_revenue'],
-                                          ),
-                                      xValueMapper:
-                                          (data, _) => data['month'].toString(),
-                                      yValueMapper:
-                                          (data, _) =>
-                                              double.tryParse(
-                                                data['payout'].toString(),
-                                              ) ??
-                                              0,
-                                      markerSettings: const MarkerSettings(
-                                        isVisible: true,
-                                      ),
-                                      color: Colors.blue,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Recent bookings
-                        if ((stats['recent_bookings'] as List).isNotEmpty) ...[
-                          _buildSectionTitle('Recent Bookings'),
-                          Card(
-                            elevation: 2,
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount:
-                                  (stats['recent_bookings'] as List).length,
-                              separatorBuilder:
-                                  (_, __) => const Divider(height: 1),
-                              itemBuilder: (context, index) {
-                                final booking =
-                                    stats['recent_bookings'][index]
-                                        as Map<String, dynamic>;
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor:
-                                        booking['status'] == 'confirmed'
-                                            ? Colors.green
-                                            : Colors.orange,
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    booking['client_name'] ?? 'Client',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${booking['property_type'] ?? ''} • ${booking['address'] ?? ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        'UGX ${formatter.format(double.tryParse(booking['total_price'].toString()) ?? 0)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              booking['status'] == 'confirmed'
-                                                  ? Colors.green[50]
-                                                  : Colors.orange[50],
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          booking['status']
-                                              .toString()
-                                              .toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color:
-                                                booking['status'] == 'confirmed'
-                                                    ? Colors.green
-                                                    : Colors.orange,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ],
-                    ),
-              ),
-
-              // ─── Payment Methods ──────────────────────
-              _buildSectionTitle('Payment Methods'),
-              _buildPaymentMethodsSection(paymentState, paymentNotifier),
-              const SizedBox(height: 16),
-
-              if (paymentState.bankTransferEnabled) ...[
-                _buildBankDetailsSection(
-                  context,
-                  paymentState,
-                  paymentNotifier,
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Apply Changes Button
-              const SizedBox(height: 16),
-              _buildApplyChangesButton(context, paymentState, ref),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
+      }
+    } catch (e) {
+      print('❌ Load payment methods error: $e');
+    }
+    setState(() => _isLoadingMethods = false);
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
+  Future<void> _loadWallet() async {
+    try {
+      final token = ref.read(userProvider).token ?? '';
+      final res = await http.get(
+        Uri.parse(AppUrls.wallet),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _withdrawableBalance = double.tryParse(
+              data['wallet']['withdrawable_balance'].toString()) ?? 0;
+          _lockedBalance = double.tryParse(
+              data['wallet']['locked_balance'].toString()) ?? 0;
+        });
+      }
+    } catch (e) {
+      print('❌ Load wallet error: $e');
+    }
+    setState(() => _isLoadingWallet = false);
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              title,
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentMethodsSection(
-    PaymentSettingsState state,
-    PaymentSettingsNotifier notifier,
-  ) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildPaymentOption(
-              icon: Icons.phone_android,
-              title: 'Mobile Money',
-              subtitle: 'MTN & Airtel Money',
-              value: state.mobileMoneyEnabled,
-              onChanged: notifier.toggleMobileMoney,
-            ),
-            const Divider(),
-            _buildPaymentOption(
-              icon: Icons.account_balance,
-              title: 'Bank Transfer',
-              subtitle: 'Direct bank payment',
-              value: state.bankTransferEnabled,
-              onChanged: notifier.toggleBankTransfer,
-            ),
-            const Divider(),
-            _buildPaymentOption(
-              icon: Icons.credit_card,
-              title: 'Credit/Debit Card',
-              subtitle: 'Visa & Mastercard',
-              value: state.cardPaymentEnabled,
-              onChanged: notifier.toggleCardPayment,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required Function(bool) onChanged,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.deepOrange),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: Colors.deepOrange,
-      ),
-      onTap: () => onChanged(!value),
-    );
-  }
-
-  Widget _buildBankDetailsSection(
-    BuildContext context,
-    PaymentSettingsState state,
-    PaymentSettingsNotifier notifier,
-  ) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.account_balance, color: Colors.deepOrange),
-                const SizedBox(width: 8),
-                Text(
-                  'Bank Account Details',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              initialValue: state.bankName,
-              decoration: const InputDecoration(
-                labelText: 'Bank Name',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.account_balance),
-              ),
-              onChanged: (v) => notifier.updateBankDetails(bankName: v),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: state.accountNumber,
-              decoration: const InputDecoration(
-                labelText: 'Account Number',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.numbers),
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (v) => notifier.updateBankDetails(accountNumber: v),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: state.accountHolder,
-              decoration: const InputDecoration(
-                labelText: 'Account Holder Name',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
-              ),
-              onChanged: (v) => notifier.updateBankDetails(accountHolder: v),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: state.branchCode,
-              decoration: const InputDecoration(
-                labelText: 'Branch Code',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.code),
-              ),
-              onChanged: (v) => notifier.updateBankDetails(branchCode: v),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApplyChangesButton(
-    BuildContext context,
-    PaymentSettingsState state,
-    WidgetRef ref,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: state.hasChanges ? () => _applyChanges(context, ref) : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text(
-              'Save Payment Settings',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showUnsavedChangesDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-                const SizedBox(width: 8),
-                const Text('Unsaved Changes'),
-              ],
-            ),
-            content: const Text(
-              'You have unsaved changes. Leave without saving?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(foregroundColor: Colors.deepOrange),
-                child: const Text('Leave'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _applyChanges(context, ref);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Save & Leave'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _applyChanges(BuildContext context, WidgetRef ref) {
-    final state = ref.read(paymentSettingsProvider);
-    final notifier = ref.read(paymentSettingsProvider.notifier);
-
-    if (state.bankTransferEnabled &&
-        (state.bankName.isEmpty ||
-            state.accountNumber.isEmpty ||
-            state.accountHolder.isEmpty)) {
+  Future<void> _savePaymentMethods() async {
+    if (_bankEnabled && (_bankNameController.text.isEmpty ||
+        _accountNumberController.text.isEmpty ||
+        _accountHolderController.text.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all required bank details'),
-          backgroundColor: Colors.deepOrange,
-        ),
+        const SnackBar(content: Text('Please fill all bank details'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+    if (_mobileMoneyEnabled && _mobileNumberController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your mobile money number'),
+            backgroundColor: Colors.red),
       );
       return;
     }
 
-    // TODO: Save payment settings to backend when payment table is added
+    setState(() => _isSaving = true);
+    try {
+      final token = ref.read(userProvider).token ?? '';
+      final res = await http.patch(
+        Uri.parse(AppUrls.paymentMethods),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'mobile_money_enabled': _mobileMoneyEnabled,
+          'mobile_money_number': _mobileNumberController.text.trim(),
+          'mobile_money_provider': _mobileMoneyProvider,
+          'bank_enabled': _bankEnabled,
+          'bank_name': _bankNameController.text.trim(),
+          'bank_account_number': _accountNumberController.text.trim(),
+          'bank_account_holder': _accountHolderController.text.trim(),
+          'bank_branch_code': _branchCodeController.text.trim(),
+        }),
+      );
+      if (res.statusCode == 200) {
+        setState(() => _hasChanges = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment methods saved!'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+    setState(() => _isSaving = false);
+  }
+
+  Future<void> _requestWithdrawal() async {
+  if (_withdrawableBalance <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No balance available to withdraw')),
+    );
+    return;
+  }
+
+  // Load platform payment methods
+  Map<String, dynamic>? platformMethods;
+  try {
+    final res = await http.get(Uri.parse(AppUrls.platformPaymentMethods));
+    if (res.statusCode == 200) {
+      platformMethods = jsonDecode(res.body)['methods'];
+    }
+  } catch (e) {
+    print('Error loading methods: $e');
+  }
+
+  if (!mounted) return;
+
+  // Build available methods list
+  final List<Map<String, String>> availableMethods = [];
+  if (platformMethods != null) {
+    if (platformMethods['payment_mobile_money_enabled'] == 'true') {
+      availableMethods.add({
+        'id': 'mobile_money',
+        'label': '${platformMethods['payment_mobile_money_provider']} Money — ${platformMethods['payment_mobile_money_number']}',
+      });
+    }
+    if (platformMethods['payment_airtel_enabled'] == 'true') {
+      availableMethods.add({
+        'id': 'airtel',
+        'label': 'Airtel Money — ${platformMethods['payment_airtel_number']}',
+      });
+    }
+    if (platformMethods['payment_bank_enabled'] == 'true') {
+      availableMethods.add({
+        'id': 'bank',
+        'label': '${platformMethods['payment_bank_name']} — ${platformMethods['payment_bank_account_number']}',
+      });
+    }
+  }
+
+  if (availableMethods.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Payment settings saved!'),
-        backgroundColor: Colors.green,
+        content: Text('No payment methods available. Contact admin.'),
+        backgroundColor: Colors.orange,
       ),
     );
-
-    notifier.applyChanges();
+    return;
   }
+
+  // Show withdrawal dialog
+  String? selectedMethod = availableMethods.first['id'];
+  String? selectedLabel = availableMethods.first['label'];
+  final passwordController = TextEditingController();
+  final amountController = TextEditingController(
+      text: _withdrawableBalance.toStringAsFixed(0));
+  bool obscurePassword = true;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
+        title: const Text('Request Withdrawal'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Available balance
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet,
+                        color: Colors.green),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Available Balance',
+                            style: TextStyle(fontSize: 12, color: Colors.green)),
+                        Text(
+                          'UGX ${NumberFormat('#,###').format(_withdrawableBalance)}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                              fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Amount
+              const Text('Amount to Withdraw',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  prefixText: 'UGX ',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  hintText: 'Enter amount',
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Payment method
+              const Text('Withdraw To',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              ...availableMethods.map((m) => RadioListTile<String>(
+                value: m['id']!,
+                groupValue: selectedMethod,
+                title: Text(m['label']!, style: const TextStyle(fontSize: 13)),
+                activeColor: Colors.deepOrange,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) => setDialogState(() {
+                  selectedMethod = v;
+                  selectedLabel = m['label'];
+                }),
+              )).toList(),
+
+              const SizedBox(height: 16),
+
+              // Password confirmation
+              const Text('Confirm with Password',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: passwordController,
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Enter your login password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword
+                        ? Icons.visibility
+                        : Icons.visibility_off),
+                    onPressed: () =>
+                        setDialogState(() => obscurePassword = !obscurePassword),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  '🔒 Your password is required to authorize this withdrawal.',
+                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Submit Withdrawal',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  if (confirmed != true || !mounted) return;
+  if (passwordController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Password is required'),
+          backgroundColor: Colors.red),
+    );
+    return;
+  }
+
+  setState(() => _isSaving = true);
+  try {
+    final token = ref.read(userProvider).token ?? '';
+    final amount = double.tryParse(amountController.text) ?? _withdrawableBalance;
+
+    final res = await http.post(
+      Uri.parse(AppUrls.withdrawalRequest),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'amount': amount,
+        'payment_method': selectedMethod,
+        'payment_number': platformMethods?['payment_${selectedMethod}_number'] ?? '',
+        'payment_name': platformMethods?['payment_${selectedMethod}_name'] ?? '',
+        'password': passwordController.text,
+      }),
+    );
+
+    if (!mounted) return;
+    final data = jsonDecode(res.body);
+
+    if (res.statusCode == 200) {
+      setState(() => _withdrawableBalance -= amount);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(data['message'] ?? 'Withdrawal submitted!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(data['message'] ?? 'Failed'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+  setState(() => _isSaving = false);
+}
+
+  @override
+  Widget build(BuildContext context) {
+    final token = ref.watch(userProvider).token ?? '';
+    final statsAsync = ref.watch(managerStatsProvider(token));
+    final formatter = NumberFormat('#,###');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Manager Settings'),
+        backgroundColor: Colors.deepOrange,
+        foregroundColor: Colors.white,
+        actions: [
+          if (_hasChanges)
+            IconButton(icon: const Icon(Icons.save),
+                onPressed: _savePaymentMethods, tooltip: 'Save'),
+          IconButton(icon: const Icon(Icons.refresh),
+              onPressed: () {
+                ref.refresh(managerStatsProvider(token));
+                _loadWallet();
+              }),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            // ─── WALLET SECTION ───────────────────────
+            _buildSectionTitle('💰 My Wallet'),
+            _isLoadingWallet
+                ? const Center(child: CircularProgressIndicator())
+                : Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildWalletCard(
+                                  '🔒 In Escrow',
+                                  'UGX ${formatter.format(_lockedBalance)}',
+                                  Colors.orange,
+                                  'Waiting for client to confirm visit',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildWalletCard(
+                                  '✅ Available',
+                                  'UGX ${formatter.format(_withdrawableBalance)}',
+                                  Colors.green,
+                                  'Ready to withdraw',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _withdrawableBalance > 0
+                                  ? _requestWithdrawal : null,
+                              icon: const Icon(Icons.account_balance_wallet,
+                                  color: Colors.white),
+                              label: Text(
+                                'Withdraw UGX ${formatter.format(_withdrawableBalance)}',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                disabledBackgroundColor: Colors.grey[300],
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          if (_lockedBalance > 0) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange[200]!),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.lock_clock,
+                                      color: Colors.orange[700], size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'UGX ${formatter.format(_lockedBalance)} is locked until clients confirm property visits.',
+                                      style: TextStyle(
+                                          color: Colors.orange[800],
+                                          fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 24),
+
+            // ─── STATS SECTION ────────────────────────
+            statsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('Failed to load stats: $e'),
+              data: (stats) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('My Properties'),
+                  Row(children: [
+                    Expanded(child: _buildStatCard('Active',
+                        '${stats['properties']['active']}', Icons.home, Colors.green)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatCard('Pending',
+                        '${stats['properties']['pending']}', Icons.pending, Colors.orange)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatCard('Inactive',
+                        '${stats['properties']['inactive']}', Icons.visibility_off, Colors.grey)),
+                  ]),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+
+            // ─── PAYMENT METHODS SECTION ──────────────
+            _buildSectionTitle('💳 Payment Methods'),
+            const Text(
+              'Set how clients can pay you. These will be shown during booking.',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+
+            _isLoadingMethods
+                ? const Center(child: CircularProgressIndicator())
+                : Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Mobile Money
+                          SwitchListTile(
+                            value: _mobileMoneyEnabled,
+                            onChanged: (v) => setState(() {
+                              _mobileMoneyEnabled = v;
+                              _hasChanges = true;
+                            }),
+                            secondary: const Icon(Icons.phone_android,
+                                color: Colors.deepOrange),
+                            title: const Text('Mobile Money',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: const Text('MTN & Airtel Money'),
+                            activeColor: Colors.deepOrange,
+                          ),
+                          if (_mobileMoneyEnabled) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: DropdownButtonFormField<String>(
+                                    value: _mobileMoneyProvider,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Provider',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12),
+                                    ),
+                                    items: ['MTN', 'Airtel'].map((p) =>
+                                        DropdownMenuItem(value: p, child: Text(p)))
+                                        .toList(),
+                                    onChanged: (v) => setState(() {
+                                      _mobileMoneyProvider = v!;
+                                      _hasChanges = true;
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 3,
+                                  child: TextField(
+                                    controller: _mobileNumberController,
+                                    keyboardType: TextInputType.phone,
+                                    onChanged: (_) => setState(() => _hasChanges = true),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Mobile Money Number',
+                                      hintText: '+256 7XX XXX XXX',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.phone),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const Divider(height: 24),
+
+                          // Bank Transfer
+                          SwitchListTile(
+                            value: _bankEnabled,
+                            onChanged: (v) => setState(() {
+                              _bankEnabled = v;
+                              _hasChanges = true;
+                            }),
+                            secondary: const Icon(Icons.account_balance,
+                                color: Colors.deepOrange),
+                            title: const Text('Bank Transfer',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: const Text('Direct bank payment'),
+                            activeColor: Colors.deepOrange,
+                          ),
+                          if (_bankEnabled) ...[
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _bankNameController,
+                              onChanged: (_) => setState(() => _hasChanges = true),
+                              decoration: const InputDecoration(
+                                labelText: 'Bank Name',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.account_balance),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _accountNumberController,
+                              keyboardType: TextInputType.number,
+                              onChanged: (_) => setState(() => _hasChanges = true),
+                              decoration: const InputDecoration(
+                                labelText: 'Account Number',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.numbers),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _accountHolderController,
+                              onChanged: (_) => setState(() => _hasChanges = true),
+                              decoration: const InputDecoration(
+                                labelText: 'Account Holder Name',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.person),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 16),
+
+            if (_hasChanges)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _savePaymentMethods,
+                  icon: _isSaving
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.save, color: Colors.white),
+                  label: Text(_isSaving ? 'Saving...' : 'Save Payment Settings',
+                      style: const TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletCard(String title, String amount, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 12, color: color,
+              fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(amount, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
+              color: color)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+  );
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) =>
+      Card(elevation: 2, child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold,
+              color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(title, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        ]),
+      ));
 }

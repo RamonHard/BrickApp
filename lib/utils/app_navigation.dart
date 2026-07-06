@@ -180,14 +180,14 @@ class MainNavigation {
                 EditPost(property: settings.arguments as PropertyModel),
       );
     }
-    if (settings.name == bookingPageForMoreRoute) {
-      return MaterialPageRoute(
-        builder:
-            (context) => BookingPageForMore(
-              selectedItem: settings.arguments as MoreProductViewModel,
-            ),
-      );
-    }
+    // if (settings.name == bookingPageForMoreRoute) {
+    //   return MaterialPageRoute(
+    //     builder:
+    //         (context) => BookingPageForMore(
+    //           selectedItem: settings.arguments as MoreProductViewModel,
+    //         ),
+    //   );
+    // }
     if (settings.name == priceDemoRoute) {
       return MaterialPageRoute(builder: (context) => PriceDemo());
     }

@@ -55,43 +55,43 @@ class UserOnboardOptions extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                InkWell(
-                  onTap: () {
-                    // Set account type and navigate
+                // InkWell(
+                //   onTap: () {
+                //     // Set account type and navigate
 
-                    MainNavigation.navigateToRoute(
-                      MainNavigation.register_truckerDriverRoute,
-                    );
-                  },
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        height: 150,
-                        width: deviceSize,
-                        child: Card(
-                          child: Image.asset(
-                            'images/serviceProvider.jpeg',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        height: 150,
-                        width: deviceSize,
-                        color: Colors.black.withOpacity(0.5),
-                      ),
-                      Text(
-                        "Am a Transport Service Provider",
-                        style: GoogleFonts.actor(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.lightTextColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                //     MainNavigation.navigateToRoute(
+                //       MainNavigation.register_truckerDriverRoute,
+                //     );
+                //   },
+                //   child: Stack(
+                //     alignment: Alignment.center,
+                //     children: [
+                //       Container(
+                //         height: 150,
+                //         width: deviceSize,
+                //         child: Card(
+                //           child: Image.asset(
+                //             'images/serviceProvider.jpeg',
+                //             fit: BoxFit.cover,
+                //           ),
+                //         ),
+                //       ),
+                //       Container(
+                //         height: 150,
+                //         width: deviceSize,
+                //         color: Colors.black.withOpacity(0.5),
+                //       ),
+                //       Text(
+                //         "Am a Transport Service Provider",
+                //         style: GoogleFonts.actor(
+                //           fontSize: 18,
+                //           fontWeight: FontWeight.w800,
+                //           color: AppColors.lightTextColor,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
                 SizedBox(height: deviceSize / 10),
                 InkWell(
                   onTap: () {

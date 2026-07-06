@@ -307,7 +307,7 @@ class HouseCard extends StatelessWidget {
                     ),
                     Expanded(child: Container()),
                     Text(
-                      'UGX ${price.toStringAsFixed(0)}/m',
+                      formatPrice(price),
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -323,4 +323,16 @@ class HouseCard extends StatelessWidget {
       ),
     );
   }
+  String formatPrice(double price) {
+  if (price >= 1000000000) {
+    return 'UGX ${(price / 1000000000).toStringAsFixed(1)}B';
+  } else if (price >= 1000000) {
+    final value = price / 1000000;
+    return 'UGX ${value == value.roundToDouble() ? value.toStringAsFixed(0) : value.toStringAsFixed(1)}M';
+  } else if (price >= 1000) {
+    return 'UGX ${(price / 1000).toStringAsFixed(0)}K';
+  } else {
+    return 'UGX ${price.toStringAsFixed(0)}';
+  }
+}
 }

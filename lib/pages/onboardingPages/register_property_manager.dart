@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:typed_data';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/urls.dart';
@@ -44,9 +45,14 @@ class _PropertyManagerRegistrationState
   TextEditingController addressController = TextEditingController();
   TextEditingController businessNameController = TextEditingController();
 
-  File? _idFrontPhoto;
-  File? _idBackPhoto;
-  File? _facePhoto;
+  // ✅ Use XFile + bytes for cross-platform support
+  XFile? _idFrontPhoto;
+  XFile? _idBackPhoto;
+  XFile? _facePhoto;
+  
+  Uint8List? _idFrontBytes;
+  Uint8List? _idBackBytes;
+  Uint8List? _faceBytes;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -165,6 +171,7 @@ class _PropertyManagerRegistrationState
                       Expanded(
                         child: _buildPhotoUploadCard(
                           "ID Front Side",
+                          _idFrontBytes,
                           _idFrontPhoto,
                           () => _pickImage(true, true),
                         ),
@@ -173,6 +180,7 @@ class _PropertyManagerRegistrationState
                       Expanded(
                         child: _buildPhotoUploadCard(
                           "ID Back Side",
+                          _idBackBytes,
                           _idBackPhoto,
                           () => _pickImage(true, false),
                         ),
@@ -187,6 +195,7 @@ class _PropertyManagerRegistrationState
                   SizedBox(height: 12),
                   _buildPhotoUploadCard(
                     "Face Photo",
+                    _faceBytes,
                     _facePhoto,
                     () => _pickImage(false, true),
                   ),
@@ -327,74 +336,79 @@ class _PropertyManagerRegistrationState
   }
 
   Widget _buildPhoneNumberField() {
-    String selectedCountryCode = '+256';
+  String selectedCountryCode = '+256';
 
-    return Row(
-      children: [
-        Container(
-          width: 100,
+  return Row(
+    children: [
+      // ✅ Country code dropdown - use Flexible instead of fixed width
+      Flexible(
+        flex: 2,
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white, width: 2),
+            borderRadius: BorderRadius.circular(100),
+          ),
           child: DropdownButtonFormField<String>(
             value: selectedCountryCode,
             dropdownColor: Colors.grey[900],
-            style: TextStyle(color: Colors.white, fontSize: 16),
-            items:
-                ['+256', '+255', '+254', '+250', '+1'].map((code) {
-                  return DropdownMenuItem(
-                    value: code,
-                    child: Text(code, style: TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
+            style: TextStyle(color: Colors.white, fontSize: 14),
+            items: ['+256', '+255', '+254', '+250', '+1'].map((code) {
+              return DropdownMenuItem(
+                value: code,
+                child: Text(code, style: TextStyle(color: Colors.white)),
+              );
+            }).toList(),
             onChanged: (value) {
               setState(() {
                 selectedCountryCode = value!;
               });
             },
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.flag, color: Colors.white),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ),
+      ),
+      SizedBox(width: 10),
+      // ✅ Phone number field - Expanded takes remaining space
+      Expanded(
+        flex: 3,
+        child: Container(
+          height: 50,
+          child: TextField(
+            controller: phoneNumController,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-              prefixIcon: Icon(Icons.flag, color: AppColors.iconColor),
-              border: OutlineInputBorder(
+              hintText: "Phone number",
+              hintStyle: TextStyle(color: Colors.white54),
+              filled: false,
+              focusedBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.white, width: 2),
                 borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
               ),
               enabledBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.white, width: 2),
                 borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
               ),
             ),
           ),
         ),
-        SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            height: 50,
-            child: TextField(
-              controller: phoneNumController,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: "Phone number",
-                hintStyle: TextStyle(color: Colors.white54),
-                filled: false,
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
-  Widget _buildPhotoUploadCard(String label, File? file, VoidCallback onTap) {
+  // ✅ Updated to use bytes for cross-platform image display
+  Widget _buildPhotoUploadCard(
+    String label,
+    Uint8List? bytes,
+    XFile? file,
+    VoidCallback onTap,
+  ) {
     return Column(
       children: [
         Text(
@@ -413,7 +427,7 @@ class _PropertyManagerRegistrationState
               color: Colors.transparent,
             ),
             child:
-                file == null
+                bytes == null
                     ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -431,7 +445,24 @@ class _PropertyManagerRegistrationState
                     )
                     : ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(file, fit: BoxFit.cover),
+                      child: Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 120,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[800],
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                                size: 30,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
           ),
         ),
@@ -450,19 +481,36 @@ class _PropertyManagerRegistrationState
   }
 
   Future<void> _pickImage(bool isId, bool isFront) async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        if (isId) {
-          if (isFront) {
-            _idFrontPhoto = File(image.path);
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
+      );
+      
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          if (isId) {
+            if (isFront) {
+              _idFrontPhoto = image;
+              _idFrontBytes = bytes;
+            } else {
+              _idBackPhoto = image;
+              _idBackBytes = bytes;
+            }
           } else {
-            _idBackPhoto = File(image.path);
+            _facePhoto = image;
+            _faceBytes = bytes;
           }
-        } else {
-          _facePhoto = File(image.path);
-        }
-      });
+        });
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
     }
   }
 
@@ -514,15 +562,36 @@ class _PropertyManagerRegistrationState
         request.fields['email'] = emailController.text.trim();
       }
 
-      request.files.add(
-        await http.MultipartFile.fromPath('id_front', _idFrontPhoto!.path),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('id_back', _idBackPhoto!.path),
-      );
-      request.files.add(
-        await http.MultipartFile.fromPath('face', _facePhoto!.path),
-      );
+      // ✅ Upload using bytes (works on both mobile and web)
+      if (_idFrontBytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'id_front',
+            _idFrontBytes!,
+            filename: _idFrontPhoto!.name,
+          ),
+        );
+      }
+      
+      if (_idBackBytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'id_back',
+            _idBackBytes!,
+            filename: _idBackPhoto!.name,
+          ),
+        );
+      }
+      
+      if (_faceBytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'face',
+            _faceBytes!,
+            filename: _facePhoto!.name,
+          ),
+        );
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);

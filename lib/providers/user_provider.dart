@@ -78,37 +78,53 @@ class UserNotifier extends StateNotifier<User> {
   bool get isServiceProvider => state.isServiceProvider;
 
   // Refresh profile with throttling to prevent multiple rapid calls
-  Future<void> refreshProfile() async {
-    if (_isRefreshing) return; // ✅ Remove print
+  // In user_provider.dart - update the refreshProfile method
 
-    final token = state.token;
-    if (token == null) return; // ✅ Remove print
-
-    _isRefreshing = true;
-    _lastRefresh = DateTime.now();
-
-    try {
-      // ✅ Remove the print here too
-      final res = await http.get(
-        Uri.parse('${AppUrls.baseUrl}/users/profile'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final user = data['user'] ?? data;
-        state = User.fromBackend(user, token: token);
-        // ✅ Remove success print
-      } else if (res.statusCode == 401) {
-        clearUser();
-      }
-    } catch (e) {
-      // ✅ Keep only error prints
-      print('❌ Profile refresh error: $e');
-    } finally {
-      _isRefreshing = false;
-    }
+Future<void> refreshProfile() async {
+  // Prevent multiple concurrent refreshes
+  if (_isRefreshing) {
+    print('⏭️ Profile refresh already in progress, skipping...');
+    return;
   }
+
+  final token = state.token;
+  if (token == null) {
+    print('⏭️ No token, skipping refresh');
+    return;
+  }
+
+  _isRefreshing = true;
+  _lastRefresh = DateTime.now();
+
+  try {
+    print('🔄 Refreshing profile at ${DateTime.now()}');
+
+    final res = await http.get(
+      Uri.parse('${AppUrls.baseUrl}/users/profile'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final userData = data['user'] ?? data;
+      
+      // ✅ Pass the user data to fromBackend which now handles wallet fields
+      state = User.fromBackend(userData, token: token);
+      print('✅ Profile refreshed successfully');
+      print('💰 Withdrawable: ${state.withdrawableBalance}');
+      print('🔒 Locked: ${state.lockedBalance}');
+    } else if (res.statusCode == 401) {
+      print('❌ Token expired, clearing user');
+      clearUser();
+    } else {
+      print('❌ Profile refresh failed: ${res.statusCode}');
+    }
+  } catch (e) {
+    print('❌ Profile refresh error: $e');
+  } finally {
+    _isRefreshing = false;
+  }
+}
 
   // Manual refresh (can be called from UI)
   Future<void> manualRefresh() async {

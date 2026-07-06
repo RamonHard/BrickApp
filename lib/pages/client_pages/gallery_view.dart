@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:brickapp/pages/client_pages/full_screen_view.dart';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/video_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -279,7 +279,7 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
       );
     }
 
-    return VideoPlayer(_controller!);
+    return BrickVideoPlayer(videoUrl: widget.videoUrl, height: 220);
   }
 }
 

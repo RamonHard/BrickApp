@@ -17,7 +17,6 @@ class RequestsByClient extends ConsumerWidget {
     final user = ref.watch(userProvider);
     final token = user.token ?? '';
 
-    // Debug: Check if token exists
     print('🔑 User token exists: ${token.isNotEmpty}');
     print(
       '🔑 Token: ${token.substring(0, token.length > 10 ? 10 : token.length)}...',
@@ -145,13 +144,23 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
 
   String get _status => widget.booking['status'] ?? 'pending';
 
+  String get _escrowStatus => widget.booking['escrow_status'] ?? 'held';
+
   bool get _canRefund {
+    // ✅ Only refundable if status is awaiting_visit and escrow is held
+    if (_status != 'awaiting_visit') return false;
+    if (_escrowStatus != 'held') return false;
+    
     try {
       final bookedAt = DateTime.parse(widget.booking['booked_at'].toString());
       return DateTime.now().difference(bookedAt).inHours < 2;
     } catch (_) {
       return false;
     }
+  }
+
+  bool get _canConfirmVisit {
+    return _status == 'awaiting_visit' && _escrowStatus == 'held';
   }
 
   String get _timeLeft {
@@ -168,30 +177,94 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
     }
   }
 
+  // ✅ Confirm property visit - releases money from escrow
+  Future<void> _confirmVisit() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Property Visit?'),
+        content: const Text(
+          'Have you visited the property and are you satisfied?\n\n'
+          '⚠️ This will release the payment to the property manager.\n'
+          'Only confirm if you have physically seen the property.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final res = await http.patch(
+        Uri.parse(AppUrls.confirmPropertyVisit(widget.booking['id'])),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200 && data['status'] == true) {
+        widget.onRefresh();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Visit confirmed! Payment released to manager.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? 'Failed to confirm visit'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
   Future<void> _requestRefund() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Request Refund?'),
-            content: const Text(
-              'Are you sure you want to cancel this booking and request a refund?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('No'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Yes, Refund'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Request Refund?'),
+        content: const Text(
+          'Are you sure you want to cancel this booking and request a refund?\n\n'
+          'Refunds are only available within 2 hours of booking.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Refund'),
+          ),
+        ],
+      ),
     );
 
     if (confirm != true) return;
@@ -266,18 +339,36 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
 
   Color get _statusColor {
     switch (_status) {
-      case 'confirmed':
+      case 'visit_confirmed':
       case 'paid':
         return Colors.green;
       case 'cancelled':
       case 'declined':
         return Colors.red;
       case 'refund_requested':
+      case 'refund_approved':
         return Colors.purple;
       case 'accepted':
         return Colors.blue;
-      default:
+      case 'awaiting_visit':
         return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String get _statusDisplay {
+    switch (_status) {
+      case 'awaiting_visit':
+        return 'Awaiting Visit';
+      case 'visit_confirmed':
+        return 'Visit Confirmed ✅';
+      case 'refund_requested':
+        return 'Refund Requested';
+      case 'refund_approved':
+        return 'Refund Approved';
+      default:
+        return _status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
@@ -337,7 +428,7 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
                     border: Border.all(color: _statusColor.withOpacity(0.3)),
                   ),
                   child: Text(
-                    _status.replaceAll('_', ' ').toUpperCase(),
+                    _statusDisplay,
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -393,8 +484,49 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
 
             const SizedBox(height: 12),
 
-            // ✅ Refund for property bookings within 2 hours
-            if (_isProperty && _status == 'confirmed') ...[
+            // ✅ ESCROW: Confirm Visit Button (for property bookings awaiting visit)
+            if (_isProperty && _canConfirmVisit) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _loading ? null : _confirmVisit,
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Confirm Property Visit'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Only confirm after you have physically visited the property.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ✅ Refund for property bookings within 2 hours (only if still awaiting visit)
+            if (_isProperty && _status == 'awaiting_visit') ...[
               if (_canRefund) ...[
                 SizedBox(
                   width: double.infinity,
@@ -491,20 +623,28 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
                 ),
               ),
 
-            // ✅ Refund requested status
-            if (_status == 'refund_requested')
+            // ✅ Refund requested / approved status
+            if (_status == 'refund_requested' || _status == 'refund_approved')
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.purple[50],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.hourglass_top, size: 14, color: Colors.purple),
-                    SizedBox(width: 6),
+                    Icon(
+                      _status == 'refund_approved' 
+                          ? Icons.check_circle 
+                          : Icons.hourglass_top,
+                      size: 14,
+                      color: Colors.purple,
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      'Refund request is being processed',
+                      _status == 'refund_approved'
+                          ? 'Refund has been approved. Please wait for processing.'
+                          : 'Refund request is being processed',
                       style: TextStyle(color: Colors.purple, fontSize: 12),
                     ),
                   ],
@@ -519,7 +659,7 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
   String _formatDate(dynamic date) {
     if (date == null) return '';
     try {
-      return DateTime.parse(date.toString()).toString().substring(0, 10);
+      return DateFormat('MMM dd, yyyy').format(DateTime.parse(date.toString()));
     } catch (_) {
       return '';
     }

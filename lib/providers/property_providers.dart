@@ -80,7 +80,7 @@ final propertyFilterProvider = StateProvider<PropertyFilter>(
 );
 
 // ─── Main Properties Provider ─────────────────────────────
-final propertiesProvider = FutureProvider.autoDispose<List<PropertyModel>>((
+final propertiesProvider = FutureProvider<List<PropertyModel>>((
   ref,
 ) async {
   final filter = ref.watch(propertyFilterProvider);
@@ -206,11 +206,11 @@ final filteredPropertiesProvider =
 
 // ─── My Listings Provider ─────────────────────────────────
 final myListingsProvider =
-    FutureProvider.autoDispose<List<PropertyModel>>((ref) async {
+    FutureProvider<List<PropertyModel>>((ref) async {
   throw UnimplementedError('Pass token when calling');
 });
 
-final myListingsFamilyProvider = FutureProvider.autoDispose
+final myListingsFamilyProvider = FutureProvider
     .family<List<PropertyModel>, String>((ref, token) async {
   final response = await http.get(
     Uri.parse(AppUrls.myListings),
