@@ -167,6 +167,30 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
     setState(() => _isSaving = false);
   }
 
+// ✅ Add this method to _PManagerSettingsState
+Future<double> _getWithdrawalCharge(double amount) async {
+  try {
+    final res = await http.get(
+      Uri.parse('${AppUrls.baseUrl}/settings/public'),
+    );
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final settings = data['settings'] as Map<String, dynamic>;
+      for (int i = 1; i <= 10; i++) {
+        final min = double.tryParse(settings['withdrawal_charge_tier_${i}_min']?.toString() ?? '') ?? -1;
+        final max = double.tryParse(settings['withdrawal_charge_tier_${i}_max']?.toString() ?? '') ?? -1;
+        final fee = double.tryParse(settings['withdrawal_charge_tier_${i}_fee']?.toString() ?? '') ?? 0;
+        if (min >= 0 && max >= 0 && amount >= min && amount <= max) {
+          return fee;
+        }
+      }
+    }
+  } catch (e) {
+    print('Error getting charge: $e');
+  }
+  return 0;
+}
+
   Future<void> _requestWithdrawal() async {
   if (_withdrawableBalance <= 0) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -194,19 +218,22 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
     if (platformMethods['payment_mobile_money_enabled'] == 'true') {
       availableMethods.add({
         'id': 'mobile_money',
-        'label': '${platformMethods['payment_mobile_money_provider']} Money — ${platformMethods['payment_mobile_money_number']}',
+        'label':
+            '${platformMethods['payment_mobile_money_provider']} Money — ${platformMethods['payment_mobile_money_number']}',
       });
     }
     if (platformMethods['payment_airtel_enabled'] == 'true') {
       availableMethods.add({
         'id': 'airtel',
-        'label': 'Airtel Money — ${platformMethods['payment_airtel_number']}',
+        'label':
+            'Airtel Money — ${platformMethods['payment_airtel_number']}',
       });
     }
     if (platformMethods['payment_bank_enabled'] == 'true') {
       availableMethods.add({
         'id': 'bank',
-        'label': '${platformMethods['payment_bank_name']} — ${platformMethods['payment_bank_account_number']}',
+        'label':
+            '${platformMethods['payment_bank_name']} — ${platformMethods['payment_bank_account_number']}',
       });
     }
   }
@@ -221,146 +248,228 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
     return;
   }
 
-  // Show withdrawal dialog
+  // Dialog state
   String? selectedMethod = availableMethods.first['id'];
-  String? selectedLabel = availableMethods.first['label'];
   final passwordController = TextEditingController();
   final amountController = TextEditingController(
       text: _withdrawableBalance.toStringAsFixed(0));
   bool obscurePassword = true;
+  double dialogCharge = 0;
+  double dialogNet = _withdrawableBalance;
+
+  // Pre-calculate charge for default amount
+  dialogCharge = await _getWithdrawalCharge(_withdrawableBalance);
+  dialogNet = _withdrawableBalance - dialogCharge;
+
+  if (!mounted) return;
 
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('Request Withdrawal'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Available balance
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet,
-                        color: Colors.green),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Available Balance',
-                            style: TextStyle(fontSize: 12, color: Colors.green)),
-                        Text(
-                          'UGX ${NumberFormat('#,###').format(_withdrawableBalance)}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                              fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+      builder: (ctx, setDialogState) {
+        // Listen to amount changes
+        amountController.removeListener(() {});
+        amountController.addListener(() async {
+          final amt = double.tryParse(amountController.text) ?? 0;
+          if (amt > 0) {
+            final charge = await _getWithdrawalCharge(amt);
+            setDialogState(() {
+              dialogCharge = charge;
+              dialogNet = amt - charge;
+            });
+          }
+        });
 
-              // Amount
-              const Text('Amount to Withdraw',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  prefixText: 'UGX ',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  hintText: 'Enter amount',
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Payment method
-              const Text('Withdraw To',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              ...availableMethods.map((m) => RadioListTile<String>(
-                value: m['id']!,
-                groupValue: selectedMethod,
-                title: Text(m['label']!, style: const TextStyle(fontSize: 13)),
-                activeColor: Colors.deepOrange,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setDialogState(() {
-                  selectedMethod = v;
-                  selectedLabel = m['label'];
-                }),
-              )).toList(),
-
-              const SizedBox(height: 16),
-
-              // Password confirmation
-              const Text('Confirm with Password',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: passwordController,
-                obscureText: obscurePassword,
-                decoration: InputDecoration(
-                  hintText: 'Enter your login password',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off),
-                    onPressed: () =>
-                        setDialogState(() => obscurePassword = !obscurePassword),
+        return AlertDialog(
+          title: const Text('Request Withdrawal'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ─── Available balance ──────────────────
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.account_balance_wallet,
+                          color: Colors.green),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Available Balance',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.green)),
+                          Text(
+                            'UGX ${NumberFormat('#,###').format(_withdrawableBalance)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                                fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+
+                // ─── Amount ─────────────────────────────
+                const Text('Amount to Withdraw',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    prefixText: 'UGX ',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    hintText: 'Enter amount',
+                  ),
                 ),
-                child: const Text(
-                  '🔒 Your password is required to authorize this withdrawal.',
-                  style: TextStyle(fontSize: 12, color: Colors.blue),
+
+                // ─── Charge preview ──────────────────────
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Withdrawal amount:'),
+                          Text(
+                            'UGX ${NumberFormat('#,###').format(double.tryParse(amountController.text) ?? 0)}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Withdrawal charge:',
+                              style:
+                                  TextStyle(color: Colors.orange)),
+                          Text(
+                            '- UGX ${NumberFormat('#,###').format(dialogCharge)}',
+                            style: const TextStyle(
+                                color: Colors.orange),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 12),
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('You receive:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green)),
+                          Text(
+                            'UGX ${NumberFormat('#,###').format(dialogNet)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 16),
+
+                // ─── Payment method ──────────────────────
+                const Text('Withdraw To',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                ...availableMethods.map((m) => RadioListTile<String>(
+                      value: m['id']!,
+                      groupValue: selectedMethod,
+                      title: Text(m['label']!,
+                          style: const TextStyle(fontSize: 13)),
+                      activeColor: Colors.deepOrange,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) =>
+                          setDialogState(() => selectedMethod = v),
+                    )),
+
+                const SizedBox(height: 16),
+
+                // ─── Password ────────────────────────────
+                const Text('Confirm with Password',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your login password',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () => setDialogState(
+                          () => obscurePassword = !obscurePassword),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '🔒 Your password is required to authorize this withdrawal.',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Submit Withdrawal',
-                style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green),
+              child: const Text('Submit Withdrawal',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     ),
   );
 
   if (confirmed != true || !mounted) return;
   if (passwordController.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password is required'),
+      const SnackBar(
+          content: Text('Password is required'),
           backgroundColor: Colors.red),
     );
     return;
@@ -369,7 +478,11 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
   setState(() => _isSaving = true);
   try {
     final token = ref.read(userProvider).token ?? '';
-    final amount = double.tryParse(amountController.text) ?? _withdrawableBalance;
+    final amount =
+        double.tryParse(amountController.text) ?? _withdrawableBalance;
+
+    final selectedMethodData = availableMethods
+        .firstWhere((m) => m['id'] == selectedMethod);
 
     final res = await http.post(
       Uri.parse(AppUrls.withdrawalRequest),
@@ -380,8 +493,10 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
       body: jsonEncode({
         'amount': amount,
         'payment_method': selectedMethod,
-        'payment_number': platformMethods?['payment_${selectedMethod}_number'] ?? '',
-        'payment_name': platformMethods?['payment_${selectedMethod}_name'] ?? '',
+        'payment_number':
+            platformMethods?['payment_${selectedMethod}_number'] ?? '',
+        'payment_name':
+            platformMethods?['payment_${selectedMethod}_name'] ?? '',
         'password': passwordController.text,
       }),
     );
@@ -391,12 +506,19 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
 
     if (res.statusCode == 200) {
       setState(() => _withdrawableBalance -= amount);
+      final details = data['details'];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(data['message'] ?? 'Withdrawal submitted!'),
+          content: Text(
+            '✅ Withdrawal of UGX ${NumberFormat('#,###').format(details['amount_requested'])} processed! '
+            'Charge: UGX ${NumberFormat('#,###').format(details['charge'])}. '
+            'Net: UGX ${NumberFormat('#,###').format(details['net_amount'])}',
+          ),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
         ),
       );
+      _loadWallet(); // refresh wallet
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -408,7 +530,8 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
   } catch (e) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -554,132 +677,132 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
 
             // ─── PAYMENT METHODS SECTION ──────────────
             _buildSectionTitle('💳 Payment Methods'),
-            const Text(
-              'Set how clients can pay you. These will be shown during booking.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
+            // const Text(
+            //   'Set how clients can pay you. These will be shown during booking.',
+            //   style: TextStyle(color: Colors.grey, fontSize: 13),
+            // ),
+            // const SizedBox(height: 12),
 
-            _isLoadingMethods
-                ? const Center(child: CircularProgressIndicator())
-                : Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          // Mobile Money
-                          SwitchListTile(
-                            value: _mobileMoneyEnabled,
-                            onChanged: (v) => setState(() {
-                              _mobileMoneyEnabled = v;
-                              _hasChanges = true;
-                            }),
-                            secondary: const Icon(Icons.phone_android,
-                                color: Colors.deepOrange),
-                            title: const Text('Mobile Money',
-                                style: TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: const Text('MTN & Airtel Money'),
-                            activeColor: Colors.deepOrange,
-                          ),
-                          if (_mobileMoneyEnabled) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: DropdownButtonFormField<String>(
-                                    value: _mobileMoneyProvider,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Provider',
-                                      border: OutlineInputBorder(),
-                                      contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 12),
-                                    ),
-                                    items: ['MTN', 'Airtel'].map((p) =>
-                                        DropdownMenuItem(value: p, child: Text(p)))
-                                        .toList(),
-                                    onChanged: (v) => setState(() {
-                                      _mobileMoneyProvider = v!;
-                                      _hasChanges = true;
-                                    }),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 3,
-                                  child: TextField(
-                                    controller: _mobileNumberController,
-                                    keyboardType: TextInputType.phone,
-                                    onChanged: (_) => setState(() => _hasChanges = true),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Mobile Money Number',
-                                      hintText: '+256 7XX XXX XXX',
-                                      border: OutlineInputBorder(),
-                                      prefixIcon: Icon(Icons.phone),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+            // _isLoadingMethods
+            //     ? const Center(child: CircularProgressIndicator())
+            //     : Card(
+            //         elevation: 2,
+            //         shape: RoundedRectangleBorder(
+            //             borderRadius: BorderRadius.circular(12)),
+            //         child: Padding(
+            //           padding: const EdgeInsets.all(16),
+            //           child: Column(
+            //             children: [
+            //               // Mobile Money
+            //               SwitchListTile(
+            //                 value: _mobileMoneyEnabled,
+            //                 onChanged: (v) => setState(() {
+            //                   _mobileMoneyEnabled = v;
+            //                   _hasChanges = true;
+            //                 }),
+            //                 secondary: const Icon(Icons.phone_android,
+            //                     color: Colors.deepOrange),
+            //                 title: const Text('Mobile Money',
+            //                     style: TextStyle(fontWeight: FontWeight.w600)),
+            //                 subtitle: const Text('MTN & Airtel Money'),
+            //                 activeColor: Colors.deepOrange,
+            //               ),
+            //               if (_mobileMoneyEnabled) ...[
+            //                 const SizedBox(height: 8),
+            //                 Row(
+            //                   children: [
+            //                     Expanded(
+            //                       flex: 2,
+            //                       child: DropdownButtonFormField<String>(
+            //                         value: _mobileMoneyProvider,
+            //                         decoration: const InputDecoration(
+            //                           labelText: 'Provider',
+            //                           border: OutlineInputBorder(),
+            //                           contentPadding: EdgeInsets.symmetric(
+            //                               horizontal: 12, vertical: 12),
+            //                         ),
+            //                         items: ['MTN', 'Airtel'].map((p) =>
+            //                             DropdownMenuItem(value: p, child: Text(p)))
+            //                             .toList(),
+            //                         onChanged: (v) => setState(() {
+            //                           _mobileMoneyProvider = v!;
+            //                           _hasChanges = true;
+            //                         }),
+            //                       ),
+            //                     ),
+            //                     const SizedBox(width: 8),
+            //                     Expanded(
+            //                       flex: 3,
+            //                       child: TextField(
+            //                         controller: _mobileNumberController,
+            //                         keyboardType: TextInputType.phone,
+            //                         onChanged: (_) => setState(() => _hasChanges = true),
+            //                         decoration: const InputDecoration(
+            //                           labelText: 'Mobile Money Number',
+            //                           hintText: '+256 7XX XXX XXX',
+            //                           border: OutlineInputBorder(),
+            //                           prefixIcon: Icon(Icons.phone),
+            //                         ),
+            //                       ),
+            //                     ),
+            //                   ],
+            //                 ),
+            //               ],
 
-                          const Divider(height: 24),
+            //               const Divider(height: 24),
 
-                          // Bank Transfer
-                          SwitchListTile(
-                            value: _bankEnabled,
-                            onChanged: (v) => setState(() {
-                              _bankEnabled = v;
-                              _hasChanges = true;
-                            }),
-                            secondary: const Icon(Icons.account_balance,
-                                color: Colors.deepOrange),
-                            title: const Text('Bank Transfer',
-                                style: TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: const Text('Direct bank payment'),
-                            activeColor: Colors.deepOrange,
-                          ),
-                          if (_bankEnabled) ...[
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _bankNameController,
-                              onChanged: (_) => setState(() => _hasChanges = true),
-                              decoration: const InputDecoration(
-                                labelText: 'Bank Name',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.account_balance),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _accountNumberController,
-                              keyboardType: TextInputType.number,
-                              onChanged: (_) => setState(() => _hasChanges = true),
-                              decoration: const InputDecoration(
-                                labelText: 'Account Number',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.numbers),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _accountHolderController,
-                              onChanged: (_) => setState(() => _hasChanges = true),
-                              decoration: const InputDecoration(
-                                labelText: 'Account Holder Name',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.person),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-            const SizedBox(height: 16),
+            //               // Bank Transfer
+            //               SwitchListTile(
+            //                 value: _bankEnabled,
+            //                 onChanged: (v) => setState(() {
+            //                   _bankEnabled = v;
+            //                   _hasChanges = true;
+            //                 }),
+            //                 secondary: const Icon(Icons.account_balance,
+            //                     color: Colors.deepOrange),
+            //                 title: const Text('Bank Transfer',
+            //                     style: TextStyle(fontWeight: FontWeight.w600)),
+            //                 subtitle: const Text('Direct bank payment'),
+            //                 activeColor: Colors.deepOrange,
+            //               ),
+            //               if (_bankEnabled) ...[
+            //                 const SizedBox(height: 8),
+            //                 TextField(
+            //                   controller: _bankNameController,
+            //                   onChanged: (_) => setState(() => _hasChanges = true),
+            //                   decoration: const InputDecoration(
+            //                     labelText: 'Bank Name',
+            //                     border: OutlineInputBorder(),
+            //                     prefixIcon: Icon(Icons.account_balance),
+            //                   ),
+            //                 ),
+            //                 const SizedBox(height: 8),
+            //                 TextField(
+            //                   controller: _accountNumberController,
+            //                   keyboardType: TextInputType.number,
+            //                   onChanged: (_) => setState(() => _hasChanges = true),
+            //                   decoration: const InputDecoration(
+            //                     labelText: 'Account Number',
+            //                     border: OutlineInputBorder(),
+            //                     prefixIcon: Icon(Icons.numbers),
+            //                   ),
+            //                 ),
+            //                 const SizedBox(height: 8),
+            //                 TextField(
+            //                   controller: _accountHolderController,
+            //                   onChanged: (_) => setState(() => _hasChanges = true),
+            //                   decoration: const InputDecoration(
+            //                     labelText: 'Account Holder Name',
+            //                     border: OutlineInputBorder(),
+            //                     prefixIcon: Icon(Icons.person),
+            //                   ),
+            //                 ),
+            //               ],
+            //             ],
+            //           ),
+            //         ),
+            //       ),
+            // const SizedBox(height: 16),
 
             if (_hasChanges)
               SizedBox(

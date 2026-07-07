@@ -17,6 +17,8 @@ class PropertyModel {
   final int id;
   final String propertyType;
   final String location; // maps to address from backend
+    final double? latitude;
+  final double? longitude;
   final String description;
   final String numberOfMonths;
   final double price; // maps to rentPrice from backend
@@ -74,6 +76,11 @@ class PropertyModel {
   final String? package;
   final DateTime dateCreated;
 
+final double? dailyPrice;
+final double? weeklyPrice;
+final double? yearlyPrice;
+final Map<String, dynamic>? venuePricing;
+
   PropertyModel({
     // Backend fields
     required this.userId,
@@ -91,6 +98,8 @@ class PropertyModel {
     required this.id,
     required this.propertyType,
     required this.location,
+    this.latitude,
+    this.longitude,
     required this.description,
     required this.price,
     required this.discount,
@@ -106,6 +115,10 @@ class PropertyModel {
     required this.units,
     required this.isActive,
     required this.isLand,
+    this.dailyPrice,
+    this.weeklyPrice,
+    this.yearlyPrice,
+    this.venuePricing,
     this.pendingReason,
     required this.isRent,
     required this.isSale,
@@ -160,6 +173,7 @@ List<String> get imageUrls {
 
   // ─── Build from backend JSON ───────────────────────────
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
+    
     // ✅ Parse images array
     final List<String> imgs =
         json['images'] != null
@@ -220,6 +234,13 @@ List<String> get imageUrls {
       id: json['id'] ?? 0,
       propertyType: json['property_type'] ?? '',
       location: json['address'] ?? '',
+      latitude: json['latitude'] == null
+    ? null
+    : double.tryParse(json['latitude'].toString()),
+
+longitude: json['longitude'] == null
+    ? null
+    : double.tryParse(json['longitude'].toString()),
       description: json['description'] ?? '',
       price: rPrice,
       discount: 0,
@@ -264,6 +285,15 @@ List<String> get imageUrls {
           amenitiesList.contains('pet friendly'),
       amenities: amenitiesList,
       productIMG: imgs.isNotEmpty ? imgs.first : '',
+      dailyPrice: json['daily_price'] != null
+    ? double.tryParse(json['daily_price'].toString()) : null,
+weeklyPrice: json['weekly_price'] != null
+    ? double.tryParse(json['weekly_price'].toString()) : null,
+yearlyPrice: json['yearly_price'] != null
+    ? double.tryParse(json['yearly_price'].toString()) : null,
+venuePricing: json['venue_pricing'] != null
+    ? Map<String, dynamic>.from(json['venue_pricing']) : null,
+
       // ✅ Also fix photoPaths
 photoPaths: imgs
     .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')

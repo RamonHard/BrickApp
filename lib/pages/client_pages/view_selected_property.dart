@@ -448,6 +448,50 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                         ),
                       ],
                     ),
+                    // ✅ Show venue packages if it's a venue
+if (widget.selectedProduct.venuePricing != null &&
+    widget.selectedProduct.venuePricing!.isNotEmpty) ...[
+  const SizedBox(height: 12),
+  const Text('Venue Packages',
+      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+  const SizedBox(height: 8),
+  ...widget.selectedProduct.venuePricing!.entries.map((entry) {
+    final icons = {
+      'daily': Icons.today,
+      'weekly': Icons.view_week,
+      'monthly': Icons.calendar_month,
+      'yearly': Icons.calendar_today,
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(icons[entry.key] ?? Icons.attach_money,
+              color: Colors.orange, size: 20),
+          const SizedBox(width: 10),
+          Text(
+            '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          Text(
+            'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+                fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }).toList(),
+],
                     if (widget.selectedProduct.saleConditions.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
