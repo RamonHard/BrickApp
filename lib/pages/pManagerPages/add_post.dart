@@ -1,29 +1,24 @@
-
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/pages/pManagerPages/map_location_picker_page.dart';
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
-import 'package:brickapp/providers/product_provider.dart';
+import 'package:brickapp/providers/settings_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:brickapp/utils/urls.dart';
 import 'package:brickapp/providers/user_provider.dart';
-import 'dart:typed_data';
-import 'package:video_thumbnail/video_thumbnail.dart';
 
 class AddPost extends ConsumerStatefulWidget {
-  final PropertyModel? editPostModel; // Add this for editing existing post
-
-  const AddPost({super.key, this.editPostModel,});
+  final PropertyModel? editPostModel;
+  const AddPost({super.key, this.editPostModel});
 
   @override
   ConsumerState<AddPost> createState() => _AddPostState();
@@ -36,2748 +31,979 @@ class _AddPostState extends ConsumerState<AddPost> {
     color: AppColors.darkTextColor,
   );
 
-  String _location = "Kampala, Uganda"; // Default text
-  String salesCondition = '';
-  bool _isLoadingLocation = false;
-  List<XFile> _selectedVideos = [];
-  XFile? _selectedVideo;
-  bool _isVideo = false;
-  Uint8List? _videoThumbnail;
-
-  // Updated packages with custom option
-  final List<String> packages = [
-    '1 Month',
-    '2 Months',
-    '3 Months',
-    '6 Months',
-    '1 Year',
-    '2 Years',
-    'Custom Months',
+  final List<String> descriptions = [
+    'House', 'Apartments', 'Business Shop', 'Venue',
+    'Warehouse', 'Office Space', 'Land', 'Farm House',
   ];
-  double _commissionPercent = 10.0;
-  double _clientDiscountPercent = 5.0;
-  int _commissionMonths = 3;
-  bool _settingsLoaded = false;
-double? _selectedLat;
-double? _selectedLng;
+
+  final List<String> packages = [
+    '1 Month', '2 Months', '3 Months', '6 Months',
+    '1 Year', '2 Years', 'Custom Months',
+  ];
+
+  final List<String> amenitiesList = [
+    'Furnished', 'Air Conditioning', 'Parking', 'Security',
+    'Internet', 'Pet Friendly', 'Compound', 'Swimming Pool',
+    'Gym', 'Generator', 'CCTV', 'Borehole', 'Water Tank',
+    'Solar Power', 'Balcony', 'Garden',
+  ];
+
+  String? selectedDescription;
+  String? selectedPackage;
+  String _location = 'Kampala, Uganda';
+  double? _selectedLat;
+  double? _selectedLng;
+  bool _isLoadingLocation = false;
+  bool _isRentSelected = true;
+  bool _isSaleSelected = false;
+
+  int? price;
+  int? salePrice;
+  String salesCondition = '';
+  int? customMonths;
+
+  int? dailyPrice;
+  int? weeklyPrice;
+  int? monthlyPrice;
+  int? yearlyPrice;
+  bool _isDailyEnabled = false;
+  bool _isWeeklyEnabled = false;
+  bool _isMonthlyEnabled = false;
+  bool _isYearlyEnabled = false;
+
+  bool _isPending = false;
+  List<String> selectedAmenities = [];
+
+  // ✅ All media stored as bytes immediately — fixes URL revoked error
+  List<Uint8List> _selectedPhotoBytes = [];
+  List<String> _selectedPhotoNames = [];
+  Uint8List? _thumbnailBytes;
+  String? _thumbnailName;
+  Uint8List? _videoBytes;
+  String? _videoName;
+  XFile? _rulesDocument;
+  String? _rulesDocumentName;
+
+  final _descriptionController = TextEditingController();
+  final _bedroomsController = TextEditingController();
+  final _bathroomsController = TextEditingController();
+  final _unitsController = TextEditingController();
+  final _squareFeetController = TextEditingController();
+  final _saleConditionController = TextEditingController();
+  final _pendingReasonController = TextEditingController();
+  final _customMonthsController = TextEditingController();
+
+  bool _isLoading = false;
+
+  bool get _isVenue =>
+      selectedDescription == 'Venue' ||
+      selectedDescription == 'Ceremony Ground';
+
+  bool get _isLand => selectedDescription == 'Land';
+
+  int _getMonthCount(String pkg) {
+    switch (pkg) {
+      case '1 Month': return 1;
+      case '2 Months': return 2;
+      case '3 Months': return 3;
+      case '6 Months': return 6;
+      case '1 Year': return 12;
+      case '2 Years': return 24;
+      case 'Custom Months': return customMonths ?? 1;
+      default: return 1;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadSettings(); // ✅ Add this
-    if (widget.editPostModel != null) {
-      _initializeEditData();
-    }
+    if (widget.editPostModel != null) _loadEditData();
   }
 
-  Future<void> _loadSettings() async {
-    try {
-      final res = await http.get(
-        Uri.parse('${AppUrls.baseUrl}/settings/public'),
-      );
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final settings = List<Map<String, dynamic>>.from(data['settings']);
-        for (final s in settings) {
-          if (s['key'] == 'property_commission_percent') {
-            _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
-          }
-          if (s['key'] == 'client_discount_percent') {
-            _clientDiscountPercent =
-                double.tryParse(s['value'].toString()) ?? 5.0;
-          }
-          if (s['key'] == 'commission_months') {
-            _commissionMonths = int.tryParse(s['value'].toString()) ?? 3;
-          }
-        }
-      }
-    } catch (e) {
-      print('❌ Settings error: $e');
-    }
-    if (mounted) setState(() => _settingsLoaded = true);
+  void _loadEditData() {
+    final p = widget.editPostModel!;
+    selectedDescription = p.propertyType;
+    _location = p.address ?? 'Kampala, Uganda';
+    _selectedLat = p.latitude;
+    _selectedLng = p.longitude;
+    price = p.rentPrice?.toInt();
+    salePrice = p.salePrice?.toInt();
+    final lt = p.listingType ?? 'rent';
+    _isRentSelected = lt == 'rent' || lt == 'rent_and_sale';
+    _isSaleSelected = lt == 'sale' || lt == 'rent_and_sale';
+    _descriptionController.text = p.description ?? '';
+    _bedroomsController.text = p.bedrooms > 0 ? p.bedrooms.toString() : '';
+    _bathroomsController.text = p.bathrooms > 0 ? p.bathrooms.toString() : '';
+    _unitsController.text = p.units > 0 ? p.units.toString() : '';
+    selectedAmenities = List.from(p.amenities);
+    _isPending = p.status == 'pending';
+    _pendingReasonController.text = p.pendingReason ?? '';
+    if (p.venuePricing != null) {
+  final vp = Map<String, dynamic>.from(p.venuePricing as Map);
+  dailyPrice = (vp['daily'] as num?)?.toInt();
+  weeklyPrice = (vp['weekly'] as num?)?.toInt();
+  monthlyPrice = (vp['monthly'] as num?)?.toInt();
+  yearlyPrice = (vp['yearly'] as num?)?.toInt();}
   }
 
-  String? selectedPackage;
-  int? customMonths; // For custom months input
-  int? price;
-  int? salePrice;
-  double? landPercentage; // For land percentage
-  int? discount;
-  int? commission;
-  XFile? _thumbnailPhoto;
-  Uint8List? _thumbnailBytes;
- Uint8List? _selectedVideoBytes;
- Uint8List? _rulesDocumentBytes;
-String? _rulesDocumentName;
-  // Add this for rules and regulations document
-  XFile? _rulesDocument;
-
-  final currencyFormatter = NumberFormat("#,##0", "en_US");
-// Add these with your other state variables
-List<Uint8List> _selectedPhotoBytes = [];
-List<String> _selectedPhotoNames = [];
-List<String> _selectedPhotoPaths = [];
-  // Helper method to get month count from package string
-  int _getMonthCount(String pkg) {
-    switch (pkg) {
-      case '1 Month':
-        return 1;
-      case '2 Months':
-        return 2;
-      case '3 Months':
-        return 3;
-      case '6 Months':
-        return 6;
-      case '1 Year':
-        return 12;
-      case '2 Years':
-        return 24;
-      default:
-        return 1;
-    }
-  }
-
-  // Calculate total price
-  double _calculateTotalPrice() {
-    if (_propertyType == 'Land') {
-      return (landPercentage ?? 0).toDouble();
-    }
-
-    if (!_isRentSelected || price == null) {
-      return 0.0;
-    }
-
-    int numberOfMonths = 0;
-
-    if (selectedPackage == 'Custom Months') {
-      numberOfMonths = customMonths ?? 0;
-    } else {
-      numberOfMonths = _getMonthCount(selectedPackage ?? '');
-    }
-
-    // Calculate total price: monthly price × number of months
-    int total = (price ?? 0) * numberOfMonths;
-
-    // Subtract discount if applicable
-    if (discount != null && discount! > 0) {
-      total -= (discount ?? 0);
-    }
-
-    return total.toDouble();
-  }
-
-  // Initialize data when editing an existing post
-
-  void _initializeEditData() {
-    final post = widget.editPostModel!;
-    setState(() {
-      // Basic info
-      _propertyType = post.propertyType ?? 'House';
-      _houseType = post.propertyType ?? 'Residential';
-      _location = post.location ?? 'Kampala, Uganda';
-      _descriptionController.text = post.description ?? '';
-
-      // Pricing
-      price = post.rentPrice?.toInt() ?? 0;
-      salePrice = post.salePrice?.toInt();
-      discount = post.discount?.toInt();
-      commission = post.commission?.toInt();
-      landPercentage = post.landPercentage;
-      _currency = post.currency ?? 'UGX';
-
-      // Package info
-      selectedPackage = post.package;
-      if (post.package?.contains('Custom') ?? false) {
-        final match = RegExp(r'(\d+)').firstMatch(post.package ?? '');
-        customMonths = match != null ? int.parse(match.group(1)!) : 0;
-      }
-
-      // Boolean flags
-      _isRentSelected = post.isRent ?? false;
-      _isSaleSelected = post.isSale ?? false;
-      _isActive = post.isActive ?? true;
-      salesCondition = post.saleConditions ?? '';
-      _pendingReasonController.text = post.pendingReason ?? '';
-
-      // Property details
-      _bedroomsController.text = post.bedrooms?.toString() ?? '';
-      _bathsController.text = post.baths?.toString() ?? '';
-      _sqftController.text = post.sqft?.toString() ?? '';
-      _unitsController.text = post.units?.toString() ?? '';
-
-      // Amenities
-      _hasParking = post.hasParking ?? false;
-      _isFurnished = post.isFurnished ?? false;
-      _hasAC = post.hasAC ?? false;
-      _hasInternet = post.hasInternet ?? false;
-      _hasSecurity = post.hasSecurity ?? false;
-      _hasCompound = post.hasCompound ?? false;
-      _isPetFriendly = post.isPetFriendly ?? false;
-
-      // Photos (can't pre-load XFile from paths)
-      if (post.thumbnail != null && post.thumbnail!.isNotEmpty) {
-        _thumbnailPhoto = XFile(post.thumbnail!);
-      }
-    });
-  }
-
-  void showPriceDialog(String pkg) {
-    final priceController = TextEditingController(
-      text: price?.toString() ?? '600000',
-    );
-    final customMonthsController = TextEditingController(
-      text: customMonths?.toString() ?? '',
-    );
-
-    // ✅ Use real values from backend
-    int dialogDiscount = discount ?? 0;
-    int dialogCommission = commission ?? 0;
-
-    bool isLandProperty = _propertyType == 'Land';
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setStateDialog) => AlertDialog(
-                  backgroundColor: Colors.white,
-                  title: Row(
-                    children: [
-                      Text(
-                        pkg == 'Custom Months'
-                            ? 'Set Custom Package'
-                            : 'Set monthly price',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkTextColor,
-                        ),
-                      ),
-                      Expanded(child: Container()),
-                      IconButton(
-                        tooltip: 'Cancel',
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.close,
-                          color: Color.fromARGB(255, 197, 13, 0),
-                        ),
-                      ),
-                    ],
-                  ),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (pkg == 'Custom Months') ...[
-                          TextField(
-                            controller: customMonthsController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Enter Number of Months',
-                              hintText: 'e.g., 9, 15, 24',
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        if (isLandProperty) ...[
-                          TextField(
-                            controller: priceController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Land Commission Percentage (%)',
-                              hintText: 'Enter percentage',
-                              suffixText: '%',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Note: This is the % commission on total land value',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ] else ...[
-                          TextField(
-                            controller: priceController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText:
-                                  pkg == 'Custom Months'
-                                      ? 'Enter Monthly Price (UGX)'
-                                      : 'Enter Monthly Price (UGX)',
-                              prefixText: 'UGX ',
-                            ),
-                            onChanged: (value) {
-                              final enteredPrice = int.tryParse(value) ?? 0;
-                              final months =
-                                  pkg == 'Custom Months'
-                                      ? (int.tryParse(
-                                            customMonthsController.text,
-                                          ) ??
-                                          1)
-                                      : _getMonthCount(pkg);
-                              final commMonths =
-                                  months < _commissionMonths
-                                      ? months
-                                      : _commissionMonths;
-                              final commissionable = enteredPrice * commMonths;
-
-                              setStateDialog(() {
-                                // ✅ Use real % from backend
-                                dialogDiscount =
-                                    (commissionable *
-                                            (_clientDiscountPercent / 100))
-                                        .toInt();
-                                dialogCommission =
-                                    (commissionable *
-                                            (_commissionPercent / 100))
-                                        .toInt();
-                              });
-                            },
-                          ),
-                        ],
-
-                        const SizedBox(height: 16),
-
-                        if (!isLandProperty) ...[
-                          // ✅ Show commission months info
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Commission applies on first $_commissionMonths month${_commissionMonths > 1 ? "s" : ""}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          Text(
-                            'Monthly Price: UGX ${currencyFormatter.format(int.tryParse(priceController.text) ?? 0)}',
-                            style: style,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 245, 240, 232),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Total Amount for ${pkg == 'Custom Months' ? (customMonthsController.text.isNotEmpty ? customMonthsController.text : 'X') : _getMonthCount(pkg)} month${(pkg == 'Custom Months' && customMonthsController.text != '1') || (pkg != 'Custom Months' && _getMonthCount(pkg) > 1) ? "s" : ""}: UGX ${currencyFormatter.format(((int.tryParse(priceController.text) ?? 0) * (pkg == 'Custom Months' ? (int.tryParse(customMonthsController.text) ?? 0) : _getMonthCount(pkg))))}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: const Color.fromARGB(
-                                      255,
-                                      216,
-                                      119,
-                                      9,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // ✅ Client discount row
-                          // Container(
-                          //   padding: const EdgeInsets.all(8),
-                          //   decoration: BoxDecoration(
-                          //     color: Colors.green[50],
-                          //     borderRadius: BorderRadius.circular(8),
-                          //   ),
-                          //   child: Row(
-                          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          //     children: [
-                          //       Text(
-                          //         '🎉 Client discount (${_clientDiscountPercent.toStringAsFixed(0)}%):',
-                          //         style: TextStyle(
-                          //           fontSize: 12,
-                          //           color: Colors.green[700],
-                          //         ),
-                          //       ),
-                          //       Text(
-                          //         '- UGX ${currencyFormatter.format(dialogDiscount)}',
-                          //         style: TextStyle(
-                          //           color: Colors.green[800],
-                          //           fontWeight: FontWeight.bold,
-                          //         ),
-                          //       ),
-                          //     ],
-                          //   ),
-                          // ),
-                          const SizedBox(height: 4),
-
-                          // ✅ Platform commission row
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.purple[50],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '🏢 Platform fee (${_commissionPercent.toStringAsFixed(0)}%):',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.purple[700],
-                                  ),
-                                ),
-                                Text(
-                                  'UGX ${currencyFormatter.format(dialogCommission)}',
-                                  style: TextStyle(
-                                    color: Colors.purple[800],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          if (pkg != 'Custom Months') ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.orange[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Amount to be received:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    'UGX ${currencyFormatter.format(((int.tryParse(priceController.text) ?? 0) * _getMonthCount(pkg)) - dialogCommission)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.deepOrange,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ] else ...[
-                          Text(
-                            'Land Percentage: ${int.tryParse(priceController.text) ?? 0}%',
-                            style: style,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        final enteredPrice =
-                            int.tryParse(priceController.text) ?? 0;
-                        final enteredCustomMonths =
-                            int.tryParse(customMonthsController.text) ?? 0;
-
-                        setState(() {
-                          selectedPackage = pkg;
-
-                          if (isLandProperty) {
-                            landPercentage = enteredPrice.toDouble();
-                            price = enteredPrice;
-                          } else {
-                            price = enteredPrice;
-                            final months =
-                                pkg == 'Custom Months'
-                                    ? enteredCustomMonths
-                                    : _getMonthCount(pkg);
-                            final commMonths =
-                                months < _commissionMonths
-                                    ? months
-                                    : _commissionMonths;
-                            final commissionable = enteredPrice * commMonths;
-                            // ✅ Use real % from backend
-                            discount =
-                                (commissionable *
-                                        (_clientDiscountPercent / 100))
-                                    .toInt();
-                            commission =
-                                (commissionable * (_commissionPercent / 100))
-                                    .toInt();
-                          }
-
-                          if (pkg == 'Custom Months') {
-                            customMonths = enteredCustomMonths;
-                          }
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Done'),
-                    ),
-                  ],
-                ),
-          ),
-    );
-  }
-
-  Widget buildPackageCard(String pkg) {
-    bool isLandProperty = _propertyType == 'Land';
-
-    return GestureDetector(
-      onTap: () => showPriceDialog(pkg),
-      child: Card(
-        elevation: 8,
-        color:
-            selectedPackage == pkg
-                ? AppColors.iconColor.withOpacity(0.6)
-                : Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Text(
-                pkg,
-                style: TextStyle(
-                  color: selectedPackage == pkg ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Icon(
-                Icons.key_sharp,
-                color: isLandProperty ? Colors.orange : AppColors.darkBg,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Updated buildSelectedInfo to show custom months and total price
-  Widget buildSelectedInfo() {
-    if (selectedPackage == null && salePrice == null) return const SizedBox();
-
-    bool isLandProperty = _propertyType == 'Land';
-    double totalPrice = _calculateTotalPrice();
-
-    return Card(
-      margin: const EdgeInsets.only(top: 16),
-      elevation: 20,
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Show rental package info if selected
-            if (selectedPackage != null) ...[
-              Row(
-                children: [
-                  Text(
-                    selectedPackage == 'Custom Months'
-                        ? 'Custom Package: ${customMonths ?? 0} Months'
-                        : 'Package: $selectedPackage',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          isLandProperty ? Colors.orange[50] : Colors.blue[50],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      isLandProperty ? 'Land' : 'Rental',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color:
-                            isLandProperty
-                                ? Colors.orange[700]
-                                : Colors.blue[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              if (isLandProperty) ...[
-                Text(
-                  'Land Percentage: ${landPercentage ?? 0}%',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  'Commission: $commission% of total value',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-              ] else ...[
-                Text(
-                  'Monthly Price: UGX${currencyFormatter.format(price ?? 0)}',
-                ),
-                if (customMonths != null && customMonths! > 0)
-                  Text('Duration: $customMonths months'),
-                if (discount != null && discount! > 0)
-                  //   Text(
-                  //     'Discount: UGX${currencyFormatter.format(discount ?? 0)}',
-                  //   ),
-                  // Text(
-                  //   'Commission: UGX${currencyFormatter.format(commission ?? 0)}',
-                  // ),
-                  // Show total price
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[100]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calculate,
-                          color: Colors.green[700],
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Total Price: UGX${currencyFormatter.format(totalPrice.toInt())}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green[800],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
-
-            // Add divider if both rental and sale are selected
-            if (selectedPackage != null && salePrice != null) ...[
-              const SizedBox(height: 12),
-              const Divider(thickness: 1),
-              const SizedBox(height: 8),
-            ],
-
-            // Show sale info if selected
-            if (salePrice != null) ...[
-              Row(
-                children: [
-                  Text(
-                    'Sale Information',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.green[100]!),
-                    ),
-                    child: const Text(
-                      'For Sale',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Sale Price: UGX${currencyFormatter.format(salePrice ?? 0)}',
-              ),
-              if (salesCondition.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Conditions: $salesCondition',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Controllers
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _salePriceController = TextEditingController();
-  final TextEditingController _dailyPriceController = TextEditingController();
-  final TextEditingController _bedroomsController = TextEditingController();
-  final TextEditingController _bathsController = TextEditingController();
-  final TextEditingController _sqftController = TextEditingController();
-  final TextEditingController _unitsController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _saleConditionsController =
-      TextEditingController();
-  final TextEditingController _pendingReasonController =
-      TextEditingController();
-
-  // Form fields
-  String _currency = 'USD';
-  String _propertyType = 'House';
-  String _houseType = 'Residential'; // Added house type field
-
-  bool _hasParking = false;
-  bool _isFurnished = false;
-  bool _hasAC = false;
-  bool _hasInternet = false;
-  bool _hasSecurity = false;
-  bool _isPetFriendly = false;
-  bool _isActive = true;
-  bool _isRentSelected = false;
-  bool _isSaleSelected = false;
-  bool _hasCompound = false; // Added hasCompound field
-  int _photosCount = 0;
-  List<XFile> _selectedPhotos = [];
-
-  // Add amenities list
-  List<String> get _amenities {
-    List<String> amenities = [];
-    if (_hasParking) amenities.add('Parking');
-    if (_isFurnished) amenities.add('Furnished');
-    if (_hasAC) amenities.add('Air Conditioning');
-    if (_hasInternet) amenities.add('Internet');
-    if (_hasSecurity) amenities.add('Security');
-    if (_isPetFriendly) amenities.add('Pet Friendly');
-    if (_hasCompound) amenities.add('Compound');
-    return amenities;
-  }
-
-  bool _isSubmitting = false;
   @override
-  Widget build(BuildContext context) {
-    bool showHouseSections =
-        _propertyType == 'House' ||
-        _propertyType == 'Apartments' ||
-        _propertyType == 'Business Shop' ||
-        _propertyType == 'Warehouse' ||
-        _propertyType == 'Storage Facility' ||
-        _propertyType == 'Industrial Building' ||
-        _propertyType == 'Office Space' ||
-        _propertyType == 'Farm House';
-
-    bool isLandProperty = _propertyType == 'Land';
-
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        leading: const BackButton(),
-        title: Text(
-          widget.editPostModel != null ? 'Edit Property' : 'Post Your Property',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.darkTextColor,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Property Type'),
-              _buildPropertyTypeDropdown(),
-              const SizedBox(height: 20),
-
-              if (!isLandProperty) ...[
-                _buildSectionTitle('Select Property Type'),
-                _buildHouseTypeDropdown(),
-                const SizedBox(height: 20),
-              ],
-
-              _buildSectionTitle('Location'),
-              _buildLocationPicker(),
-              const SizedBox(height: 20),
-
-              if (_propertyType != 'Venue') ...[
-                _buildSectionTitle("Listing Type"),
-                _buildListingTypeButtons(),
-                const SizedBox(height: 20),
-              ],
-              const SizedBox(height: 20),
-              // After _buildListingTypeButtons()
-              if (_propertyType == 'Venue' ||
-                  _propertyType == 'Ceremony Ground') ...[
-                const SizedBox(height: 20),
-                _buildSectionTitle('Daily Price (UGX)'),
-                Container(
-                  height: 50,
-                  child: TextField(
-                    controller: _dailyPriceController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Enter daily price e.g. 500000',
-                      prefixText: 'UGX ',
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-
-              _buildSectionTitle(
-                isLandProperty
-                    ? 'Set Land Percentage'
-                    : 'Set Rental Price Package',
-              ),
-              showHouseSections || isLandProperty
-                  ? (_propertyType == 'Fish Pond'
-                      ? const SizedBox() // ✅ no packages for venue
-                      : SizedBox(
-                        height: 100,
-                        child:
-                            _isRentSelected || isLandProperty
-                                ? ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  children:
-                                      packages.map(buildPackageCard).toList(),
-                                )
-                                : Center(
-                                  child: Text(
-                                    isLandProperty
-                                        ? "Select a package for land"
-                                        : "Select 'Rent' to choose a package",
-                                    style: style,
-                                  ),
-                                ),
-                      ))
-                  : _buildPriceField(),
-              const SizedBox(height: 10),
-
-              buildSelectedInfo(),
-              const SizedBox(height: 20),
-
-              if (showHouseSections) ...[
-                _buildSectionTitle('Basic Information'),
-                _buildBasicInfoFields(),
-                const SizedBox(height: 20),
-
-                _buildUnitsField(),
-                const SizedBox(height: 20),
-
-                _buildSectionTitle('Amenities'),
-                _buildAmenitiesGrid(),
-                const SizedBox(height: 20),
-              ],
-
-              const SizedBox(height: 20),
-
-              _buildSectionTitle('Description'),
-              _buildDescriptionField(),
-              const SizedBox(height: 20),
-
-              // Add Rules & Regulations Document Section
-              _buildSectionTitle('Rules & Regulations (Optional)'),
-              _buildRulesDocumentSection(),
-              const SizedBox(height: 20),
-
-              _buildSectionTitle('Add Photos'),
-              _buildPhotosSection(),
-              const SizedBox(height: 20),
-              _buildThumbnailSection(),
-              const SizedBox(height: 20),
-
-              _buildPostButton(),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    _descriptionController.dispose();
+    _bedroomsController.dispose();
+    _bathroomsController.dispose();
+    _unitsController.dispose();
+    _squareFeetController.dispose();
+    _saleConditionController.dispose();
+    _pendingReasonController.dispose();
+    _customMonthsController.dispose();
+    super.dispose();
   }
 
-  // Add this new method for rules document upload
- Widget _buildRulesDocumentSection() {
-  return Container(
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade300),
-      borderRadius: BorderRadius.circular(8),
-      color: Colors.white,
-    ),
-    child: Column(
-      children: [
-        ListTile(
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _rulesDocument != null ? Icons.picture_as_pdf : Icons.upload_file,
-            ),
-          ),
-          title: Text(
-            _rulesDocument != null
-                ? _rulesDocument!.name
-                : 'Upload Rules & Regulations',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Text(
-            _rulesDocument != null
-                ? 'Tap to replace'
-                : 'PDF, DOC, or TXT (Max 10MB)',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_rulesDocument != null)
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      _rulesDocument = null;
-                      _rulesDocumentBytes = null;
-                      _rulesDocumentName = null;
-                    });
-                  },
-                ),
-              IconButton(
-                icon: const Icon(Icons.cloud_upload, color: Colors.blue),
-                onPressed: _pickRulesDocument,
-              ),
-            ],
-          ),
-        ),
-        if (_rulesDocument != null && _rulesDocumentBytes != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextButton.icon(
-              icon: const Icon(Icons.visibility, color: Colors.blue),
-              label: const Text('Preview Document'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DocumentPreviewScreen(
-                      fileBytes: _rulesDocumentBytes!,
-                      fileName: _rulesDocumentName ?? 'document.pdf',
-                      title: 'Preview Document',
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-      ],
-    ),
-  );
-}
-
-  // Add method to pick document
-  Future<void> _pickRulesDocument() async {
-  try {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
-      allowMultiple: false,
-      withData: true,
-    );
-
-    if (result != null && result.files.single.bytes != null) {
-      final file = result.files.single;
-      
-      if (file.bytes!.length > 10 * 1024 * 1024) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('File must be less than 10MB')),
-        );
-        return;
-      }
-
-      setState(() {
-        _rulesDocument = XFile.fromData(
-          file.bytes!,
-          name: file.name,
-        );
-        _rulesDocumentBytes = file.bytes;
-        _rulesDocumentName = file.name;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${file.name} uploaded successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error picking file: $e')),
-    );
-  }
-}
-
-  // Add house type dropdown
-  Widget _buildHouseTypeDropdown() {
-    List<String> houseTypes = [
-      'Residential',
-      'Commercial',
-      'Industrial',
-      'Agricultural',
-    ];
-
-    return DropdownButtonFormField<String>(
-      value: _houseType,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      items:
-          houseTypes.map((String value) {
-            return DropdownMenuItem<String>(value: value, child: Text(value));
-          }).toList(),
-      onChanged: (newValue) {
-        setState(() {
-          _houseType = newValue!;
-        });
-      },
-    );
-  }
-
-  Widget _buildListingTypeButtons() {
-    return Row(
-      children: [
-        MaterialButton(
-          height: 40,
-          onPressed: () => setState(() => _isRentSelected = !_isRentSelected),
-          color:
-              _isRentSelected
-                  ? Colors.green
-                  : const Color.fromARGB(117, 43, 43, 43),
-          padding: const EdgeInsets.all(8.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          child: Text(
-            "Rent",
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(width: 5.0),
-        MaterialButton(
-          height: 40,
-          onPressed: () {
-            // Show dialog when Sale button is clicked
-            showSalePriceDialog();
-          },
-          color:
-              _isSaleSelected
-                  ? Colors.green
-                  : const Color.fromARGB(117, 43, 43, 43),
-          padding: const EdgeInsets.all(8.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          child: Text(
-            "Sale",
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void showSalePriceDialog() {
-    final salePriceController = TextEditingController(
-      text: salePrice?.toString() ?? '',
-    );
-
-    final saleConditionsController = TextEditingController(
-      text: salesCondition,
-    );
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: Row(
-              children: [
-                Text(
-                  'Set Sale Price',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.darkTextColor,
-                  ),
-                ),
-                Expanded(child: Container()),
-                IconButton(
-                  tooltip: 'Cancel',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.close,
-                    color: Color.fromARGB(255, 197, 13, 0),
-                  ),
-                ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: salePriceController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter Sale Price',
-                      prefixText: 'UGX ',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: saleConditionsController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Sale Conditions (Optional)',
-                      hintText: 'e.g., Negotiable, Cash only, etc.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (salePriceController.text.isNotEmpty)
-                    Text(
-                      'Sale Price: UGX${currencyFormatter.format(int.tryParse(salePriceController.text) ?? 0)}',
-                      style: style,
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  final enteredSalePrice =
-                      int.tryParse(salePriceController.text) ?? 0;
-                  setState(() {
-                    salePrice = enteredSalePrice;
-                    salesCondition = saleConditionsController.text;
-                    if (enteredSalePrice > 0) {
-                      _isSaleSelected = true;
-                    }
-                  });
-                  Navigator.pop(context);
-                },
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // Updated _updatePostData method with rules document and total price
-  Future<void> _updatePostData() async {
-  bool isLandProperty = _propertyType == 'Land';
-
-  // ─── VALIDATION ──────────────────────────────────────────
-  print('🔍 Starting validation...');
-  
-  if (_descriptionController.text.isEmpty) {
-    print('❌ Description is empty');
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Please add a description')));
-    return;
-  }
-
-  if (_selectedPhotoBytes.isEmpty && _thumbnailBytes == null) {
-    print('❌ No photos selected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please add at least one photo')),
-    );
-    return;
-  }
-
-  // Check listing type
-  final isVenue = _propertyType == 'Venue' || _propertyType == 'Ceremony Ground';
-  if (!_isRentSelected && !_isSaleSelected && !isLandProperty && !isVenue) {
-    print('❌ No listing type selected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please select Rent or Sale listing type'),
-      ),
-    );
-    return;
-  }
-
-  print('✅ Validation passed');
-
-  // ─── START SUBMITTING ──────────────────────────────────
-  setState(() => _isSubmitting = true);
-
-  try {
-    // ─── GET TOKEN ──────────────────────────────────────
-    final token = ref.read(userProvider).token;
-    print('🔑 Token: ${token != null ? 'Present (${token.substring(0, 20)}...)' : 'NULL'}');
-
-    if (token == null) {
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in'))
-      );
-      return;
-    }
-
-    // ─── BUILD REQUEST ──────────────────────────────────
-    final url = Uri.parse('${AppUrls.properties}/create');
-    print('📡 URL: $url');
-    
-    var request = http.MultipartRequest('POST', url);
-    request.headers['Authorization'] = 'Bearer $token';
-
-    // ─── ADD LOCATION ──────────────────────────────────
-    if (_selectedLat != null) {
-      request.fields['latitude'] = _selectedLat.toString();
-      print('📍 Latitude: $_selectedLat');
-    }
-    if (_selectedLng != null) {
-      request.fields['longitude'] = _selectedLng.toString();
-      print('📍 Longitude: $_selectedLng');
-    }
-
-    // ─── ADD TEXT FIELDS ──────────────────────────────
-    request.fields['property_type'] = _propertyType;
-    request.fields['description'] = _descriptionController.text.trim();
-    request.fields['address'] = _location;
-    request.fields['status'] = _isActive ? 'active' : 'pending';
-    request.fields['currency'] = _currency;
-
-    // Listing type
-    if (_isRentSelected && _isSaleSelected) {
-      request.fields['listing_type'] = 'rent_and_sale';
-    } else if (_isRentSelected) {
-      request.fields['listing_type'] = 'rent';
-    } else if (_isSaleSelected) {
-      request.fields['listing_type'] = 'sale';
-    }
-    print('📝 Listing type: ${request.fields['listing_type']}');
-
-    // Pricing
-    if (price != null && price! > 0) {
-      request.fields['rent_price'] = price.toString();
-      print('💰 Rent price: $price');
-    }
-    if (salePrice != null && salePrice! > 0) {
-      request.fields['sale_price'] = salePrice.toString();
-      request.fields['sale_condition'] = salesCondition;
-      print('💰 Sale price: $salePrice');
-    }
-    
-    // Venue daily price
-    if (isVenue && _dailyPriceController.text.isNotEmpty) {
-      request.fields['daily_price'] = _dailyPriceController.text;
-      request.fields['listing_type'] = 'rent';
-      print('💰 Daily price: ${_dailyPriceController.text}');
-    }
-    
-    // Duration
-    if (selectedPackage != null) {
-      final months = selectedPackage == 'Custom Months'
-          ? (customMonths ?? 1)
-          : _getMonthCount(selectedPackage!);
-      request.fields['rent_duration_months'] = months.toString();
-      print('📅 Duration months: $months');
-    }
-
-    // Property details
-    if (_bedroomsController.text.isNotEmpty) {
-      request.fields['bedrooms'] = _bedroomsController.text;
-    }
-    if (_bathsController.text.isNotEmpty) {
-      request.fields['bathrooms'] = _bathsController.text;
-    }
-    if (_sqftController.text.isNotEmpty) {
-      request.fields['square_feet'] = _sqftController.text;
-    }
-    if (_unitsController.text.isNotEmpty) {
-      request.fields['units'] = _unitsController.text;
-    }
-    if (!_isActive && _pendingReasonController.text.isNotEmpty) {
-      request.fields['pending_reason'] = _pendingReasonController.text;
-    }
-
-    // Amenities
-    request.fields['amenities'] = _amenities.join(',');
-    print('🏷️ Amenities: ${request.fields['amenities']}');
-
-    // Land specific
-    if (isLandProperty && landPercentage != null) {
-      request.fields['land_percentage'] = landPercentage.toString();
-      print('🌾 Land percentage: $landPercentage');
-    }
-
-    // ─── ADD FILES ──────────────────────────────────────
-    print('📁 Adding files...');
-
-    // Photos
-    for (int i = 0; i < _selectedPhotoBytes.length; i++) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'images',
-          _selectedPhotoBytes[i],
-          filename: _selectedPhotoNames[i],
-        ),
-      );
-      print('📸 Added photo ${i + 1}: ${_selectedPhotoNames[i]} (${_selectedPhotoBytes[i].length} bytes)');
-    }
-
-    // Thumbnail
-    if (_thumbnailBytes != null && _thumbnailPhoto != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'thumbnail',
-          _thumbnailBytes!,
-          filename: _thumbnailPhoto!.name,
-        ),
-      );
-      print('🖼️ Added thumbnail: ${_thumbnailPhoto!.name} (${_thumbnailBytes!.length} bytes)');
-    }
-
-    // Video
-    if (_selectedVideo != null && _selectedVideoBytes != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'video',
-          _selectedVideoBytes!,
-          filename: _selectedVideo!.name,
-        ),
-      );
-      print('🎬 Added video: ${_selectedVideo!.name} (${_selectedVideoBytes!.length} bytes)');
-    }
-
-    // Rules document
-    if (_rulesDocument != null && _rulesDocumentBytes != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'document',
-          _rulesDocumentBytes!,
-          filename: _rulesDocument!.name,
-        ),
-      );
-      print('📄 Added document: ${_rulesDocument!.name} (${_rulesDocumentBytes!.length} bytes)');
-    }
-
-    print('📤 Total files: ${request.files.length}');
-    print('📤 Fields: ${request.fields.keys.join(', ')}');
-
-    // ─── SEND REQUEST ───────────────────────────────────
-    print('🚀 Sending request...');
-    
-    final streamedResponse = await request.send();
-    print('📡 Response status: ${streamedResponse.statusCode}');
-    
-    final response = await http.Response.fromStream(streamedResponse);
-    print('📡 Response body: ${response.body}');
-
-    setState(() => _isSubmitting = false);
-
-    // ─── PARSE RESPONSE ──────────────────────────────────
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      try {
-        final data = jsonDecode(response.body);
-        print('✅ Parsed response: $data');
-        
-        if (data['status'] == true) {
-          final newProperty = PropertyModel.fromJson(data['property']);
-          ref.read(productProvider.notifier).addProduct(newProperty);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Property posted successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          Navigator.pop(context);
-        } else {
-          // Server returned status: false
-          print('❌ Server returned error: ${data['message']}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Failed to post property'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (parseError) {
-        // JSON parsing error
-        print('❌ Failed to parse JSON response: $parseError');
-        print('❌ Raw response: ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid response from server'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } else {
-      // HTTP error status
-      print('❌ HTTP error: ${response.statusCode}');
-      print('❌ Response: ${response.body}');
-      
-      String errorMessage = 'Server error: ${response.statusCode}';
-      try {
-        final data = jsonDecode(response.body);
-        if (data['message'] != null) {
-          errorMessage = data['message'];
-        }
-      } catch (e) {
-        // If response is HTML or not JSON
-        if (response.body.contains('<!DOCTYPE html>')) {
-          errorMessage = 'Server returned HTML error page (500 Internal Server Error)';
-        }
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-
-  } catch (e, stackTrace) {
-    // ─── CATCH ANY OTHER ERRORS ──────────────────────────
-    setState(() => _isSubmitting = false);
-    print('❌❌❌ UNEXPECTED ERROR: $e');
-    print('❌❌❌ Stack trace: $stackTrace');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
-
-void _debugFile(String name, Uint8List? bytes) {
-  if (bytes == null) {
-    print('⚠️ $name: NULL');
-  } else {
-    print('✅ $name: ${bytes.length} bytes');
-    // Check if it's a valid image (JPEG/PNG header)
-    if (bytes.length > 4) {
-      final header = bytes.sublist(0, 4);
-      if (header[0] == 0xFF && header[1] == 0xD8) {
-        print('   📸 JPEG image detected');
-      } else if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) {
-        print('   📸 PNG image detected');
-      } else {
-        print('   ⚠️ Unknown file type');
-      }
-    }
-  }
-}
- // ✅ Add these state variables at the top (replace existing ones)
- // For mobile paths
-
-Future<void> _pickPhotos() async {
-  try {
-    final ImagePicker picker = ImagePicker();
-    final List<XFile>? pickedFiles = await picker.pickMultiImage();
-
-    if (pickedFiles != null) {
-      final remaining = 10 - _selectedPhotos.length;
-      final toAdd = pickedFiles.take(remaining).toList();
-      
+  // ✅ Read bytes immediately to prevent URL revoked error on web
+  Future<void> _pickPhotos() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickMultiImage();
+      if (picked == null || picked.isEmpty) return;
+      final remaining = 10 - _selectedPhotoBytes.length;
+      final toAdd = picked.take(remaining).toList();
       for (final file in toAdd) {
         final bytes = await file.readAsBytes();
-        setState(() {
-          _selectedPhotos.add(file);
+        if (mounted) setState(() {
           _selectedPhotoBytes.add(bytes);
           _selectedPhotoNames.add(file.name);
-          _selectedPhotoPaths.add(file.path);
         });
       }
+    } catch (e) {
+      _showSnack('Error picking photos: $e', Colors.red);
     }
-  } catch (e) {
-    print('Error picking photos: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error picking photos: $e')),
-    );
   }
-}
 
-  // Update the post button to call the correct method
-  Widget _buildPostButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _updatePostData,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepOrange,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child:
-            _isSubmitting
-                ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-                : Text(
-                  widget.editPostModel != null
-                      ? 'Update Property'
-                      : 'Post Property',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+  Future<void> _pickThumbnail() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (mounted) setState(() { _thumbnailBytes = bytes; _thumbnailName = picked.name; });
+    } catch (e) {
+      _showSnack('Error picking thumbnail: $e', Colors.red);
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (bytes.length > 50 * 1024 * 1024) { _showSnack('Video must be less than 50MB', Colors.red); return; }
+      if (mounted) setState(() { _videoBytes = bytes; _videoName = picked.name; });
+    } catch (e) {
+      _showSnack('Error picking video: $e', Colors.red);
+    }
+  }
+
+  Future<void> _pickDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx'], withData: true,
+      );
+      if (result == null || result.files.single.bytes == null) return;
+      setState(() {
+        _rulesDocument = XFile.fromData(result.files.single.bytes!, name: result.files.single.name);
+        _rulesDocumentName = result.files.single.name;
+      });
+    } catch (e) {
+      _showSnack('Error picking document: $e', Colors.red);
+    }
+  }
+
+  void _showLocationOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          ListTile(
+            leading: const Icon(Icons.map, color: Colors.orange),
+            title: const Text('Pick on Map'),
+            subtitle: const Text('Search or drop a pin'),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => MapLocationPicker(
+                  onLocationSelected: (lat, lng, address) => setState(() {
+                    _location = address; _selectedLat = lat; _selectedLng = lng;
+                  }),
                 ),
+              ));
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: AppColors.lightGrey,
-        ),
-      ),
-    );
-  }
+  void _showPriceDialog(BuildContext context) {
+   final settings = ref.read(publicSettingsProvider).value ?? PublicSettings();
+final commissionPercent = settings.commissionPercent;
+final discountPercent = settings.clientDiscountPercent;
+final commissionMonths = settings.commissionMonths;
+    final priceController = TextEditingController(text: price?.toString() ?? '');
+    String? localPackage = selectedPackage;
 
-  Widget _buildPropertyTypeDropdown() {
-    List<String> propertyTypes = [
-      'House',
-      'Land',
-      'Venue',
-      'Apartments',
-      'Office Space',
-      'Warehouse',
-      'Farm House',
-      'Industrial Building',
-      'Storage Facility',
-      'Business Shop',
-    ];
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          final enteredPrice = int.tryParse(priceController.text) ?? 0;
+          final months = _getMonthCount(localPackage ?? '1 Month');
+          final commMonths = months < commissionMonths ? months : commissionMonths;
+          final discount = enteredPrice * commMonths * (discountPercent / 100);
+          final clientPays = enteredPrice - discount;
+          final commission = enteredPrice * commMonths * (commissionPercent / 100);
+          final managerGets = enteredPrice * months - commission;
+          final fmt = NumberFormat('#,###');
 
-    return DropdownButtonFormField<String>(
-      value: _propertyType,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      items:
-          propertyTypes.map((String value) {
-            return DropdownMenuItem<String>(value: value, child: Text(value));
-          }).toList(),
-      onChanged: (newValue) {
-        setState(() {
-          _propertyType = newValue!;
-        });
-      },
-    );
-  }
-
-  Widget _buildPriceField() {
-    return Row(
-      children: [
-        Container(
-          height: 35,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: ButtonTheme(
-              alignedDropdown: true,
-              child: DropdownButton<String>(
-                value: _currency,
-                icon: const Icon(Icons.keyboard_arrow_down),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _currency = newValue;
-                    });
-                  }
-                },
-                items:
-                    <String>[
-                      'USD',
-                      'EUR',
-                      'GBP',
-                      'UGX',
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: SizedBox(
-            height: 35,
-            child: TextField(
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                hintText: 'Enter Price',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(5),
-                  borderSide: const BorderSide(color: Colors.grey),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(5),
-                  borderSide: const BorderSide(color: Colors.grey),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBasicInfoFields() {
-    final style = GoogleFonts.poppins(
-      fontSize: 14,
-      color: Colors.black54,
-      fontWeight: FontWeight.w600,
-    );
-    final inputStyle = GoogleFonts.poppins(
-      fontSize: 18,
-      fontWeight: FontWeight.w500,
-      color: AppColors.darkTextColor,
-    );
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: 8.0),
-                child: Text('~Bedrooms', style: style),
-              ),
-              SizedBox(
-                height: 35,
-                child: TextField(
-                  controller: _bedroomsController,
+          return AlertDialog(
+            title: Text('Set Rental Price', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                TextField(
+                  controller: priceController,
                   keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: inputStyle,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(labelText: 'Monthly Price (UGX)', prefixText: 'UGX ', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                  onChanged: (_) => setS(() {}),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.grid_view, size: 16, color: Colors.black54),
-                    SizedBox(width: 4),
-                    Text('Baths', style: style),
-                  ],
+                const SizedBox(height: 16),
+                const Text('Rental Package', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: packages.map((pkg) {
+                    final selected = localPackage == pkg;
+                    return GestureDetector(
+                      onTap: () => setS(() => localPackage = pkg),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: selected ? Colors.orange : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: selected ? Colors.orange : Colors.grey[300]!),
+                        ),
+                        child: Text(pkg, style: TextStyle(color: selected ? Colors.white : Colors.black87, fontSize: 12, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ),
-              SizedBox(
-                height: 35,
-                child: TextField(
-                  controller: _bathsController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: inputStyle,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.square_foot, size: 16, color: Colors.black54),
-                    SizedBox(width: 4),
-                    Text('Sq ft', style: style),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: 35,
-                child: TextField(
-                  controller: _sqftController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: inputStyle,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUnitsField() {
-    final width = MediaQuery.of(context).size.width;
-
-    return Row(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(bottom: 8.0, top: 16.0),
-              child: Text(
-                'Number of Units',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.lightGrey,
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                SizedBox(
-                  height: 35,
-                  width: 65,
-                  child: TextField(
-                    controller: _unitsController,
+                if (localPackage == 'Custom Months') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _customMonthsController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(color: Colors.grey),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(color: Colors.grey),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: 'Units',
-                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(labelText: 'Number of Months', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                    onChanged: (v) { customMonths = int.tryParse(v); setS(() {}); },
                   ),
-                ),
-                SizedBox(width: width / 10),
-                // Active Button
-                MaterialButton(
-                  height: 40,
-                  onPressed: () {
-                    setState(() {
-                      _isActive = true;
-                    });
-                  },
-                  color:
-                      _isActive
-                          ? Colors.green
-                          : const Color.fromARGB(117, 43, 43, 43),
-                  padding: EdgeInsets.all(8.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+                ],
+                if (enteredPrice > 0 && localPackage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.orange[200]!)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Pricing Breakdown', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800])),
+                      const SizedBox(height: 8),
+                      _bRow('Monthly price', 'UGX ${fmt.format(enteredPrice)}'),
+                      _bRow('Duration', '$months month${months > 1 ? "s" : ""}'),
+                      _bRow('Client discount (${discountPercent.toInt()}% × $commMonths mo)', '- UGX ${fmt.format(discount)}', color: Colors.green),
+                      const Divider(height: 12),
+                      _bRow('Client pays (first month)', 'UGX ${fmt.format(clientPays)}', bold: true),
+                      _bRow('Platform commission ($commissionPercent%)', '- UGX ${fmt.format(commission)}', color: Colors.red),
+                      _bRow('You receive', 'UGX ${fmt.format(managerGets)}', bold: true, color: Colors.green),
+                    ]),
                   ),
-                  child: Text(
-                    "Active",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 5.0),
-                // Pending Button
-                MaterialButton(
-                  height: 40,
-                  onPressed: () {
-                    setState(() {
-                      _isActive = false;
-                    });
-                  },
-                  color:
-                      !_isActive
-                          ? Colors.orange
-                          : const Color.fromARGB(117, 43, 43, 43),
-                  padding: EdgeInsets.all(8.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Text(
-                    "Pending",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
+                ],
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () {
+                  final p = int.tryParse(priceController.text);
+                  if (p == null || p <= 0) { _showSnack('Enter a valid price', Colors.red); return; }
+                  if (localPackage == null) { _showSnack('Select a package', Colors.red); return; }
+                  setState(() { price = p; selectedPackage = localPackage; customMonths = int.tryParse(_customMonthsController.text); });
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _bRow(String label, String value, {bool bold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Expanded(child: Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700]))),
+        Text(value, style: TextStyle(fontSize: 11, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: color ?? Colors.black87)),
+      ]),
+    );
+  }
+
+  Future<void> _showVenuePriceDialog(String period, Function(int) onSave) async {
+    final controller = TextEditingController();
+    final fmt = NumberFormat('#,###');
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          final val = int.tryParse(controller.text) ?? 0;
+          return AlertDialog(
+            title: Text('Set $period Price'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(labelText: '$period Price (UGX)', prefixText: 'UGX ', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
+                autofocus: true,
+                onChanged: (_) => setS(() {}),
+              ),
+              if (val > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange[200]!)),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text('$period rate:'),
+                    Text('UGX ${fmt.format(val)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  ]),
                 ),
               ],
-            ),
+            ]),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () { final p = int.tryParse(controller.text); if (p != null && p > 0) { onSave(p); Navigator.pop(ctx); } },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-            // ✅ Reveal this TextField only when status is "Pending"
-            if (!_isActive) ...[
-              SizedBox(height: 10),
-              Text(
-                'Reason for Pending',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.lightGrey,
+  Widget _buildVenuePriceToggle({required String label, required IconData icon, required bool enabled, required int? price, required Function(bool) onToggle, required VoidCallback onSetPrice}) {
+    final fmt = NumberFormat('#,###');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: enabled ? Colors.orange[50] : const Color.fromARGB(179, 235, 246, 250),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: enabled ? Colors.orange[300]! : Colors.transparent),
+      ),
+      child: Row(children: [
+        Icon(icon, color: enabled ? Colors.orange : Colors.grey[400], size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: style.copyWith(fontWeight: FontWeight.w500, color: enabled ? AppColors.darkTextColor : Colors.grey[500], fontSize: 14)),
+          if (enabled && price != null)
+            Text('UGX ${fmt.format(price)}', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13))
+          else if (enabled)
+            Text('Tap Set Price', style: TextStyle(color: Colors.orange[300], fontSize: 11)),
+        ])),
+        if (enabled) TextButton(onPressed: onSetPrice, child: Text(price != null ? 'Edit' : 'Set Price', style: const TextStyle(color: Colors.orange))),
+        Switch(value: enabled, onChanged: onToggle, activeColor: Colors.orange),
+      ]),
+    );
+  }
+
+  Future<void> _submitPost() async {
+    if (selectedDescription == null) { _showSnack('Please select property type', Colors.red); return; }
+    if (_location.isEmpty || _location == 'Kampala, Uganda') { _showSnack('Please set property location', Colors.red); return; }
+
+    // ✅ Units validation for non-venue, non-land
+    if (!_isVenue && !_isLand) {
+      final units = int.tryParse(_unitsController.text) ?? 0;
+      if (units <= 0) { _showSnack('Please enter available units (must be at least 1)', Colors.red); return; }
+    }
+
+    if (_isVenue) {
+      final hasPrice = (_isDailyEnabled && dailyPrice != null) || (_isWeeklyEnabled && weeklyPrice != null) || (_isMonthlyEnabled && monthlyPrice != null) || (_isYearlyEnabled && yearlyPrice != null);
+      if (!hasPrice) { _showSnack('Enable and set at least one venue pricing package', Colors.red); return; }
+    } else {
+      if (_isRentSelected && price == null) { _showSnack('Please set rental price', Colors.red); return; }
+      if (_isSaleSelected && salePrice == null) { _showSnack('Please set sale price', Colors.red); return; }
+    }
+
+    if (_thumbnailBytes == null && widget.editPostModel?.thumbnail == null) { _showSnack('Please add a thumbnail image', Colors.red); return; }
+
+    setState(() => _isLoading = true);
+    try {
+      final token = ref.read(userProvider).token ?? '';
+      final uri = Uri.parse(widget.editPostModel != null ? '${AppUrls.properties}/${widget.editPostModel!.id}' : '${AppUrls.properties}/create');
+      final request = http.MultipartRequest(widget.editPostModel != null ? 'PATCH' : 'POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.fields['property_type'] = selectedDescription!;
+      request.fields['address'] = _location;
+      request.fields['description'] = _descriptionController.text;
+      request.fields['status'] = _isPending ? 'pending' : 'active';
+      if (_isPending && _pendingReasonController.text.isNotEmpty) request.fields['pending_reason'] = _pendingReasonController.text;
+      if (_selectedLat != null) request.fields['latitude'] = _selectedLat.toString();
+      if (_selectedLng != null) request.fields['longitude'] = _selectedLng.toString();
+      if (_bedroomsController.text.isNotEmpty) request.fields['bedrooms'] = _bedroomsController.text;
+      if (_bathroomsController.text.isNotEmpty) request.fields['bathrooms'] = _bathroomsController.text;
+      if (_unitsController.text.isNotEmpty) request.fields['units'] = _unitsController.text;
+      if (_squareFeetController.text.isNotEmpty) request.fields['square_feet'] = _squareFeetController.text;
+      if (selectedAmenities.isNotEmpty) request.fields['amenities'] = selectedAmenities.join(',');
+
+      if (_isVenue) {
+        request.fields['listing_type'] = 'rent';
+        final map = <String, int>{};
+        if (_isDailyEnabled && dailyPrice != null) { request.fields['daily_price'] = dailyPrice.toString(); map['daily'] = dailyPrice!; }
+        if (_isWeeklyEnabled && weeklyPrice != null) { request.fields['weekly_price'] = weeklyPrice.toString(); map['weekly'] = weeklyPrice!; }
+        if (_isMonthlyEnabled && monthlyPrice != null) { request.fields['monthly_price'] = monthlyPrice.toString(); request.fields['rent_price'] = monthlyPrice.toString(); map['monthly'] = monthlyPrice!; }
+        if (_isYearlyEnabled && yearlyPrice != null) { request.fields['yearly_price'] = yearlyPrice.toString(); map['yearly'] = yearlyPrice!; }
+        request.fields['venue_pricing'] = jsonEncode(map);
+      } else {
+        if (_isRentSelected && _isSaleSelected) request.fields['listing_type'] = 'rent_and_sale';
+        else if (_isSaleSelected) request.fields['listing_type'] = 'sale';
+        else request.fields['listing_type'] = 'rent';
+        if (price != null && _isRentSelected) { request.fields['rent_price'] = price.toString(); request.fields['rent_duration_months'] = _getMonthCount(selectedPackage ?? '1 Month').toString(); }
+        if (salePrice != null && _isSaleSelected) { request.fields['sale_price'] = salePrice.toString(); if (_saleConditionController.text.isNotEmpty) request.fields['sale_condition'] = _saleConditionController.text; }
+      }
+
+      for (int i = 0; i < _selectedPhotoBytes.length; i++) {
+        request.files.add(http.MultipartFile.fromBytes('images', _selectedPhotoBytes[i], filename: _selectedPhotoNames[i]));
+      }
+      if (_thumbnailBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes('thumbnail', _thumbnailBytes!, filename: _thumbnailName ?? 'thumbnail.jpg'));
+      }
+      if (_videoBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes('video', _videoBytes!, filename: _videoName ?? 'video.mp4'));
+      }
+      if (_rulesDocument != null) {
+        final docBytes = await _rulesDocument!.readAsBytes();
+        request.files.add(http.MultipartFile.fromBytes('document', docBytes, filename: _rulesDocumentName ?? 'document.pdf'));
+      }
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      final data = jsonDecode(body);
+      if (!mounted) return;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnack(widget.editPostModel != null ? 'Property updated!' : 'Property posted!', Colors.green);
+        Navigator.pop(context, true);
+      } else {
+        _showSnack('Error: ${data['message'] ?? 'Server error'}', Colors.red);
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Error: $e', Colors.red);
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _showSnack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,###');
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white, elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20), onPressed: () => Navigator.pop(context)),
+        title: Text(widget.editPostModel != null ? 'Edit Property' : 'Add Property',
+            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black)),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ─── Property Type ──────────────────────────
+          _label('Property Type'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: descriptions.map((d) {
+              final sel = selectedDescription == d;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  selectedDescription = d; price = null; selectedPackage = null;
+                  dailyPrice = null; weeklyPrice = null; monthlyPrice = null; yearlyPrice = null;
+                  _isDailyEnabled = false; _isWeeklyEnabled = false; _isMonthlyEnabled = false; _isYearlyEnabled = false;
+                }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: sel ? Colors.orange : const Color.fromARGB(179, 235, 246, 250),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: sel ? Colors.orange : Colors.transparent),
+                  ),
+                  child: Text(d, style: style.copyWith(color: sel ? Colors.white : AppColors.darkTextColor, fontWeight: sel ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Listing Type ───────────────────────────
+          if (!_isVenue) ...[
+            _label('Listing Type'),
+            const SizedBox(height: 8),
+            Row(children: [
+              _chip('For Rent', _isRentSelected, () => setState(() => _isRentSelected = !_isRentSelected)),
+              const SizedBox(width: 8),
+              _chip('For Sale', _isSaleSelected, () => setState(() => _isSaleSelected = !_isSaleSelected)),
+            ]),
+            const SizedBox(height: 24),
+          ],
+
+          // ─── Pricing ────────────────────────────────
+          _label('Pricing'),
+          const SizedBox(height: 8),
+          if (_isVenue) ...[
+            Text('Enable the packages you want to offer', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            const SizedBox(height: 10),
+            _buildVenuePriceToggle(label: 'Daily Rate', icon: Icons.today, enabled: _isDailyEnabled, price: dailyPrice, onToggle: (v) => setState(() => _isDailyEnabled = v), onSetPrice: () => _showVenuePriceDialog('Daily', (p) => setState(() => dailyPrice = p))),
+            const SizedBox(height: 8),
+            _buildVenuePriceToggle(label: 'Weekly Rate', icon: Icons.view_week, enabled: _isWeeklyEnabled, price: weeklyPrice, onToggle: (v) => setState(() => _isWeeklyEnabled = v), onSetPrice: () => _showVenuePriceDialog('Weekly', (p) => setState(() => weeklyPrice = p))),
+            const SizedBox(height: 8),
+            _buildVenuePriceToggle(label: 'Monthly Rate', icon: Icons.calendar_month, enabled: _isMonthlyEnabled, price: monthlyPrice, onToggle: (v) => setState(() => _isMonthlyEnabled = v), onSetPrice: () => _showVenuePriceDialog('Monthly', (p) => setState(() => monthlyPrice = p))),
+            const SizedBox(height: 8),
+            _buildVenuePriceToggle(label: 'Yearly Rate', icon: Icons.calendar_today, enabled: _isYearlyEnabled, price: yearlyPrice, onToggle: (v) => setState(() => _isYearlyEnabled = v), onSetPrice: () => _showVenuePriceDialog('Yearly', (p) => setState(() => yearlyPrice = p))),
+          ] else ...[
+            if (_isRentSelected) ...[
+              GestureDetector(
+                onTap: () => _showPriceDialog(context),
+                child: Container(
+                  width: double.infinity, padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: price != null ? Colors.orange[50] : const Color.fromARGB(179, 235, 246, 250),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: price != null ? Colors.orange : Colors.transparent),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.home_work, color: price != null ? Colors.orange : Colors.grey, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(price != null ? 'UGX ${fmt.format(price!)}/month' : 'Set Rental Price Package',
+                          style: style.copyWith(fontWeight: price != null ? FontWeight.w600 : FontWeight.normal, color: price != null ? AppColors.darkTextColor : Colors.grey, fontSize: 14)),
+                      if (selectedPackage != null) Text(selectedPackage!, style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                    ])),
+                    const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                  ]),
                 ),
               ),
-              SizedBox(height: 5),
-              SizedBox(
-                width: width * 0.8,
-                child: TextField(
-                  controller:
-                      _pendingReasonController, // Add this controller in your State
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    hintText: 'Enter reason...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
+              const SizedBox(height: 8),
+            ],
+            if (_isSaleSelected) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color.fromARGB(179, 235, 246, 250), borderRadius: BorderRadius.circular(10)),
+                child: Column(children: [
+                  TextField(
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(labelText: 'Sale Price (UGX)', prefixText: 'UGX ', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: Colors.white),
+                    onChanged: (v) => salePrice = int.tryParse(v),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _saleConditionController,
+                    decoration: InputDecoration(labelText: 'Sale Conditions (optional)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: Colors.white),
+                  ),
+                ]),
               ),
             ],
           ],
-        ),
-      ],
-    );
-  }
+          const SizedBox(height: 24),
 
-  Widget _buildAmenitiesGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 3.5,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+          // ─── Location ────────────────────────────────
+        // ─── Location ────────────────────────────────
+_label('Location'),
+const SizedBox(height: 8),
+GestureDetector(
+  onTap: _showLocationOptions,
+  child: Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: _selectedLat != null ? Colors.orange[50] : const Color.fromARGB(179, 235, 246, 250),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: _selectedLat != null ? Colors.orange : Colors.transparent),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildAmenityItem(Icons.local_parking, 'Parking', _hasParking, (val) {
-          setState(() => _hasParking = val);
-        }),
-        _buildAmenityItem(Icons.chair, 'Furnished', _isFurnished, (val) {
-          setState(() => _isFurnished = val);
-        }),
-        _buildAmenityItem(Icons.ac_unit, 'AC', _hasAC, (val) {
-          setState(() => _hasAC = val);
-        }),
-        _buildAmenityItem(Icons.wifi, 'Internet', _hasInternet, (val) {
-          setState(() => _hasInternet = val);
-        }),
-        _buildAmenityItem(Icons.security, 'Security', _hasSecurity, (val) {
-          setState(() => _hasSecurity = val);
-        }),
-        _buildAmenityItem(Icons.grass, 'Compound', _hasCompound, (val) {
-          setState(() => _hasCompound = val);
-        }),
-        _buildAmenityItem(Icons.pets, 'Pet Friendly', _isPetFriendly, (val) {
-          setState(() => _isPetFriendly = val);
-        }),
-      ],
-    );
-  }
-
-  Widget _buildDescriptionField() {
-    return TextField(
-      controller: _descriptionController,
-      maxLines: 5,
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildAmenityItem(
-    IconData icon,
-    String label,
-    bool value,
-    Function(bool) onChanged,
-  ) {
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color:
-                value
-                    ? const Color.fromARGB(207, 255, 94, 0)
-                    : Colors.grey.shade300,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: value ? Colors.blue.shade50 : Colors.white,
-        ),
-        child: Row(
+        Row(
           children: [
             Icon(
-              icon,
-              size: 20,
-              color:
-                  value
-                      ? const Color.fromARGB(207, 255, 94, 0)
-                      : Colors.grey.shade600,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color:
-                      value
-                          ? const Color.fromARGB(207, 255, 94, 0)
-                          : Colors.grey.shade600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationPicker() {
-  return GestureDetector(
-    onTap: _showLocationOptions,
-    child: Container(
-      height: 56,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: _selectedLat != null ? Colors.orange : Colors.grey,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        color: _selectedLat != null ? Colors.orange[50] : Colors.white,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Icon(
-              _selectedLat != null
-                  ? Icons.location_on
-                  : Icons.location_on_outlined,
+              _selectedLat != null ? Icons.location_on : Icons.location_on_outlined,
               color: _selectedLat != null ? Colors.orange : Colors.grey,
+              size: 20,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _isLoadingLocation
                   ? const Row(
                       children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
                         SizedBox(width: 8),
-                        Text("Getting location...",
-                            style: TextStyle(color: Colors.grey)),
+                        Text('Getting location...', style: TextStyle(color: Colors.grey)),
                       ],
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Full address
                         Text(
                           _location,
-                          style: TextStyle(
-                            color: _location == "Kampala, Uganda"
-                                ? Colors.grey
-                                : Colors.black,
+                          style: style.copyWith(
                             fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _selectedLat != null ? AppColors.darkTextColor : Colors.grey,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        // ✅ Show coordinates if set
-                        if (_selectedLat != null)
-                          Text(
-                            '${_selectedLat!.toStringAsFixed(4)}, ${_selectedLng!.toStringAsFixed(4)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.orange[600],
-                            ),
+                        // Latitude and Longitude
+                        if (_selectedLat != null && _selectedLng != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${_selectedLat!.toStringAsFixed(6)}, ${_selectedLng!.toStringAsFixed(6)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.orange[700],
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
                       ],
                     ),
             ),
-            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
           ],
         ),
-      ),
-    ),
-  );
-}
-
-  void _showLocationOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.my_location, color: Colors.blue),
-                  title: const Text('Use Current Location'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _getCurrentLocation();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.map, color: Colors.green),
-                  title: const Text('Choose from Map'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _openMapPicker();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.search, color: Colors.orange),
-                  title: const Text('Search Location'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showSearchDialog();
-                  },
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isLoadingLocation = true);
-
-    try {
-      // Check permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showError("Location permission denied");
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showError("Location permissions are permanently denied");
-        return;
-      }
-
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Get address from coordinates
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks.first;
-        String address = "${place.locality}, ${place.administrativeArea}";
-
-        setState(() {
-          _location = address.isNotEmpty ? address : "Location selected";
-        });
-
-        // Store coordinates for later use if needed
-        _saveLocationData(position.latitude, position.longitude, address);
-      }
-    } catch (e) {
-      _showError("Error getting location: $e");
-    } finally {
-      setState(() => _isLoadingLocation = false);
-    }
-  }
-
-  void _openMapPicker() {
-    // Navigate to a map screen where user can pick location
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => MapLocationPicker(
-              onLocationSelected: (lat, lng, address) {
-                setState(() {
-                  _location = address;
-                });
-                _saveLocationData(lat, lng, address);
-              },
-            ),
-      ),
-    );
-  }
-
-  void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Search Location'),
-            content: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Enter address, city, or landmark...',
-              ),
-              onSubmitted: (value) async {
-                if (value.isNotEmpty) {
-                  await _searchLocation(value);
-                  Navigator.pop(context);
-                }
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  // Get text from field and search
-                  final textField =
-                      context.findAncestorStateOfType<State<TextField>>();
-                  // This is simplified - you might need a TextEditingController
-                  Navigator.pop(context);
-                },
-                child: const Text('Search'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Future<void> _searchLocation(String query) async {
-    setState(() => _isLoadingLocation = true);
-
-    try {
-      List<Location> locations = await locationFromAddress(query);
-      if (locations.isNotEmpty) {
-        Location location = locations.first;
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          location.latitude,
-          location.longitude,
-        );
-
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks.first;
-          String address = "${place.name}, ${place.locality}";
-
-          setState(() {
-            _location = address;
-          });
-          _saveLocationData(location.latitude, location.longitude, address);
-        }
-      } else {
-        _showError("Location not found");
-      }
-    } catch (e) {
-      _showError("Error searching location: $e");
-    } finally {
-      setState(() => _isLoadingLocation = false);
-    }
-  }
-
-  void _saveLocationData(double lat, double lng, String address) {
-    setState(() {
-    _location = address;
-    _selectedLat = lat;
-    _selectedLng = lng;
-  });
-  print("📍 Location saved: $address ($lat, $lng)");
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Widget _buildPhotosSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Toggle between photos and video
-        Row(
-          children: [
-            Expanded(
-              child: MaterialButton(
-                onPressed: () {
-                  setState(() {
-                    _isVideo = false;
-                  });
-                },
-                color: !_isVideo ? Colors.blue : Colors.grey[300],
-                child: Text(
-                  'Photos',
-                  style: TextStyle(
-                    color: !_isVideo ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: MaterialButton(
-                onPressed: () {
-                  setState(() {
-                    _isVideo = true;
-                  });
-                },
-                color: _isVideo ? Colors.blue : Colors.grey[300],
-                child: Text(
-                  'Video',
-                  style: TextStyle(
-                    color: _isVideo ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 10),
-
-        // Content based on selection
-        _isVideo ? _buildVideoSection() : _buildImageSection(),
-      ],
-    );
-  }
-
-  Widget _buildImageSection() {
-  return Column(
-    children: [
-      Container(
-        height: 50,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: GestureDetector(
-          onTap: _pickPhotos,
-          child: Center(
+        // Tap to change hint
+        if (_selectedLat != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.camera_alt, color: Colors.grey),
+                Icon(
+                  Icons.touch_app,
+                  size: 12,
+                  color: Colors.grey[400],
                 ),
-                const SizedBox(width: 8),
-                const Text('Add up to 10 photos',
-                    style: TextStyle(color: Colors.grey)),
+                const SizedBox(width: 4),
+                Text(
+                  'Tap to change location',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[400],
+                  ),
+                ),
               ],
             ),
           ),
-        ),
-      ),
-      const SizedBox(height: 10),
-      // In _buildImageSection(), update the image display:
-if (_selectedPhotoBytes.isNotEmpty)
-  SizedBox(
-    height: 100,
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: _selectedPhotoBytes.length,
-      itemBuilder: (context, index) {
-        return Stack(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  _selectedPhotoBytes[index],
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 4,
-              right: 4,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedPhotos.removeAt(index);
-                    _selectedPhotoBytes.removeAt(index);
-                    _selectedPhotoNames.removeAt(index);
-                    if (index < _selectedPhotoPaths.length) {
-                      _selectedPhotoPaths.removeAt(index);
-                    }
-                  });
-                },
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close,
-                      color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      ],
     ),
   ),
-    ],
-  );
-}
+),
+const SizedBox(height: 24),
 
-  Widget _buildVideoSection() {
-    return Column(
-      children: [
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.grey.shade300,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: GestureDetector(
-            onTap: _pickVideo,
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.videocam, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Add a short video',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (_selectedVideo != null)
-          Stack(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.black12,
-                ),
-                child: Icon(Icons.videocam, size: 40, color: Colors.grey),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedVideo = null;
-                    });
-                  },
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 8,
-                left: 8,
-                child: Text(
-                  'Video',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(1, 1),
-                        blurRadius: 3,
-                        color: Colors.black,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
+          // ─── Property Details ─────────────────────────
+          _label('Property Details'),
+          const SizedBox(height: 8),
+          if (!_isLand) ...[
+            Row(children: [
+              if (!_isVenue) ...[Expanded(child: _field(_bedroomsController, 'Bedrooms', Icons.bed)), const SizedBox(width: 12)],
+              Expanded(child: _field(_bathroomsController, 'Bathrooms', Icons.bathroom)),
+            ]),
+            const SizedBox(height: 12),
+          ],
+          Row(children: [
+            Expanded(child: _field(_unitsController, _isVenue ? 'Capacity' : 'Available Units', Icons.apartment, hint: _isVenue ? 'Max people' : 'e.g. 4')),
+            const SizedBox(width: 12),
+            Expanded(child: _field(_squareFeetController, 'Square Feet', Icons.square_foot, isDecimal: true)),
+          ]),
 
-  Widget _buildThumbnailSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Thumbnail Image",
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.lightGrey,
+          // ✅ Units warning
+          if (!_isVenue && !_isLand) Builder(builder: (ctx) {
+            final units = int.tryParse(_unitsController.text) ?? -1;
+            if (units == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.orange[200]!)),
+                  child: const Row(children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 14),
+                    SizedBox(width: 6),
+                    Expanded(child: Text('Property will not show to clients until units are available. Units restore when clients cancel or refund.', style: TextStyle(color: Colors.orange, fontSize: 11))),
+                  ]),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
+          const SizedBox(height: 12),
+          TextField(
+            controller: _descriptionController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              labelText: 'Description', hintText: 'Describe the property...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              filled: true, fillColor: const Color.fromARGB(179, 235, 246, 250),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _pickThumbnail,
-          child: Container(
-            height: 150,
-            width: double.infinity,
+          const SizedBox(height: 24),
+
+          // ─── Coming Soon ──────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.white,
+              color: _isPending ? Colors.orange[50] : const Color.fromARGB(179, 235, 246, 250),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _isPending ? Colors.orange[200]! : Colors.transparent),
             ),
-           child: _thumbnailBytes == null && widget.editPostModel?.thumbnail == null
-
-                    ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.image, size: 40, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          "Tap to add thumbnail",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    )
-                    : Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child:
-                              _thumbnailBytes != null
-                                ? Image.memory(
-                                    _thumbnailBytes!,
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                  )
-                                  : Image.network(
-                                    widget.editPostModel!.thumbnail!,
-                                    width: double.infinity,
-                                    height: 150,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                              color: Colors.grey[300],
-                                              child: const Icon(Icons.error),
-                                            ),
-                                  ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: GestureDetector(
-                           onTap: () {
-                            setState(() {
-                              _thumbnailPhoto = null;
-                              _thumbnailBytes = null; // ✅ also clear bytes
-                            });
-                          },
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+            child: Column(children: [
+              SwitchListTile(
+                value: _isPending, onChanged: (v) => setState(() => _isPending = v),
+                title: Text('Mark as Coming Soon', style: style.copyWith(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Clients can book to reserve their spot', style: TextStyle(fontSize: 12)),
+                activeColor: Colors.orange, contentPadding: EdgeInsets.zero,
+              ),
+              if (_isPending) ...[
+                const SizedBox(height: 8),
+                TextField(controller: _pendingReasonController, decoration: InputDecoration(labelText: 'Reason / Expected ready date', hintText: 'e.g. Ready by March 2025', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
+              ],
+            ]),
           ),
-        ),
-      ],
+          const SizedBox(height: 24),
+
+          // ─── Amenities ────────────────────────────────
+          _label('Amenities'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: amenitiesList.map((a) {
+              final sel = selectedAmenities.contains(a);
+              return GestureDetector(
+                onTap: () => setState(() { if (sel) selectedAmenities.remove(a); else selectedAmenities.add(a); }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: sel ? Colors.orange : const Color.fromARGB(179, 235, 246, 250),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: sel ? Colors.orange : Colors.transparent),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (sel) ...[const Icon(Icons.check, color: Colors.white, size: 12), const SizedBox(width: 4)],
+                    Text(a, style: style.copyWith(color: sel ? Colors.white : AppColors.darkTextColor, fontSize: 12, fontWeight: sel ? FontWeight.w600 : FontWeight.normal)),
+                  ]),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Thumbnail ────────────────────────────────
+          _label('Thumbnail Image *'),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickThumbnail,
+            child: Container(
+              width: double.infinity, height: 160,
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(179, 235, 246, 250),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _thumbnailBytes != null ? Colors.orange : Colors.transparent),
+              ),
+              child: _thumbnailBytes != null
+                  ? Stack(children: [
+                      ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(_thumbnailBytes!, width: double.infinity, height: 160, fit: BoxFit.cover)),
+                      Positioned(top: 8, right: 8, child: GestureDetector(
+                        onTap: () => setState(() { _thumbnailBytes = null; _thumbnailName = null; }),
+                        child: Container(decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 20)),
+                      )),
+                    ])
+                  : widget.editPostModel?.thumbnail != null
+                      ? Stack(children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network('${AppUrls.baseUrl}/${widget.editPostModel!.thumbnail}', width: double.infinity, height: 160, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _thumbEmpty())),
+                          Positioned(bottom: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)), child: const Text('Tap to change', style: TextStyle(color: Colors.white, fontSize: 10)))),
+                        ])
+                      : _thumbEmpty(),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Gallery ──────────────────────────────────
+          _label('Gallery Photos (${_selectedPhotoBytes.length}/10)'),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _selectedPhotoBytes.length < 10 ? _pickPhotos : null,
+            child: Container(
+              width: double.infinity, padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: const Color.fromARGB(179, 235, 246, 250), borderRadius: BorderRadius.circular(10)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.add_photo_alternate, color: _selectedPhotoBytes.length < 10 ? Colors.grey : Colors.grey[300]),
+                const SizedBox(width: 8),
+                Text(_selectedPhotoBytes.length < 10 ? 'Add Photos (${10 - _selectedPhotoBytes.length} remaining)' : 'Maximum 10 photos', style: TextStyle(color: Colors.grey[600])),
+              ]),
+            ),
+          ),
+          if (_selectedPhotoBytes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 90,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _selectedPhotoBytes.length,
+                itemBuilder: (_, i) => Stack(children: [
+                  Container(margin: const EdgeInsets.only(right: 8), width: 90, height: 90,
+                      child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(_selectedPhotoBytes[i], fit: BoxFit.cover))),
+                  Positioned(top: 4, right: 4, child: GestureDetector(
+                    onTap: () => setState(() { _selectedPhotoBytes.removeAt(i); _selectedPhotoNames.removeAt(i); }),
+                    child: Container(decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 16)),
+                  )),
+                ]),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          // ─── Video ────────────────────────────────────
+          _label('Property Video (optional)'),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickVideo,
+            child: Container(
+              width: double.infinity, padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _videoBytes != null ? Colors.orange[50] : const Color.fromARGB(179, 235, 246, 250),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _videoBytes != null ? Colors.orange : Colors.transparent),
+              ),
+              child: Row(children: [
+                Icon(_videoBytes != null ? Icons.videocam : Icons.videocam_outlined, color: _videoBytes != null ? Colors.orange : Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(_videoBytes != null ? (_videoName ?? 'Video selected') : 'Add a property walkthrough video',
+                      style: style.copyWith(color: _videoBytes != null ? AppColors.darkTextColor : Colors.grey, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (_videoBytes != null) Text('${(_videoBytes!.length / (1024 * 1024)).toStringAsFixed(1)} MB', style: TextStyle(fontSize: 11, color: Colors.orange[600])),
+                ])),
+                if (_videoBytes != null) GestureDetector(onTap: () => setState(() { _videoBytes = null; _videoName = null; }), child: const Icon(Icons.close, color: Colors.grey, size: 18)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Document ─────────────────────────────────
+          _label('Rules / Agreement Document (optional)'),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickDocument,
+            child: Container(
+              width: double.infinity, padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _rulesDocument != null ? Colors.green[50] : const Color.fromARGB(179, 235, 246, 250),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _rulesDocument != null ? Colors.green : Colors.transparent),
+              ),
+              child: Row(children: [
+                Icon(_rulesDocument != null ? Icons.description : Icons.upload_file, color: _rulesDocument != null ? Colors.green : Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_rulesDocumentName ?? 'Upload PDF/DOC rules document',
+                    style: style.copyWith(color: _rulesDocument != null ? AppColors.darkTextColor : Colors.grey, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                if (_rulesDocument != null) ...[
+                  TextButton(
+                    onPressed: () async {
+                      final bytes = await _rulesDocument!.readAsBytes();
+                      if (!mounted) return;
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentPreviewScreen(fileBytes: bytes, fileName: _rulesDocumentName ?? 'document.pdf', title: 'Document Preview')));
+                    },
+                    child: const Text('Preview', style: TextStyle(color: Colors.green)),
+                  ),
+                  GestureDetector(onTap: () => setState(() { _rulesDocument = null; _rulesDocumentName = null; }), child: const Icon(Icons.close, color: Colors.grey, size: 18)),
+                ],
+              ]),
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // ─── Submit ───────────────────────────────────
+          SizedBox(
+            width: double.infinity, height: 54,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitPost,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, disabledBackgroundColor: Colors.orange[200], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: _isLoading
+                  ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)), SizedBox(width: 12), Text('Posting...', style: TextStyle(color: Colors.white, fontSize: 16))])
+                  : Text(widget.editPostModel != null ? 'Update Property' : 'Post Property', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ]),
+      ),
     );
   }
 
- Future<void> _pickThumbnail() async {
-  try {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 80,
-    );
+  Widget _label(String t) => Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(t, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.darkTextColor)));
 
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      setState(() {
-        _thumbnailPhoto = pickedFile;
-        _thumbnailBytes = bytes;
-      });
-    }
-  } catch (e) {
-    print('Error picking thumbnail: $e');
-  }
-}
+  Widget _chip(String label, bool sel, VoidCallback onTap) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(color: sel ? Colors.orange : const Color.fromARGB(179, 235, 246, 250), borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.orange : Colors.transparent)),
+      child: Text(label, style: style.copyWith(color: sel ? Colors.white : AppColors.darkTextColor, fontWeight: sel ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
+    ),
+  );
 
-  Future<void> _pickVideo() async {
-  try {
-    final ImagePicker picker = ImagePicker();
+  Widget _field(TextEditingController c, String label, IconData icon, {bool isDecimal = false, String? hint}) => TextField(
+    controller: c,
+    keyboardType: isDecimal ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.number,
+    inputFormatters: [isDecimal ? FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*')) : FilteringTextInputFormatter.digitsOnly],
+    onChanged: (_) => setState(() {}),
+    decoration: InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(icon, size: 18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), filled: true, fillColor: const Color.fromARGB(179, 235, 246, 250), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+  );
 
-    final XFile? pickedFile = await picker.pickVideo(
-      source: ImageSource.gallery,
-      maxDuration: const Duration(seconds: 30),
-    );
-
-    if (pickedFile == null) return;
-
-    final bytes = await pickedFile.readAsBytes();
-
-    if (bytes.length > 10 * 1024 * 1024) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Video must be less than 10MB"),
-        ),
-      );
-      return;
-    }
-
-    final thumbnail = await VideoThumbnail.thumbnailData(
-      video: pickedFile.path,
-      imageFormat: ImageFormat.JPEG,
-      maxWidth: 400,
-      quality: 80,
-    );
-
-    setState(() {
-      _selectedVideo = pickedFile;
-      _selectedVideoBytes = bytes;
-      _videoThumbnail = thumbnail;
-    });
-  } catch (e) {
-    print(e);
-  }
-}
-
-  @override
-  void dispose() {
-    _priceController.dispose();
-    _salePriceController.dispose();
-    _dailyPriceController.dispose(); // ✅ add this
-    _bedroomsController.dispose();
-    _bathsController.dispose();
-    _sqftController.dispose();
-    _unitsController.dispose();
-    _descriptionController.dispose();
-    _saleConditionsController.dispose();
-    _pendingReasonController.dispose();
-    super.dispose();
-  }
+  Widget _thumbEmpty() => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+    Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey[400]),
+    const SizedBox(height: 8),
+    Text('Tap to add thumbnail', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+    Text('Main image shown in listings', style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+  ]);
 }

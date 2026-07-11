@@ -21,26 +21,38 @@ class MapLocationPicker extends StatefulWidget {
 class _MapLocationPickerState extends State<MapLocationPicker> {
   final Completer<GoogleMapController> _controller = Completer();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   LatLng _selectedLocation = const LatLng(0.3476, 32.5825); // Kampala
   String _selectedAddress = 'Kampala, Uganda';
   bool _isLoading = false;
   bool _isMapReady = false;
   Set<Marker> _markers = {};
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _showSearchResults = false;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.initialLocation != null) {
       _selectedLocation = widget.initialLocation!;
+      _updateAddressFromLocation(_selectedLocation);
     }
     _updateMarker(_selectedLocation);
     _getCurrentLocation();
+
+    _searchController.addListener(() {
+      if (_searchController.text.isEmpty) {
+        setState(() => _showSearchResults = false);
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -65,16 +77,25 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   }
 
   Future<void> _moveToLocation(LatLng latLng) async {
-    setState(() => _selectedLocation = latLng);
+    setState(() {
+      _selectedLocation = latLng;
+      _showSearchResults = false;
+      _searchController.clear();
+      _searchResults = [];
+    });
     _updateMarker(latLng);
 
     if (_isMapReady && _controller.isCompleted) {
       final controller = await _controller.future;
       await controller.animateCamera(
-          CameraUpdate.newLatLngZoom(latLng, 16));
+        CameraUpdate.newLatLngZoom(latLng, 16),
+      );
     }
 
-    // Reverse geocode to get address
+    await _updateAddressFromLocation(latLng);
+  }
+
+  Future<void> _updateAddressFromLocation(LatLng latLng) async {
     try {
       final placemarks = await placemarkFromCoordinates(
         latLng.latitude,
@@ -87,13 +108,17 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           p.subLocality,
           p.locality,
           p.administrativeArea,
+          p.country,
         ].where((e) => e != null && e.isNotEmpty).toList();
-        setState(() =>
-            _selectedAddress = parts.isNotEmpty ? parts.join(', ') : 'Unknown');
+        setState(() {
+          _selectedAddress = parts.isNotEmpty ? parts.join(', ') : 'Unknown';
+        });
       }
     } catch (e) {
-      setState(() => _selectedAddress =
-          '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}');
+      setState(() {
+        _selectedAddress =
+            '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
+      });
     }
   }
 
@@ -105,7 +130,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           position: latLng,
           draggable: true,
           icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange),
+            BitmapDescriptor.hueOrange,
+          ),
           onDragEnd: (newPos) => _moveToLocation(newPos),
           infoWindow: InfoWindow(title: _selectedAddress),
         ),
@@ -113,29 +139,93 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     });
   }
 
-  Future<void> _searchByQuery(String query) async {
-    if (query.trim().isEmpty) return;
-    setState(() => _isLoading = true);
+  Future<void> _searchLocation(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _showSearchResults = false;
+        _searchResults = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _showSearchResults = true;
+    });
+
     try {
       final locations = await locationFromAddress(query);
       if (locations.isNotEmpty) {
-        final loc = locations.first;
-        await _moveToLocation(LatLng(loc.latitude, loc.longitude));
-        _searchController.clear();
+        final results = <Map<String, dynamic>>[];
+        
+        for (final location in locations.take(5)) {
+          final placemarks = await placemarkFromCoordinates(
+            location.latitude,
+            location.longitude,
+          );
+          
+          if (placemarks.isNotEmpty) {
+            final p = placemarks.first;
+            final parts = [
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.administrativeArea,
+              p.country,
+            ].where((e) => e != null && e.isNotEmpty).toList();
+            final address = parts.isNotEmpty ? parts.join(', ') : 'Unknown';
+            
+            results.add({
+              'placemark': p,
+              'latitude': location.latitude,
+              'longitude': location.longitude,
+              'address': address,
+            });
+          }
+        }
+        
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
       } else {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
         _showSnack('Location not found');
       }
     } catch (e) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
       _showSnack('Could not find location');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _selectSearchResult(Map<String, dynamic> result) {
+    final latLng = LatLng(
+      result['latitude'] as double,
+      result['longitude'] as double,
+    );
+    _moveToLocation(latLng);
+    setState(() {
+      _showSearchResults = false;
+      _searchController.clear();
+      _searchResults = [];
+    });
+    _searchFocusNode.unfocus();
   }
 
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.red.shade700,
+      ),
     );
   }
 
@@ -150,6 +240,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 500;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -162,27 +254,43 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
         title: const Text(
           'Select Location',
           style: TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: 18),
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
         ),
         centerTitle: true,
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: _confirmLocation,
-              style: TextButton.styleFrom(
+              style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 12 : 16,
+                  vertical: isSmallScreen ? 6 : 8,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: 0,
               ),
-              child: const Text('Confirm',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 14)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Confirm',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isSmallScreen ? 12 : 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -213,170 +321,296 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
               color: Colors.black.withOpacity(0.3),
               child: const Center(
                 child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.orange),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                 ),
               ),
             ),
 
-          // ─── Search Bar ───────────────────────────────
+          // ─── Search Section ───────────────────────────
           Positioned(
             top: 12,
             left: 12,
             right: 12,
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search area, district or address...',
-                  prefixIcon:
-                      const Icon(Icons.search, color: Colors.orange),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear,
-                              color: Colors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                // Search Bar
+                Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(12),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Search area, district or address...',
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.orange.shade700,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _showSearchResults = false;
+                                  _searchResults = [];
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onChanged: (value) {
+                      if (value.length >= 2) {
+                        _searchLocation(value);
+                      } else {
+                        setState(() {
+                          _showSearchResults = false;
+                          _searchResults = [];
+                        });
+                      }
+                    },
+                    onSubmitted: _searchLocation,
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
                 ),
-                textInputAction: TextInputAction.search,
-                onChanged: (v) => setState(() {}),
-                onSubmitted: _searchByQuery,
-              ),
+
+                // Search Results
+                if (_showSearchResults && _searchResults.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.35,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: _searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = _searchResults[index];
+                        final placemark = result['placemark'] as Placemark;
+                        final address = result['address'] as String;
+                        
+                        final title = placemark.name ?? 
+                                      placemark.locality ?? 
+                                      placemark.administrativeArea ?? 
+                                      'Unknown';
+
+                        return ListTile(
+                          leading: const Icon(
+                            Icons.location_on,
+                            color: Colors.orange,
+                          ),
+                          title: Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            address,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => _selectSearchResult(result),
+                          dense: isSmallScreen,
+                        );
+                      },
+                    ),
+                  ),
+
+                // Search Loading
+                if (_isSearching)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Searching...'),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
 
           // ─── My Location button ───────────────────────
           Positioned(
-            bottom: 190,
+            bottom: 160,
             right: 12,
-            child: FloatingActionButton.small(
+            child: FloatingActionButton(
               heroTag: 'my_location',
               backgroundColor: Colors.white,
+              elevation: 4,
+              mini: isSmallScreen,
               onPressed: _getCurrentLocation,
-              child:
-                  const Icon(Icons.my_location, color: Colors.orange),
+              child: Icon(
+                Icons.my_location,
+                color: Colors.orange.shade700,
+                size: isSmallScreen ? 20 : 24,
+              ),
             ),
           ),
 
-          // ─── Selected Location Card ───────────────────
+          // ─── Location Info Pill ───────────────────────
           Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
+            bottom: 80,
+            left: 12,
+            right: 12,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: isSmallScreen ? 8 : 10,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
-                border:
-                    Border.all(color: Colors.orange.withOpacity(0.3)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.location_on,
-                            color: Colors.orange, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Selected Location',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.black87),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.orange.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
+                    child: Icon(
+                      Icons.location_on,
+                      color: Colors.orange.shade700,
+                      size: isSmallScreen ? 16 : 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           _selectedAddress,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.black87,
-                              height: 1.4),
-                          maxLines: 3,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 12 : 13,
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
                         Text(
-                          '${_selectedLocation.latitude.toStringAsFixed(6)}, ${_selectedLocation.longitude.toStringAsFixed(6)}',
+                          '${_selectedLocation.latitude.toStringAsFixed(5)}, ${_selectedLocation.longitude.toStringAsFixed(5)}',
                           style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                              fontFamily: 'monospace'),
+                            fontSize: isSmallScreen ? 9 : 10,
+                            color: Colors.grey.shade600,
+                            fontFamily: 'monospace',
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline,
-                          size: 12, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tap map or drag pin to change location',
-                        style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade500),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _confirmLocation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: const Text('Confirm Location',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_location, color: Colors.orange),
+                    onPressed: () {
+                      // Allow user to edit by tapping map
+                      setState(() {});
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    iconSize: isSmallScreen ? 18 : 20,
                   ),
                 ],
+              ),
+            ),
+          ),
+
+          // ─── Bottom Hint ──────────────────────────────
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.touch_app,
+                      color: Colors.white70,
+                      size: isSmallScreen ? 12 : 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Tap map or drag pin to change location',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: isSmallScreen ? 10 : 11,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

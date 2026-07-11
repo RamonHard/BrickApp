@@ -120,7 +120,7 @@ class RequestsByClient extends ConsumerWidget {
   }
 }
 
-class _ClientBookingCard extends StatefulWidget {
+class _ClientBookingCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> booking;
   final String token;
   final NumberFormat formatter;
@@ -134,10 +134,10 @@ class _ClientBookingCard extends StatefulWidget {
   });
 
   @override
-  State<_ClientBookingCard> createState() => _ClientBookingCardState();
+  ConsumerState<_ClientBookingCard> createState() => _ClientBookingCardState();
 }
 
-class _ClientBookingCardState extends State<_ClientBookingCard> {
+class _ClientBookingCardState extends ConsumerState<_ClientBookingCard> {
   bool _loading = false;
 
   bool get _isProperty => widget.booking['booking_type'] == 'property';
@@ -241,67 +241,169 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
     }
   }
 
-  Future<void> _requestRefund() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Request Refund?'),
-        content: const Text(
-          'Are you sure you want to cancel this booking and request a refund?\n\n'
-          'Refunds are only available within 2 hours of booking.',
+  // ✅ Add these state variables to _PropertyBookingCardState
+bool _isRequestingRefund = false;
+
+// ✅ Add this method
+Future<void> _requestRefund() async {
+  final booking = widget.booking;
+  
+  // Check 72hr window
+  final hoursSinceBooking = DateTime.now().difference(DateTime.parse(booking['created_at'] ?? DateTime.now().toIso8601String())).inHours;
+  final hoursRemaining = 72 - hoursSinceBooking;
+  
+  if (hoursRemaining <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Refund window has expired (72 hours)'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  // Reason selector
+  String? selectedReason;
+  final detailsController = TextEditingController();
+  
+  final reasons = [
+    'Wrong location',
+    'Fake listing',
+    'Already occupied',
+    'Different price',
+    'Poor condition',
+    'Missing amenities',
+    'Other',
+  ];
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setS) => AlertDialog(
+        title: const Text('Request Refund'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ 72hr countdown
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: hoursRemaining < 24 ? Colors.red[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: hoursRemaining < 24 ? Colors.red[200]! : Colors.orange[200]!,
+                  ),
+                ),
+                child: Row(children: [
+                  Icon(Icons.timer, color: hoursRemaining < 24 ? Colors.red : Colors.orange, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    'Refund window: ${hoursRemaining.toStringAsFixed(0)} hours remaining',
+                    style: TextStyle(
+                      color: hoursRemaining < 24 ? Colors.red : Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  )),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              const Text('Reason for refund *',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              ...reasons.map((r) => RadioListTile<String>(
+                value: r,
+                groupValue: selectedReason,
+                title: Text(r, style: const TextStyle(fontSize: 13)),
+                activeColor: Colors.orange,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                onChanged: (v) => setS(() => selectedReason = v),
+              )).toList(),
+              const SizedBox(height: 8),
+              if (selectedReason == 'Other') ...[
+                TextField(
+                  controller: detailsController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Please explain',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: const Text(
+                  '⚠️ Only request a refund if you have visited the property and found it does not match the listing.',
+                  style: TextStyle(color: Colors.red, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Yes, Refund'),
+            onPressed: selectedReason == null ? null : () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Submit Refund Request',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
+    ),
+  );
+
+  if (confirmed != true || selectedReason == null || !mounted) return;
+
+  setState(() => _isRequestingRefund = true);
+  try {
+    final token = ref.read(userProvider).token ?? '';
+    final res = await http.post(
+      Uri.parse('${AppUrls.baseUrl}/bookings/property/${booking['id']}/refund'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'reason': selectedReason,
+        'reason_details': detailsController.text.isEmpty ? null : detailsController.text,
+      }),
     );
 
-    if (confirm != true) return;
-
-    setState(() => _loading = true);
-
-    try {
-      final res = await http.post(
-        Uri.parse(AppUrls.refundBooking(widget.booking['id'])),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
+    if (!mounted) return;
+    final data = jsonDecode(res.body);
+    if (res.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refund request submitted successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
-      final data = jsonDecode(res.body);
-
-      if (res.statusCode == 200 && data['status'] == true) {
-        widget.onRefresh();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Refund requested successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Refund failed'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      setState(() => _loading = false);
+      widget.onRefresh(); // refresh list
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['message'] ?? 'Failed'), backgroundColor: Colors.red),
+      );
     }
+  } catch (e) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+    );
   }
+  if (mounted) setState(() => _isRequestingRefund = false);
+}
 
   Future<void> _payForTransport() async {
     setState(() => _loading = true);
@@ -499,6 +601,56 @@ class _ClientBookingCardState extends State<_ClientBookingCard> {
                   ),
                 ),
               ),
+              // ✅ Add after the Confirm Visit button inside the awaiting_visit section
+const SizedBox(height: 8),
+// 72hr countdown
+Builder(builder: (ctx) {
+  final hoursSince = DateTime.now().difference(DateTime.parse(widget.booking['created_at'] ?? DateTime.now().toIso8601String())).inHours;
+  final hoursLeft = 72 - hoursSince;
+  final isExpiring = hoursLeft < 24;
+  return Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: isExpiring ? Colors.red[50] : Colors.grey[50],
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: isExpiring ? Colors.red[200]! : Colors.grey[200]!),
+    ),
+    child: Row(children: [
+      Icon(Icons.timer_outlined, size: 14,
+          color: isExpiring ? Colors.red : Colors.grey[600]),
+      const SizedBox(width: 6),
+      Expanded(child: Text(
+        hoursLeft > 0
+            ? 'Refund window: ${hoursLeft}h remaining'
+            : 'Refund window expired',
+        style: TextStyle(
+          fontSize: 11,
+          color: isExpiring ? Colors.red : Colors.grey[600],
+          fontWeight: isExpiring ? FontWeight.w600 : FontWeight.normal,
+        ),
+      )),
+    ]),
+  );
+}),
+const SizedBox(height: 8),
+// Refund button
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed: _isRequestingRefund ? null : _requestRefund,
+    icon: _isRequestingRefund
+        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+        : const Icon(Icons.undo, size: 16, color: Colors.red),
+    label: Text(
+      _isRequestingRefund ? 'Requesting...' : 'Request Refund',
+      style: const TextStyle(color: Colors.red),
+    ),
+    style: OutlinedButton.styleFrom(
+      side: const BorderSide(color: Colors.red),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+  ),
+),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(8),

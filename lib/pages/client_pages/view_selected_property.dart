@@ -333,177 +333,102 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
             ),
 
             // Title + Price
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.selectedProduct.propertyType,
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
-                            widget.selectedProduct.numberOfMonths != '0' &&
-                            widget.selectedProduct.numberOfMonths != 'null')
-                          Text(
-                            'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (widget.selectedProduct.rentPrice != null &&
-                      widget.selectedProduct.rentPrice! > 0)
-                    Flexible(
-                      child: Text(
-                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
+          // ─── Title + Price ─────────────────────────────
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Property type title
+      Text(
+        widget.selectedProduct.propertyType,
+        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 6),
+
+      // ✅ VENUE — show packages
+      if (widget.selectedProduct.venuePricing != null &&
+          widget.selectedProduct.venuePricing!.isNotEmpty) ...[
+        const Text('Venue Packages',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 8),
+        ...widget.selectedProduct.venuePricing!.entries.map((entry) {
+          final icons = {
+            'daily': Icons.today,
+            'weekly': Icons.view_week,
+            'monthly': Icons.calendar_month,
+            'yearly': Icons.calendar_today,
+          };
+          final labels = {
+            'daily': 'Per Day',
+            'weekly': 'Per Week',
+            'monthly': 'Per Month',
+            'yearly': 'Per Year',
+          };
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.orange[200]!),
             ),
-
-            // Sale Price Row
-            if (widget.selectedProduct.salePrice != null &&
-                widget.selectedProduct.salePrice! > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Sale Price: ",
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+            child: Row(children: [
+              Icon(icons[entry.key] ?? Icons.attach_money, color: Colors.orange, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
+              const Spacer(),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(
+                  'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 15),
+                ),
+                Text(
+                  labels[entry.key] ?? '',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ]),
+            ]),
+          );
+        }).toList(),
+      ]
 
-            // Sale Info
-            if (widget.selectedProduct.isSale &&
-                widget.selectedProduct.enteredSalePrice > 0)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Sale Price',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.enteredSalePrice)}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // ✅ Show venue packages if it's a venue
-if (widget.selectedProduct.venuePricing != null &&
-    widget.selectedProduct.venuePricing!.isNotEmpty) ...[
-  const SizedBox(height: 12),
-  const Text('Venue Packages',
-      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-  const SizedBox(height: 8),
-  ...widget.selectedProduct.venuePricing!.entries.map((entry) {
-    final icons = {
-      'daily': Icons.today,
-      'weekly': Icons.view_week,
-      'monthly': Icons.calendar_month,
-      'yearly': Icons.calendar_today,
-    };
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.orange[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(icons[entry.key] ?? Icons.attach_money,
-              color: Colors.orange, size: 20),
-          const SizedBox(width: 10),
+      // ✅ REGULAR — show rent price
+      else if (widget.selectedProduct.rentPrice != null &&
+          widget.selectedProduct.rentPrice! > 0) ...[
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
+              widget.selectedProduct.numberOfMonths != '0' &&
+              widget.selectedProduct.numberOfMonths != 'null')
+            Text(
+              'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
           Text(
-            '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
+            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
           ),
-          const Spacer(),
+        ]),
+      ],
+
+      // ✅ SALE price
+      if (widget.selectedProduct.salePrice != null &&
+          widget.selectedProduct.salePrice! > 0) ...[
+        const SizedBox(height: 6),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('Sale Price:', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
           Text(
-            'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.orange,
-                fontSize: 15),
+            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
           ),
-        ],
-      ),
-    );
-  }).toList(),
-],
-                    if (widget.selectedProduct.saleConditions.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Conditions: ${widget.selectedProduct.saleConditions}',
-                        style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+        ]),
+      ],
+    ],
+  ),
+),
 
             // Location + Rating
             Padding(

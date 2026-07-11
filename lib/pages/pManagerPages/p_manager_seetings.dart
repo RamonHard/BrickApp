@@ -582,20 +582,19 @@ Future<double> _getWithdrawalCharge(double amount) async {
                             children: [
                               Expanded(
                                 child: _buildWalletCard(
-                                  '🔒 In Escrow',
-                                  'UGX ${formatter.format(_lockedBalance)}',
-                                  Colors.orange,
-                                  'Waiting for client to confirm visit',
-                                ),
-                              ),
+  '✅ Ready to Withdraw',
+  'UGX ${formatter.format(_withdrawableBalance)}',
+  Colors.green,
+  'Your earnings after all deductions',
+),),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildWalletCard(
-                                  '✅ Available',
-                                  'UGX ${formatter.format(_withdrawableBalance)}',
-                                  Colors.green,
-                                  'Ready to withdraw',
-                                ),
+  '🔒 Awaiting Client Confirmation',
+  'UGX ${formatter.format(_lockedBalance)}',
+  Colors.orange,
+  'Released when client confirms visit',
+),
                               ),
                             ],
                           ),
@@ -607,10 +606,11 @@ Future<double> _getWithdrawalCharge(double amount) async {
                                   ? _requestWithdrawal : null,
                               icon: const Icon(Icons.account_balance_wallet,
                                   color: Colors.white),
-                              label: Text(
-                                'Withdraw UGX ${formatter.format(_withdrawableBalance)}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
+                              label: // ✅ Update withdraw button label
+Text(
+  'Withdraw UGX ${formatter.format(_withdrawableBalance)}',
+  style: const TextStyle(color: Colors.white),
+),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 disabledBackgroundColor: Colors.grey[300],
