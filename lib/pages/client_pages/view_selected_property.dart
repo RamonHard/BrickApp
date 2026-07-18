@@ -29,7 +29,10 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
   int _commissionMonths = 3;
   double _commissionPercent = 10.0;
   bool _settingsLoaded = false;
-
+  bool get _isPendingNotApproved {
+  return widget.selectedProduct.status == 'pending' &&
+      !widget.selectedProduct.adminApproved;
+}
   @override
   void initState() {
     super.initState();
@@ -286,48 +289,54 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                     ),
 
                   // Buttons - Responsive
-                  if (_showRentButton || _showSaleButton)
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final bool isWide = constraints.maxWidth > 400;
-                        final bool hasBoth = _showRentButton && _showSaleButton;
+                 // Buttons - Responsive
+if (_showRentButton || _showSaleButton)
+  LayoutBuilder(
+    builder: (context, constraints) {
+      final bool isWide = constraints.maxWidth > 400;
+      final bool hasBoth = _showRentButton && _showSaleButton;
 
-                        if (isWide && hasBoth) {
-                          return Row(
-                            children: [
-                              Expanded(child: _buildBookButton()),
-                              const SizedBox(width: 10),
-                              Expanded(child: _buildBuyButton()),
-                            ],
-                          );
-                        } else if (isWide && _showRentButton) {
-                          return _buildBookButton();
-                        } else if (isWide && _showSaleButton) {
-                          return _buildBuyButton();
-                        } else {
-                          // Narrow screen - stack
-                          return Column(
-                            children: [
-                              if (_showRentButton)
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: _showSaleButton ? 10 : 0,
-                                  ),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: _buildBookButton(),
-                                  ),
-                                ),
-                              if (_showSaleButton)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: _buildBuyButton(),
-                                ),
-                            ],
-                          );
-                        }
-                      },
-                    ),
+      if (_isPendingNotApproved) {
+        // Show the pending indicator once for all buttons
+        return _buildBookingButton('rent'); // type doesn't matter when pending
+      }
+
+      if (isWide && hasBoth) {
+        return Row(
+          children: [
+            if (_showRentButton)
+              Expanded(child: _buildBookingButton('rent')),
+            const SizedBox(width: 10),
+            if (_showSaleButton)
+              Expanded(child: _buildBookingButton('sale')),
+          ],
+        );
+      } else if (isWide && _showRentButton) {
+        return _buildBookingButton('rent');
+      } else if (isWide && _showSaleButton) {
+        return _buildBookingButton('sale');
+      } else {
+        // Narrow screen - stack
+        return Column(
+          children: [
+            if (_showRentButton)
+              Padding(
+                padding: EdgeInsets.only(bottom: _showSaleButton ? 10 : 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: _buildBookingButton('rent'),
+                ),
+              ),
+            if (_showSaleButton)
+              SizedBox(
+                width: double.infinity,
+                child: _buildBookingButton('sale'),
+              ),
+          ],
+        );
+      }
+    },
+  ),
                 ],
               ),
             ),
@@ -592,7 +601,8 @@ Padding(
                 ),
               ),
 
-            // Description
+            // Description - hidden for unapproved pending
+            if (!(widget.selectedProduct.status == 'pending' && !widget.selectedProduct.adminApproved)) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
@@ -611,6 +621,39 @@ Padding(
                 style: const TextStyle(height: 1.5),
               ),
             ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.lock_outline, color: Colors.orange[700], size: 32),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Property Details Locked',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[700],
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Full property details will be visible once this listing is approved by our team. You can save it to your favourites and check back later.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.orange[600], fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             // Rules Document
             if (docUrl != null)
@@ -718,9 +761,36 @@ Padding(
       ),
     );
   }
+Widget _buildBookingButton(String type) {
+  // If pending not approved, show the pending indicator
+  if (_isPendingNotApproved) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.orange[300]!),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.pending_actions, color: Colors.orange[700], size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Awaiting Admin Approval',
+            style: TextStyle(
+              color: Colors.orange[700],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  // Button builders - No Flexible in label!
-  Widget _buildBookButton() {
+  // If not pending, show the appropriate action button
+  if (type == 'rent') {
     return ElevatedButton.icon(
       onPressed: () {
         Navigator.push(
@@ -732,11 +802,7 @@ Padding(
           ),
         );
       },
-      icon: const Icon(
-        Icons.calendar_month,
-        color: Colors.white,
-        size: 18,
-      ),
+      icon: const Icon(Icons.calendar_month, color: Colors.white, size: 18),
       label: const Text(
         'Book Now',
         style: TextStyle(color: Colors.white),
@@ -750,16 +816,11 @@ Padding(
         ),
       ),
     );
-  }
-
-  Widget _buildBuyButton() {
+  } else {
+    // Sale button
     return ElevatedButton.icon(
       onPressed: () => _showContactDialog(context, widget.selectedProduct),
-      icon: const Icon(
-        Icons.handshake,
-        color: Colors.white,
-        size: 18,
-      ),
+      icon: const Icon(Icons.handshake, color: Colors.white, size: 18),
       label: const Text(
         'Buy',
         style: TextStyle(color: Colors.white),
@@ -774,6 +835,11 @@ Padding(
       ),
     );
   }
+}
+  // Button builders - No Flexible in label!
+ 
+
+ 
 
   // Discount Dialog
   void _showDiscountDialog(BuildContext context) {

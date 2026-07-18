@@ -17,7 +17,7 @@ class PropertyModel {
   final int id;
   final String propertyType;
   final String location; // maps to address from backend
-    final double? latitude;
+  final double? latitude;
   final double? longitude;
   final String description;
   final String numberOfMonths;
@@ -39,6 +39,7 @@ class PropertyModel {
   final bool isActive;
   final bool isLand;
   final String? pendingReason;
+  final bool adminApproved;
   final bool isRent;
   final bool isSale;
 
@@ -76,10 +77,10 @@ class PropertyModel {
   final String? package;
   final DateTime dateCreated;
 
-final double? dailyPrice;
-final double? weeklyPrice;
-final double? yearlyPrice;
-final Map<String, dynamic>? venuePricing;
+  final double? dailyPrice;
+  final double? weeklyPrice;
+  final double? yearlyPrice;
+  final Map<String, dynamic>? venuePricing;
 
   PropertyModel({
     // Backend fields
@@ -120,6 +121,7 @@ final Map<String, dynamic>? venuePricing;
     this.yearlyPrice,
     this.venuePricing,
     this.pendingReason,
+    this.adminApproved = false,
     required this.isRent,
     required this.isSale,
     required this.enteredSalePrice,
@@ -158,22 +160,26 @@ final Map<String, dynamic>? venuePricing;
   // display price: prefer rentPrice from backend, fall back to price
   double get displayPrice => rentPrice ?? salePrice ?? price;
 
-  
   String? get thumbnailUrl {
-  if (thumbnail.isEmpty) return null;
-  if (thumbnail.startsWith('http')) return thumbnail;
-  return '${AppUrls.baseUrl}/$thumbnail';
-}
+    if (thumbnail.isEmpty) return null;
+    if (thumbnail.startsWith('http')) return thumbnail;
+    return '${AppUrls.baseUrl}/$thumbnail';
+  }
 
-List<String> get imageUrls {
-  return images
-      .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
-      .toList();
-}
+  String? get videoUrl {
+    if (videoPath == null || videoPath!.isEmpty) return null;
+    if (videoPath!.startsWith('http')) return videoPath;
+    return '${AppUrls.baseUrl}/$videoPath';
+  }
+
+  List<String> get imageUrls {
+    return images
+        .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
+        .toList();
+  }
 
   // ─── Build from backend JSON ───────────────────────────
   factory PropertyModel.fromJson(Map<String, dynamic> json) {
-    
     // ✅ Parse images array
     final List<String> imgs =
         json['images'] != null
@@ -234,13 +240,15 @@ List<String> get imageUrls {
       id: json['id'] ?? 0,
       propertyType: json['property_type'] ?? '',
       location: json['address'] ?? '',
-      latitude: json['latitude'] == null
-    ? null
-    : double.tryParse(json['latitude'].toString()),
+      latitude:
+          json['latitude'] == null
+              ? null
+              : double.tryParse(json['latitude'].toString()),
 
-longitude: json['longitude'] == null
-    ? null
-    : double.tryParse(json['longitude'].toString()),
+      longitude:
+          json['longitude'] == null
+              ? null
+              : double.tryParse(json['longitude'].toString()),
       description: json['description'] ?? '',
       price: rPrice,
       discount: 0,
@@ -261,6 +269,7 @@ longitude: json['longitude'] == null
       enteredSalePrice: sPrice,
       saleConditions: json['sale_condition'] ?? '',
       pendingReason: json['pending_reason'],
+      adminApproved: json['admin_approved'] == true,
       hasParking:
           amenitiesList.contains('Parking') ||
           amenitiesList.contains('parking'),
@@ -285,23 +294,39 @@ longitude: json['longitude'] == null
           amenitiesList.contains('pet friendly'),
       amenities: amenitiesList,
       productIMG: imgs.isNotEmpty ? imgs.first : '',
-      dailyPrice: json['daily_price'] != null
-    ? double.tryParse(json['daily_price'].toString()) : null,
-weeklyPrice: json['weekly_price'] != null
-    ? double.tryParse(json['weekly_price'].toString()) : null,
-yearlyPrice: json['yearly_price'] != null
-    ? double.tryParse(json['yearly_price'].toString()) : null,
-venuePricing: json['venue_pricing'] != null
-    ? Map<String, dynamic>.from(json['venue_pricing']) : null,
+      dailyPrice:
+          json['daily_price'] != null
+              ? double.tryParse(json['daily_price'].toString())
+              : null,
+      weeklyPrice:
+          json['weekly_price'] != null
+              ? double.tryParse(json['weekly_price'].toString())
+              : null,
+      yearlyPrice:
+          json['yearly_price'] != null
+              ? double.tryParse(json['yearly_price'].toString())
+              : null,
+      venuePricing:
+          json['venue_pricing'] != null
+              ? Map<String, dynamic>.from(json['venue_pricing'])
+              : null,
 
       // ✅ Also fix photoPaths
-photoPaths: imgs
-    .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
-    .toList(),
+      photoPaths:
+          imgs
+              .map(
+                (img) =>
+                    img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img',
+              )
+              .toList(),
       // ✅ insideViews = all images
-     insideViews: imgs
-    .map((img) => img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img')
-    .toList(),
+      insideViews:
+          imgs
+              .map(
+                (img) =>
+                    img.startsWith('http') ? img : '${AppUrls.baseUrl}/$img',
+              )
+              .toList(),
       // ✅ videoPath from videos array
       videoPath: videoPath,
       landPercentage:
@@ -322,11 +347,11 @@ photoPaths: imgs
           json['created_at'] != null
               ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
               : DateTime.now(),
-    // In PropertyModel.fromJson
-rulesDocumentPath:
-    json['documents'] != null && (json['documents'] as List).isNotEmpty
-        ? json['documents'][0].toString()
-        : null,
+      // In PropertyModel.fromJson
+      rulesDocumentPath:
+          json['documents'] != null && (json['documents'] as List).isNotEmpty
+              ? json['documents'][0].toString()
+              : null,
     );
   }
 
@@ -386,6 +411,7 @@ rulesDocumentPath:
     String? package,
     DateTime? dateCreated,
     String? rulesDocumentPath,
+    bool? adminApproved,
   }) {
     return PropertyModel(
       userId: userId ?? this.userId,
@@ -418,6 +444,7 @@ rulesDocumentPath:
       isActive: isActive ?? this.isActive,
       isLand: isLand ?? this.isLand,
       pendingReason: pendingReason ?? this.pendingReason,
+      adminApproved: adminApproved ?? this.adminApproved,
       isRent: isRent ?? this.isRent,
       isSale: isSale ?? this.isSale,
       hasParking: hasParking ?? this.hasParking,

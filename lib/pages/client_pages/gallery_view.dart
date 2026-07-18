@@ -1,11 +1,13 @@
 import 'dart:io';
+
 import 'package:brickapp/utils/app_colors.dart';
-import 'package:brickapp/utils/video_player_widget.dart';
-import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:brickapp/utils/media_loader.dart';
 import 'package:chewie/chewie.dart';
+import 'package:flutter/material.dart';
+import 'package:brickapp/utils/web_video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:video_player/video_player.dart';
 
 class GalleryView extends StatefulWidget {
   final List<String> mediaUrls;
@@ -165,123 +167,121 @@ class _ImageThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return imageUrl.startsWith('http')
-        ? CachedNetworkImage(
-          imageUrl: imageUrl,
-          fit: BoxFit.cover,
-          placeholder:
-              (context, url) => Container(
-                color: Colors.grey[700],
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white54),
-                  ),
-                ),
-              ),
-          errorWidget:
-              (context, url, error) => Container(
-                color: Colors.grey[700],
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    color: Colors.white54,
-                    size: 32,
-                  ),
-                ),
-              ),
-        )
-        : Image.file(
-          File(imageUrl),
-          fit: BoxFit.cover,
-          errorBuilder:
-              (_, __, ___) => Container(
-                color: Colors.grey[700],
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    color: Colors.white54,
-                    size: 32,
-                  ),
-                ),
-              ),
-        );
-  }
-}
-
-class _VideoThumbnail extends StatefulWidget {
-  final String videoUrl;
-
-  const _VideoThumbnail({required this.videoUrl});
-
-  @override
-  State<_VideoThumbnail> createState() => _VideoThumbnailState();
-}
-
-class _VideoThumbnailState extends State<_VideoThumbnail> {
-  VideoPlayerController? _controller;
-  bool _isInitialized = false;
-  bool _isError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideoPlayer();
-  }
-
-  Future<void> _initializeVideoPlayer() async {
-    try {
-      if (widget.videoUrl.startsWith('http')) {
-        _controller = VideoPlayerController.networkUrl(
-          Uri.parse(widget.videoUrl),
-        );
-      } else {
-        _controller = VideoPlayerController.file(File(widget.videoUrl));
-      }
-
-      await _controller!.initialize();
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-          _isError = false;
-        });
-        _controller!.seekTo(Duration.zero);
-        _controller!.setVolume(0);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isInitialized = false;
-          _isError = true;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isError || !_isInitialized) {
-      return Container(
-        color: Colors.grey[700],
-        child: Center(
-          child: Icon(
-            _isError ? Icons.error_outline : Icons.videocam,
-            color: Colors.white54,
-            size: 32,
+    if (imageUrl.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[700],
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white54),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => Container(
+          color: Colors.grey[700],
+          child: const Center(
+            child: Icon(Icons.broken_image, color: Colors.white54, size: 32),
           ),
         ),
       );
     }
 
-    return BrickVideoPlayer(videoUrl: widget.videoUrl, height: 220);
+    // For non-http URLs, check if we're on web
+    if (MediaLoader.isWeb) {
+      // Web can't access file paths
+      return Container(
+        color: Colors.grey[700],
+        child: const Center(
+          child: Icon(Icons.broken_image, color: Colors.white54, size: 32),
+        ),
+      );
+    }
+
+    return Image.file(
+      File(imageUrl),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey[700],
+        child: const Center(
+          child: Icon(Icons.broken_image, color: Colors.white54, size: 32),
+        ),
+      ),
+    );
   }
 }
+
+class _VideoThumbnail extends StatelessWidget {
+  final String videoUrl;
+  const _VideoThumbnail({required this.videoUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                BrickVideoPlayer(videoUrl: videoUrl, height: 300),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.black,
+            child: const Icon(Icons.videocam, color: Colors.white30, size: 40),
+          ),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.play_arrow, color: Colors.black, size: 32),
+          ),
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('Tap to play', style: TextStyle(color: Colors.white, fontSize: 11)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 
 // Full screen gallery view
 class FullScreenGallery extends StatefulWidget {
@@ -327,73 +327,80 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
   }
 
   Future<void> _initializeVideoIfNeeded(String mediaUrl) async {
-    // Dispose previous controllers
-    _chewieController?.dispose();
-    await _videoPlayerController?.dispose();
-    _chewieController = null;
-    _videoPlayerController = null;
+  _chewieController?.dispose();
+  await _videoPlayerController?.dispose();
+  _chewieController = null;
+  _videoPlayerController = null;
 
-    if (_isVideo(mediaUrl)) {
-      try {
-        // Initialize video controller with proper URI handling
-        if (mediaUrl.startsWith('http')) {
-          print('Loading video from network: $mediaUrl');
-          _videoPlayerController = VideoPlayerController.networkUrl(
-            Uri.parse(mediaUrl),
-          );
-        } else {
-          print('Loading video from file: $mediaUrl');
-          _videoPlayerController = VideoPlayerController.file(File(mediaUrl));
-        }
-
-        await _videoPlayerController!.initialize();
-
-        // Create Chewie controller
-        _chewieController = ChewieController(
-          videoPlayerController: _videoPlayerController!,
-          autoPlay: true,
-          looping: false,
-          showControls: true,
-          materialProgressColors: ChewieProgressColors(
-            playedColor: Colors.blue,
-            handleColor: Colors.blue,
-            backgroundColor: Colors.grey.shade600,
-            bufferedColor: Colors.grey.shade400,
-          ),
-          placeholder: Container(
-            color: Colors.black,
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-          ),
-          autoInitialize: true,
-          errorBuilder: (context, errorMessage) {
-            return Center(
-              child: Text(
-                'Error: $errorMessage',
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          },
+  if (_isVideo(mediaUrl)) {
+    try {
+      if (mediaUrl.startsWith('http')) {
+        _videoPlayerController = VideoPlayerController.networkUrl(
+          Uri.parse(mediaUrl),
         );
-
-        if (mounted) setState(() {});
-      } catch (e) {
+      } else if (MediaLoader.isWeb) {
+        // Can't play local files on web
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error loading video: $e'),
-              backgroundColor: Colors.red,
+            const SnackBar(
+              content: Text('Local videos are not supported on web'),
+              backgroundColor: Colors.orange,
             ),
           );
         }
+        return;
+      } else {
+        _videoPlayerController = VideoPlayerController.file(File(mediaUrl));
       }
-    } else {
+
+      await _videoPlayerController!.initialize();
+      
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        showControls: true,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: Colors.blue,
+          handleColor: Colors.blue,
+          backgroundColor: Colors.grey.shade600,
+          bufferedColor: Colors.grey.shade400,
+        ),
+        placeholder: Container(
+          color: Colors.black,
+          child: const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+        ),
+        autoInitialize: true,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Text(
+              'Error: $errorMessage',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        },
+      );
+
       if (mounted) setState(() {});
+    } catch (e) {
+      print('Video error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading video: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  } else {
+    if (mounted) setState(() {});
   }
+}
 
   @override
   void dispose() {
@@ -487,26 +494,34 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
   }
 
   Widget _buildImageView(String imageUrl) {
-    return PhotoView(
-      imageProvider:
-          imageUrl.startsWith('http')
-              ? NetworkImage(imageUrl)
-              : FileImage(File(imageUrl)) as ImageProvider,
-      minScale: PhotoViewComputedScale.contained,
-      maxScale: PhotoViewComputedScale.covered * 2,
-      backgroundDecoration: const BoxDecoration(color: Colors.black),
-      loadingBuilder:
-          (context, event) => const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ),
-      errorBuilder:
-          (context, error, stackTrace) => const Center(
-            child: Icon(Icons.error_outline, color: Colors.white, size: 50),
-          ),
+  dynamic imageProvider;
+  
+  if (imageUrl.startsWith('http')) {
+    imageProvider = NetworkImage(imageUrl);
+  } else if (MediaLoader.isWeb) {
+    // On web, show error instead of trying to use File
+    return const Center(
+      child: Icon(Icons.error_outline, color: Colors.white, size: 50),
     );
+  } else {
+    imageProvider = FileImage(File(imageUrl));
   }
+
+  return PhotoView(
+    imageProvider: imageProvider as ImageProvider,
+    minScale: PhotoViewComputedScale.contained,
+    maxScale: PhotoViewComputedScale.covered * 2,
+    backgroundDecoration: const BoxDecoration(color: Colors.black),
+    loadingBuilder: (context, event) => const Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      ),
+    ),
+    errorBuilder: (context, error, stackTrace) => const Center(
+      child: Icon(Icons.error_outline, color: Colors.white, size: 50),
+    ),
+  );
+}
 
   Widget _buildBottomIndicator() {
     return Container(
