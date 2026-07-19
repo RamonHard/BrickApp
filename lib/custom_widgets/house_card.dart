@@ -41,7 +41,7 @@ class HouseCard extends StatelessWidget {
   double? sqft;
   final double starRating;
   final bool isActive;
-  final double reviews;
+  final int reviews;
   final Function() onTap;
   final Function()? favOnpress;
 

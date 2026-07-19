@@ -125,7 +125,7 @@ class HomePage extends ConsumerWidget {
                           unitsNum: property.units ?? 0,
                           bedroomNum: property.bedrooms ?? 0,
                           starRating: 0,
-                          reviews: 0,
+                          reviews: property.viewCount ?? 0,
                           sqft: property.sqft,
                           onTap: () {
                             MainNavigation.navigateToRoute(

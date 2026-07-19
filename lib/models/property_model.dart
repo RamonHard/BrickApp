@@ -10,6 +10,7 @@ class PropertyModel {
   final String? ownerName;
   final String? ownerPhone;
   final String? ownerEmail;
+   final int? viewCount;
   final List<String> images;
   final int? minimumMonths;
   final int? rentDurationMonths;
@@ -89,6 +90,7 @@ class PropertyModel {
     this.status = 'active',
     this.rentPrice,
     this.salePrice,
+    this.viewCount,
     this.ownerName,
     this.ownerPhone,
     this.ownerEmail,
@@ -229,6 +231,7 @@ class PropertyModel {
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
       ownerEmail: json['owner_email'],
+        viewCount: json['view_count'] ?? 0,
       images: imgs,
       minimumMonths:
           json['minimum_months'] != null
@@ -402,6 +405,7 @@ class PropertyModel {
     List<String>? insideViews,
     double? starRating,
     double? reviews,
+
     String? uploaderName,
     String? uploaderEmail,
     String? uploaderIMG,
@@ -462,6 +466,7 @@ class PropertyModel {
       insideViews: insideViews ?? this.insideViews,
       starRating: starRating ?? this.starRating,
       reviews: reviews ?? this.reviews,
+       viewCount: viewCount ?? this.viewCount,
       uploaderName: uploaderName ?? this.uploaderName,
       uploaderEmail: uploaderEmail ?? this.uploaderEmail,
       uploaderIMG: uploaderIMG ?? this.uploaderIMG,

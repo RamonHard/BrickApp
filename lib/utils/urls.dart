@@ -13,6 +13,7 @@ class AppUrls {
   static const String myListings = '$baseUrl/properties/my-listings';
 static String nearbyProperties(double lat, double lng, double radiusKm) =>
     '$baseUrl/properties/nearby?lat=$lat&lng=$lng&radius_km=$radiusKm';
+    
   // Vehicles
   static const String vehicles = '$baseUrl/vehicles';
   static const String vehicleTypes = '$baseUrl/vehicles/types';
@@ -71,6 +72,10 @@ static String getPaymentMethods(int userId) =>
 static const String paymentMethods = '$baseUrl/payment-methods';
 static String managerPaymentMethods(int userId) => '$baseUrl/payment-methods/$userId';
 static String confirmPropertyVisit(int bookingId) => '$baseUrl/bookings/property/$bookingId/confirm-visit';
-static const String wallet = '$baseUrl/bookings/wallet';
+static String propertyView(int id) => "$baseUrl/properties/$id/view";
+  static String propertyStats(int id) => "$baseUrl/properties/$id/stats";
+  static const String wallet = '$baseUrl/bookings/wallet';
 static const String withdrawWallet = '$baseUrl/bookings/wallet/withdraw';
+
 }
+

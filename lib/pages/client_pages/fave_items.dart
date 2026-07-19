@@ -50,7 +50,7 @@ class FavouriteItemList extends HookConsumerWidget {
                 uploaderName: product.uploaderName,
                 bedroomNum: product.bedrooms,
                 starRating: product.starRating,
-                reviews: product.reviews,
+                reviews: product.viewCount ?? 0,
                 isActive: product.isActive,
                 showDelete: true,
               );

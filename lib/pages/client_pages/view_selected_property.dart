@@ -5,6 +5,7 @@ import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_pag
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
 import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
+import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
@@ -29,14 +30,19 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
   int _commissionMonths = 3;
   double _commissionPercent = 10.0;
   bool _settingsLoaded = false;
+  
   bool get _isPendingNotApproved {
-  return widget.selectedProduct.status == 'pending' &&
-      !widget.selectedProduct.adminApproved;
-}
+    return widget.selectedProduct.status == 'pending' &&
+        !widget.selectedProduct.adminApproved;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trackPropertyView();
+    });
   }
 
   String? _getDocumentUrl() {
@@ -84,7 +90,32 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
     if (mounted) setState(() => _settingsLoaded = true);
   }
 
-  // Helper to determine which buttons to show
+  Future<void> _trackPropertyView() async {
+    try {
+      final propertyId = widget.selectedProduct.id;
+      final token = ref.read(userProvider).token;
+      
+      final url = AppUrls.propertyView(propertyId);
+      print('📊 Tracking view for property $propertyId');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        print('✅ View tracked successfully');
+      } else {
+        print('❌ Failed to track view: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error tracking view: $e');
+    }
+  }
+
   bool get _showRentButton {
     final type = widget.selectedProduct.listingType;
     return type == 'rent' || type == 'rent_and_sale';
@@ -151,7 +182,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero Image
+            // ─── Hero Image ───────────────────────────────
             Stack(
               children: [
                 buildImage(
@@ -161,7 +192,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                   height: 250,
                   fit: BoxFit.cover,
                 ),
-                // Favourite button
                 Positioned(
                   right: 10,
                   top: 10,
@@ -186,7 +216,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                     ),
                   ),
                 ),
-                // Units badge
                 if (widget.selectedProduct.units > 0)
                   Positioned(
                     right: 10,
@@ -221,7 +250,6 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       ),
                     ),
                   ),
-                // Status badge
                 if (widget.selectedProduct.status == 'pending')
                   Positioned(
                     left: 10,
@@ -248,12 +276,11 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
               ],
             ),
 
-            // Action Buttons
+            // ─── Action Buttons ────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Pending reason
                   if (widget.selectedProduct.status == 'pending' &&
                       widget.selectedProduct.pendingReason != null &&
                       widget.selectedProduct.pendingReason!.isNotEmpty)
@@ -287,159 +314,182 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                         ],
                       ),
                     ),
+                  if (_showRentButton || _showSaleButton)
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bool isWide = constraints.maxWidth > 400;
+                        final bool hasBoth = _showRentButton && _showSaleButton;
 
-                  // Buttons - Responsive
-                 // Buttons - Responsive
-if (_showRentButton || _showSaleButton)
-  LayoutBuilder(
-    builder: (context, constraints) {
-      final bool isWide = constraints.maxWidth > 400;
-      final bool hasBoth = _showRentButton && _showSaleButton;
+                        if (_isPendingNotApproved) {
+                          return _buildBookingButton('rent');
+                        }
 
-      if (_isPendingNotApproved) {
-        // Show the pending indicator once for all buttons
-        return _buildBookingButton('rent'); // type doesn't matter when pending
-      }
-
-      if (isWide && hasBoth) {
-        return Row(
-          children: [
-            if (_showRentButton)
-              Expanded(child: _buildBookingButton('rent')),
-            const SizedBox(width: 10),
-            if (_showSaleButton)
-              Expanded(child: _buildBookingButton('sale')),
-          ],
-        );
-      } else if (isWide && _showRentButton) {
-        return _buildBookingButton('rent');
-      } else if (isWide && _showSaleButton) {
-        return _buildBookingButton('sale');
-      } else {
-        // Narrow screen - stack
-        return Column(
-          children: [
-            if (_showRentButton)
-              Padding(
-                padding: EdgeInsets.only(bottom: _showSaleButton ? 10 : 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: _buildBookingButton('rent'),
-                ),
-              ),
-            if (_showSaleButton)
-              SizedBox(
-                width: double.infinity,
-                child: _buildBookingButton('sale'),
-              ),
-          ],
-        );
-      }
-    },
-  ),
+                        if (isWide && hasBoth) {
+                          return Row(
+                            children: [
+                              if (_showRentButton)
+                                Expanded(child: _buildBookingButton('rent')),
+                              const SizedBox(width: 10),
+                              if (_showSaleButton)
+                                Expanded(child: _buildBookingButton('sale')),
+                            ],
+                          );
+                        } else if (isWide && _showRentButton) {
+                          return _buildBookingButton('rent');
+                        } else if (isWide && _showSaleButton) {
+                          return _buildBookingButton('sale');
+                        } else {
+                          return Column(
+                            children: [
+                              if (_showRentButton)
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: _showSaleButton ? 10 : 0),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: _buildBookingButton('rent'),
+                                  ),
+                                ),
+                              if (_showSaleButton)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: _buildBookingButton('sale'),
+                                ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
                 ],
               ),
             ),
 
-            // Title + Price
-          // ─── Title + Price ─────────────────────────────
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 16),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Property type title
-      Text(
-        widget.selectedProduct.propertyType,
-        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
-      ),
-      const SizedBox(height: 6),
+            // ─── Title + Price with View Count ────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.selectedProduct.propertyType,
+                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // ✅ View count badge
+                      if (widget.selectedProduct.viewCount != null && widget.selectedProduct.viewCount! > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${widget.selectedProduct.viewCount}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
 
-      // ✅ VENUE — show packages
-      if (widget.selectedProduct.venuePricing != null &&
-          widget.selectedProduct.venuePricing!.isNotEmpty) ...[
-        const Text('Venue Packages',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 8),
-        ...widget.selectedProduct.venuePricing!.entries.map((entry) {
-          final icons = {
-            'daily': Icons.today,
-            'weekly': Icons.view_week,
-            'monthly': Icons.calendar_month,
-            'yearly': Icons.calendar_today,
-          };
-          final labels = {
-            'daily': 'Per Day',
-            'weekly': 'Per Week',
-            'monthly': 'Per Month',
-            'yearly': 'Per Year',
-          };
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.orange[200]!),
-            ),
-            child: Row(children: [
-              Icon(icons[entry.key] ?? Icons.attach_money, color: Colors.orange, size: 20),
-              const SizedBox(width: 10),
-              Text(
-                '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  // ─── Venue Packages ──────────────────────
+                  if (widget.selectedProduct.venuePricing != null &&
+                      widget.selectedProduct.venuePricing!.isNotEmpty) ...[
+                    const Text('Venue Packages',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 8),
+                    ...widget.selectedProduct.venuePricing!.entries.map((entry) {
+                      final icons = {
+                        'daily': Icons.today,
+                        'weekly': Icons.view_week,
+                        'monthly': Icons.calendar_month,
+                        'yearly': Icons.calendar_today,
+                      };
+                      final labels = {
+                        'daily': 'Per Day',
+                        'weekly': 'Per Week',
+                        'monthly': 'Per Month',
+                        'yearly': 'Per Year',
+                      };
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange[200]!),
+                        ),
+                        child: Row(children: [
+                          Icon(icons[entry.key] ?? Icons.attach_money, color: Colors.orange, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          const Spacer(),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(
+                              'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 15),
+                            ),
+                            Text(
+                              labels[entry.key] ?? '',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            ),
+                          ]),
+                        ]),
+                      );
+                    }).toList(),
+                  ]
+                  // ─── Regular Rent Price ──────────────────
+                  else if (widget.selectedProduct.rentPrice != null &&
+                      widget.selectedProduct.rentPrice! > 0) ...[
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
+                          widget.selectedProduct.numberOfMonths != '0' &&
+                          widget.selectedProduct.numberOfMonths != 'null')
+                        Text(
+                          'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        ),
+                      Text(
+                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
+                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                    ]),
+                  ],
+
+                  // ─── Sale Price ──────────────────────────
+                  if (widget.selectedProduct.salePrice != null &&
+                      widget.selectedProduct.salePrice! > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('Sale Price:', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
+                      Text(
+                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
+                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
+                    ]),
+                  ],
+                ],
               ),
-              const Spacer(),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(
-                  'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 15),
-                ),
-                Text(
-                  labels[entry.key] ?? '',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-              ]),
-            ]),
-          );
-        }).toList(),
-      ]
-
-      // ✅ REGULAR — show rent price
-      else if (widget.selectedProduct.rentPrice != null &&
-          widget.selectedProduct.rentPrice! > 0) ...[
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
-              widget.selectedProduct.numberOfMonths != '0' &&
-              widget.selectedProduct.numberOfMonths != 'null')
-            Text(
-              'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
-          Text(
-            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-          ),
-        ]),
-      ],
 
-      // ✅ SALE price
-      if (widget.selectedProduct.salePrice != null &&
-          widget.selectedProduct.salePrice! > 0) ...[
-        const SizedBox(height: 6),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Sale Price:', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
-          Text(
-            'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
-            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
-          ),
-        ]),
-      ],
-    ],
-  ),
-),
-
-            // Location + Rating
+            // ─── Location + Rating ────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -470,13 +520,13 @@ Padding(
               ),
             ),
 
-            // Amenities
+            // ─── Amenities ─────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: _buildAmenitiesFromList(widget.selectedProduct),
             ),
 
-            // Featured Media
+            // ─── Featured Media ────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
@@ -601,26 +651,26 @@ Padding(
                 ),
               ),
 
-            // Description - hidden for unapproved pending
+            // ─── Description ───────────────────────────────
             if (!(widget.selectedProduct.status == 'pending' && !widget.selectedProduct.adminApproved)) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Description',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkTextColor,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Description',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkTextColor,
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                widget.selectedProduct.description,
-                style: const TextStyle(height: 1.5),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  widget.selectedProduct.description,
+                  style: const TextStyle(height: 1.5),
+                ),
               ),
-            ),
             ] else ...[
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -655,25 +705,22 @@ Padding(
               ),
             ],
 
-            // Rules Document
+            // ─── Rules Document ────────────────────────────
             if (docUrl != null)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: ListTile(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(color: AppColors.orangeTextColor),
                   ),
-                  leading:
-                      const Icon(Icons.description, color: Colors.orange),
+                  leading: const Icon(Icons.description, color: Colors.orange),
                   title: const Text(
                     'View Rules & Regulations',
                     style: TextStyle(fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing:
-                      const Icon(Icons.arrow_forward_ios, size: 16),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
                     print('📄 Opening document: $docUrl');
                     Navigator.push(
@@ -690,7 +737,7 @@ Padding(
                 ),
               ),
 
-            // Owner Info
+            // ─── Owner Info ─────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
@@ -761,314 +808,311 @@ Padding(
       ),
     );
   }
-Widget _buildBookingButton(String type) {
-  // If pending not approved, show the pending indicator
-  if (_isPendingNotApproved) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.orange[300]!),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.pending_actions, color: Colors.orange[700], size: 18),
-          const SizedBox(width: 8),
-          Text(
-            'Awaiting Admin Approval',
-            style: TextStyle(
-              color: Colors.orange[700],
-              fontWeight: FontWeight.w600,
+
+  Widget _buildBookingButton(String type) {
+    if (_isPendingNotApproved) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.orange[300]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pending_actions, color: Colors.orange[700], size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Awaiting Admin Approval',
+              style: TextStyle(
+                color: Colors.orange[700],
+                fontWeight: FontWeight.w600,
+              ),
             ),
+          ],
+        ),
+      );
+    }
+
+    if (type == 'rent') {
+      return ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PropertyBookingPage(
+                productModel: widget.selectedProduct,
+              ),
+            ),
+          );
+        },
+        icon: const Icon(Icons.calendar_month, color: Colors.white, size: 18),
+        label: const Text(
+          'Book Now',
+          style: TextStyle(color: Colors.white),
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
           ),
-        ],
-      ),
-    );
+        ),
+      );
+    } else {
+      return ElevatedButton.icon(
+        onPressed: () => _showContactDialog(context, widget.selectedProduct),
+        icon: const Icon(Icons.handshake, color: Colors.white, size: 18),
+        label: const Text(
+          'Buy',
+          style: TextStyle(color: Colors.white),
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+      );
+    }
   }
 
-  // If not pending, show the appropriate action button
-  if (type == 'rent') {
-    return ElevatedButton.icon(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PropertyBookingPage(
-              productModel: widget.selectedProduct,
-            ),
-          ),
-        );
-      },
-      icon: const Icon(Icons.calendar_month, color: Colors.white, size: 18),
-      label: const Text(
-        'Book Now',
-        style: TextStyle(color: Colors.white),
-        overflow: TextOverflow.ellipsis,
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
-      ),
-    );
-  } else {
-    // Sale button
-    return ElevatedButton.icon(
-      onPressed: () => _showContactDialog(context, widget.selectedProduct),
-      icon: const Icon(Icons.handshake, color: Colors.white, size: 18),
-      label: const Text(
-        'Buy',
-        style: TextStyle(color: Colors.white),
-        overflow: TextOverflow.ellipsis,
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
-      ),
-    );
-  }
-}
-  // Button builders - No Flexible in label!
- 
-
- 
-
-  // Discount Dialog
+  // ─── Discount Dialog ──────────────────────────────────────
   void _showDiscountDialog(BuildContext context) {
-    final rentPrice = widget.selectedProduct.rentPrice ?? 0;
-    final minimumMonths = int.tryParse(
-          widget.selectedProduct.numberOfMonths.isEmpty ||
-                  widget.selectedProduct.numberOfMonths == 'null'
-              ? '1'
-              : widget.selectedProduct.numberOfMonths,
-        ) ??
-        1;
+  final rentPrice = widget.selectedProduct.rentPrice ?? 0;
+  final minimumMonths = int.tryParse(
+        widget.selectedProduct.numberOfMonths.isEmpty ||
+                widget.selectedProduct.numberOfMonths == 'null'
+            ? '1'
+            : widget.selectedProduct.numberOfMonths,
+      ) ??
+      1;
 
-    final commMonths =
-        minimumMonths < _commissionMonths ? minimumMonths : _commissionMonths;
-    final commissionableAmount = rentPrice * commMonths;
-    final discountAmount =
-        commissionableAmount * (_clientDiscountPercent / 100);
-    final platformFee = commissionableAmount * (_commissionPercent / 100);
+  final commMonths =
+      minimumMonths < _commissionMonths ? minimumMonths : _commissionMonths;
+  final commissionableAmount = rentPrice * commMonths;
+  final discountAmount =
+      commissionableAmount * (_clientDiscountPercent / 100);
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('🎉 Brick Exclusive Offer'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (rentPrice > 0) ...[
-                Text(
-                  'UGX ${NumberFormat('#,###').format(rentPrice)}/month',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: const Text('🎉 Brick Exclusive Offer'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (rentPrice > 0) ...[
+              Text(
+                'UGX ${NumberFormat('#,###').format(rentPrice)}/month',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
                 ),
-                const SizedBox(height: 8),
-              ],
-              if (minimumMonths > 0)
-                Text(
-                  'Minimum package: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green[200]!),
-                ),
-                child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text.rich(
-      TextSpan(
-        children: [
-          const TextSpan(text: '🎉 '),
-          TextSpan(
-            text: 'Pay through Brick and save!\n',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
-            ),
-          ),
-          if (widget.selectedProduct.listingType == 'rent' ||
-              widget.selectedProduct.listingType == 'rent_and_sale')
-            TextSpan(
-              text:
-                  'Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
-                  'on first $commMonths month${commMonths > 1 ? "s" : ""}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.green,
-              ),
-            ),
-          if (widget.selectedProduct.listingType == 'sale')
-            TextSpan(
-              text:
-                  'Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
-                  'on the sale price',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.green,
-              ),
-            ),
-          if (widget.selectedProduct.listingType == 'rent_and_sale')
-            TextSpan(
-              text:
-                  '\nGet ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
-                  'on the sale price',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.green,
-              ),
-            ),
-        ],
-      ),
-    ),
-  ],
-),
-              ),
-              const SizedBox(height: 12),
-              if (rentPrice > 0)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange[200]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'First month you pay:',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'UGX ${NumberFormat('#,###').format(rentPrice - (rentPrice * _clientDiscountPercent / 100) * commMonths)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange,
-                          fontSize: 15,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 12),
-              const Text(
-                '💡 You can request a refund within 2 hours of booking if you change your mind.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Got it!'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Contact Dialog
-  void _showContactDialog(BuildContext context, PropertyModel property) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Purchase Enquiry'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (property.salePrice != null && property.salePrice! > 0)
-                Text(
-                  'UGX ${NumberFormat('#,###').format(property.salePrice)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              if (property.saleConditions.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Conditions: ${property.saleConditions}',
-                  style: TextStyle(color: Colors.grey[700]),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 16),
-              const Text(
-                'Contact the property manager:',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              Row(
+            ],
+            if (minimumMonths > 0)
+              Text(
+                'Minimum package: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.person, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      property.ownerName ?? property.uploaderName ?? 'N/A',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: '🎉 '),
+                        TextSpan(
+                          text: 'Pay through Brick and save!\n',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        if (widget.selectedProduct.listingType == 'rent' ||
+                            widget.selectedProduct.listingType == 'rent_and_sale')
+                          TextSpan(
+                            text:
+                                'Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
+                                'on first $commMonths month${commMonths > 1 ? "s" : ""}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                          ),
+                        if (widget.selectedProduct.listingType == 'sale')
+                          TextSpan(
+                            text:
+                                'Get ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
+                                'on the sale price',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                          ),
+                        if (widget.selectedProduct.listingType == 'rent_and_sale')
+                          TextSpan(
+                            text:
+                                '\nGet ${_clientDiscountPercent.toStringAsFixed(0)}% discount '
+                                'on the sale price',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.phone, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(property.ownerPhone ?? 'N/A'),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 12),
+            if (rentPrice > 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'First month you pay:',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'UGX ${NumberFormat('#,###').format(rentPrice - (rentPrice * _clientDiscountPercent / 100) * commMonths)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange,
+                        fontSize: 15,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            const Text(
+              '💡 You can request a refund within 2 hours of booking if you change your mind.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Close'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Got it!'),
+        ),
+      ],
+    ),
+  );
+}
+
+  // ─── Contact Dialog ──────────────────────────────────────
+ void _showContactDialog(BuildContext context, PropertyModel property) {
+  showDialog(
+    context: context,
+    builder: (BuildContext ctx) => AlertDialog(
+      title: const Text('Purchase Enquiry'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (property.salePrice != null && property.salePrice! > 0)
+              Text(
+                'UGX ${NumberFormat('#,###').format(property.salePrice)}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (property.saleConditions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Conditions: ${property.saleConditions}',
+                style: TextStyle(color: Colors.grey[700]),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-          ),
+            const SizedBox(height: 16),
+            const Text(
+              'Contact the property manager:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    property.ownerName ?? property.uploaderName ?? 'N/A',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.phone, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(property.ownerPhone ?? 'N/A'),
+                ),
+              ],
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
 
-  // Helpers
+  // ─── Helpers ──────────────────────────────────────────────
   int _getMediaCount(PropertyModel product) {
     int count = product.insideViews.length;
     if (product.videoPath != null && product.videoPath!.isNotEmpty) {

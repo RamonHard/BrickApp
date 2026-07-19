@@ -35,53 +35,147 @@ String? _selectedPaymentMethod;
   // Add a flag to prevent multiple navigation attempts
   bool _isNavigating = false;
 
+ 
   @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-       _loadPMPaymentMethods();
-  }
+void initState() {
+  super.initState();
+_loadSettings();
+  _loadPMPaymentMethods();
+}
 
-  Future<void> _loadSettings() async {
-    try {
-      print('🌐 Fetching public settings...');
+ Future<void> _loadSettings() async {
+  try {
+    print('════════════════════════════════════════');
+    print('🌐 FETCHING PUBLIC PRICING SETTINGS');
+    print('════════════════════════════════════════');
 
-      final res = await http.get(
-        Uri.parse('${AppUrls.baseUrl}/settings/public'),
+    final response = await http.get(
+      Uri.parse('${AppUrls.baseUrl}/settings/public'),
+    );
+
+    print('📡 Settings status: ${response.statusCode}');
+    print('📡 Settings response: ${response.body}');
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to fetch settings. Status: ${response.statusCode}',
       );
+    }
 
-      print('📡 Status: ${res.statusCode}');
-      print('📡 Body: ${res.body}');
+    final decoded = jsonDecode(response.body);
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final settings = List<Map<String, dynamic>>.from(data['settings']);
+    dynamic rawSettings = decoded['settings'];
 
-        for (final s in settings) {
-          print('⚙️ ${s['key']} = ${s['value']}');
-          if (s['key'] == 'property_commission_percent') {
-            _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
-          }
-          if (s['key'] == 'client_discount_percent') {
-            _clientDiscountPercent =
-                double.tryParse(s['value'].toString()) ?? 8.0;
-          }
-          if (s['key'] == 'commission_months') {
-            _commissionableMonthsLimit =
-                int.tryParse(s['value'].toString()) ?? 3;
-          }
+    double? commission;
+    double? discount;
+    int? commissionMonths;
+
+    /*
+    CASE 1:
+    [
+      {"key": "...", "value": "..."}
+    ]
+    */
+    if (rawSettings is List) {
+      for (final setting in rawSettings) {
+        if (setting is! Map) continue;
+
+        final key = setting['key']?.toString();
+        final value = setting['value']?.toString();
+
+        print('⚙️ SETTING FROM API: $key = $value');
+
+        if (key == 'property_commission_percent') {
+          commission = double.tryParse(value ?? '');
         }
 
-        print('✅ Commission: $_commissionPercent%');
-        print('✅ Discount: $_clientDiscountPercent%');
-        print('✅ Commission months: $_commissionableMonthsLimit');
+        if (key == 'client_discount_percent') {
+          discount = double.tryParse(value ?? '');
+        }
+
+        if (key == 'commission_months') {
+          commissionMonths = int.tryParse(value ?? '');
+        }
       }
-    } catch (e, stackTrace) {
-      print('❌ Error: $e');
-      print('❌ Stack: $stackTrace');
     }
-    setState(() => _settingsLoaded = true);
+
+    /*
+    CASE 2:
+    {
+      "property_commission_percent": "6",
+      "client_discount_percent": "4",
+      "commission_months": "3"
+    }
+    */
+    else if (rawSettings is Map) {
+      print('⚙️ Settings returned as MAP');
+
+      commission = double.tryParse(
+        rawSettings['property_commission_percent']?.toString() ?? '',
+      );
+
+      discount = double.tryParse(
+        rawSettings['client_discount_percent']?.toString() ?? '',
+      );
+
+      commissionMonths = int.tryParse(
+        rawSettings['commission_months']?.toString() ?? '',
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (commission != null) {
+        _commissionPercent = commission!;
+      }
+
+      if (discount != null) {
+        _clientDiscountPercent = discount!;
+      }
+
+      if (commissionMonths != null && commissionMonths! > 0) {
+        _commissionableMonthsLimit = commissionMonths!;
+      }
+
+      _settingsLoaded = true;
+    });
+
+    print('════════════════════════════════════════');
+    print('✅ FINAL PRICING VALUES USED BY APP');
+    print('💰 Commission: $_commissionPercent%');
+    print('🎉 Client Discount: $_clientDiscountPercent%');
+    print('📅 Commission Months: $_commissionableMonthsLimit');
+    print('════════════════════════════════════════');
+
+    if (commission == null) {
+      print(
+        '⚠️ WARNING: property_commission_percent was not found or could not be parsed',
+      );
+    }
+
+    if (discount == null) {
+      print(
+        '⚠️ WARNING: client_discount_percent was not found or could not be parsed',
+      );
+    }
+
+    if (commissionMonths == null) {
+      print(
+        '⚠️ WARNING: commission_months was not found or could not be parsed',
+      );
+    }
+  } catch (e, stackTrace) {
+    print('❌ SETTINGS ERROR: $e');
+    print(stackTrace);
+
+    if (mounted) {
+      setState(() {
+        _settingsLoaded = true;
+      });
+    }
   }
+}
 
   DateTime? _venueStartDate;
   DateTime? _venueEndDate;
@@ -104,10 +198,10 @@ String? _selectedPaymentMethod;
   double get _baseTotal {
     if (_isVenue) return _dailyPrice * _venueDays;
     if (_isLand) {
-      final landValue = double.tryParse(_landValueController.text) ?? 0;
-      final percentage = widget.productModel.landPercentage ?? 10.0;
-      return landValue * (percentage / 100);
-    }
+  final landValue = double.tryParse(_landValueController.text) ?? 0;
+  final percentage = widget.productModel.landPercentage ?? _commissionPercent; // Use state variable here
+  return landValue * (percentage / 100);
+}
     return _pricePerMonth * _totalMonths;
   }
 
@@ -561,192 +655,125 @@ Future<void> _loadPMPaymentMethods() async {
   }
 
   Widget _buildPriceBreakdown() {
-    if (_isLand && _landValueController.text.isEmpty) {
-      return const Center(
-        child: Text(
-          'Enter land value above to see price breakdown',
-          style: TextStyle(color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-
-    if (_isVenue && _venueDays == 0) {
-      return const Center(
-        child: Text(
-          'Select dates above to see price breakdown',
-          style: TextStyle(color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Price Breakdown',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-
-        // ─── Base calculation ─────────────────────────
-        if (_isVenue) ...[
-          _buildPriceRow(
-            'Price per day',
-            'UGX ${formatter.format(_dailyPrice)}',
-          ),
-          _buildPriceRow('Number of days', '$_venueDays days'),
-        ] else if (_isLand) ...[
-          _buildPriceRow(
-            'Land value',
-            'UGX ${formatter.format(double.tryParse(_landValueController.text) ?? 0)}',
-          ),
-        ] else ...[
-          _buildPriceRow(
-            'Price per month',
-            'UGX ${formatter.format(_pricePerMonth)}',
-          ),
-          _buildPriceRow('Total months', '$_totalMonths months'),
-        ],
-
-        _buildPriceRow(
-          'Base total',
-          'UGX ${formatter.format(_baseTotal)}',
-          isBold: true,
-        ),
-
-        // ─── Commissionable section ───────────────────
-        if (_isRegular && _commissionableMonths < _totalMonths) ...[
-          const SizedBox(height: 8),
-
-          // ─── Company's agreed commission (before discount) ───────
-          // Container(
-          //   padding: const EdgeInsets.all(10),
-          //   decoration: BoxDecoration(
-          //     color: Colors.blue[50],
-          //     borderRadius: BorderRadius.circular(8),
-          //     border: Border.all(color: Colors.blue[200]!),
-          //   ),
-          //   child: Row(
-          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          //     children: [
-          //       Text(
-          //         '🏢 Agreed commission (${_commissionPercent.toStringAsFixed(0)}%'
-          //         '${_isRegular ? " on $_commissionableMonths months" : ""}):',
-          //         style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-          //       ),
-          //       Text(
-          //         'UGX ${formatter.format(_agreedManagerCommission)}',
-          //         style: TextStyle(
-          //           fontWeight: FontWeight.bold,
-          //           color: Colors.blue[800],
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          const SizedBox(height: 8),
-
-          // ─── Discount we give to client ───────────────────────
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🎉 Discount to you (${_clientDiscountPercent.toStringAsFixed(0)}%):',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      'From first {$_commissionableMonths} month${_commissionableMonths > 1 ? "s" : ""} only',
-                      style: TextStyle(fontSize: 11, color: Colors.green[600]),
-                    ),
-                  ],
-                ),
-                Text(
-                  '- UGX ${formatter.format(_clientDiscount)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green[800],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // const SizedBox(height: 8),
-
-          // // ─── What company actually keeps ───────────────────────
-          // Container(
-          //   padding: const EdgeInsets.all(10),
-          //   decoration: BoxDecoration(
-          //     color: Colors.orange[50],
-          //     borderRadius: BorderRadius.circular(8),
-          //     border: Border.all(color: Colors.orange[200]!),
-          //   ),
-          //   child: Row(
-          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          //     children: [
-          //       Text(
-          //         '🏢 Brick keeps (after discount):',
-          //         style: TextStyle(fontSize: 12, color: Colors.orange[700]),
-          //       ),
-          //       Text(
-          //         'UGX ${formatter.format(_companyKeeps)}',
-          //         style: TextStyle(
-          //           fontWeight: FontWeight.bold,
-          //           color: Colors.orange[800],
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-
-          // const SizedBox(height: 8),
-
-          // ─── Manager gets ─────────────────────────────
-          // Container(
-          //   padding: const EdgeInsets.all(10),
-          //   decoration: BoxDecoration(
-          //     color: Colors.purple[50],
-          //     borderRadius: BorderRadius.circular(8),
-          //     border: Border.all(color: Colors.purple[200]!),
-          //   ),
-          //   child: Row(
-          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          //     children: [
-          //       Text(
-          //         '👨‍💼 Property manager receives:',
-          //         style: TextStyle(fontSize: 12, color: Colors.purple[700]),
-          //       ),
-          //       Text(
-          //         'UGX ${formatter.format(_managerGets)}',
-          //         style: TextStyle(
-          //           fontWeight: FontWeight.bold,
-          //           color: Colors.purple[800],
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-        ],
-      ],
+  if (_isLand && _landValueController.text.isEmpty) {
+    return const Center(
+      child: Text(
+        'Enter land value above to see price breakdown',
+        style: TextStyle(color: Colors.grey),
+        textAlign: TextAlign.center,
+      ),
     );
   }
+
+  if (_isVenue && _venueDays == 0) {
+    return const Center(
+      child: Text(
+        'Select dates above to see price breakdown',
+        style: TextStyle(color: Colors.grey),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Price Breakdown',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 12),
+
+      // ─── Base calculation ─────────────────────────
+      if (_isVenue) ...[
+        _buildPriceRow('Price per day', 'UGX ${formatter.format(_dailyPrice)}'),
+        _buildPriceRow('Number of days', '$_venueDays days'),
+      ] else if (_isLand) ...[
+        _buildPriceRow(
+          'Land value',
+          'UGX ${formatter.format(double.tryParse(_landValueController.text) ?? 0)}',
+        ),
+      ] else ...[
+        _buildPriceRow('Price per month', 'UGX ${formatter.format(_pricePerMonth)}'),
+        _buildPriceRow('Total months', '$_totalMonths months'),
+      ],
+
+      _buildPriceRow('Base total', 'UGX ${formatter.format(_baseTotal)}', isBold: true),
+
+      // ─── Commissionable section ───────────────────
+      if (_isRegular && _commissionableMonths < _totalMonths) ...[
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Discount applies on first $_commissionableMonths of $_totalMonths months:',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 4),
+             
+            ],
+          ),
+        ),
+      ],
+
+      const Divider(height: 20),
+
+      // ✅ 1. Agreed Commission (e.g., 8%)
+      
+
+      // ─── Final total ──────────────────────────────
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange[300]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'You Pay',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'UGX ${formatter.format(_finalTotal)}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: Text(
+          '🎉 You save UGX ${formatter.format(_youSave)} by paying through Brick!',
+          style: const TextStyle(
+            color: Colors.green,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildPriceRow(String label, String value, {bool isBold = false}) {
     return Padding(

@@ -40,7 +40,9 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
   final _accountNumberController = TextEditingController();
   final _accountHolderController = TextEditingController();
   final _branchCodeController = TextEditingController();
+double _pendingReleaseBalance = 0;
 
+  final formatter = NumberFormat('#,###');
   @override
   void initState() {
     super.initState();
@@ -101,6 +103,9 @@ class _PManagerSettingsState extends ConsumerState<PManagerSettings> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        _pendingReleaseBalance = double.tryParse(
+  data['wallet']['pending_release_balance']?.toString() ?? '0',
+) ?? 0;
         setState(() {
           _withdrawableBalance = double.tryParse(
               data['wallet']['withdrawable_balance'].toString()) ?? 0;
@@ -296,27 +301,29 @@ Future<double> _getWithdrawalCharge(double amount) async {
                     border: Border.all(color: Colors.green[200]!),
                   ),
                   child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet,
-                          color: Colors.green),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Available Balance',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.green)),
-                          Text(
-                            'UGX ${NumberFormat('#,###').format(_withdrawableBalance)}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                                fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+  children: [
+    Expanded(
+      child: _buildWalletCard(
+        'Available Balance',
+        'UGX ${formatter.format(_withdrawableBalance)}',
+        Colors.green,
+          'Your earnings after all deductions'
+      ),
+    ),
+
+    if (_pendingReleaseBalance > 0) ...[
+      const SizedBox(width: 12),
+      Expanded(
+        child: _buildWalletCard(
+          '⏳ Pending Release',
+          'UGX ${formatter.format(_pendingReleaseBalance)}',
+          Colors.purple,
+           'Released when property is fully approved',
+        ),
+      ),
+    ],
+  ],
+)
                 ),
                 const SizedBox(height: 16),
 
