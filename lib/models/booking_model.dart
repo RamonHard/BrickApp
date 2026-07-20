@@ -16,12 +16,15 @@ class PropertyBookingModel {
   final String? ownerName;
   final String? ownerPhone;
   final String? ownerAvatar;
-  final DateTime? createdAt;
-  final List<String> insideViews; // ✅ new
-  final String? videoPath; // ✅ new
-  final int? bedrooms; // ✅ new
-  final int? bathrooms; // ✅ new
-  final double? squareFeet; // ✅ new
+  final DateTime createdAt; // ✅ Changed from nullable to required
+  final List<String> insideViews;
+  final String? videoPath;
+  final int? bedrooms;
+  final int? bathrooms;
+  final double? squareFeet;
+  final int? rating; // ✅ Added rating field
+  final String? reviewText; // ✅ Added review text field
+  final DateTime? ratedAt; // ✅ Added rated at timestamp
 
   PropertyBookingModel({
     required this.id,
@@ -39,12 +42,15 @@ class PropertyBookingModel {
     this.ownerName,
     this.ownerPhone,
     this.ownerAvatar,
-    this.createdAt,
+    required this.createdAt, // ✅ Now required
     this.insideViews = const [],
     this.videoPath,
     this.bedrooms,
     this.bathrooms,
     this.squareFeet,
+    this.rating, // ✅ Added
+    this.reviewText, // ✅ Added
+    this.ratedAt, // ✅ Added
   });
 
   String? get thumbnailUrl {
@@ -53,7 +59,6 @@ class PropertyBookingModel {
     return '${AppUrls.baseUrl}/$thumbnail';
   }
 
-  // ✅ Convert relative paths to full URLs
   List<String> get insideViewUrls =>
       insideViews.map((img) {
         if (img.startsWith('http')) return img;
@@ -67,13 +72,28 @@ class PropertyBookingModel {
   }
 
   factory PropertyBookingModel.fromJson(Map<String, dynamic> json) {
-    // ✅ Parse inside_views array
+    // Parse inside_views array
     List<String> images = [];
     if (json['inside_views'] != null) {
       final raw = json['inside_views'];
       if (raw is List) {
         images = raw.where((e) => e != null).map((e) => e.toString()).toList();
       }
+    }
+
+    // Parse created_at - handle null case
+    DateTime createdAt;
+    if (json['created_at'] != null) {
+      createdAt = DateTime.tryParse(json['created_at']) ?? DateTime.now();
+    } else {
+      createdAt = DateTime.now();
+    }
+
+    // Parse rating - could be null or 0
+    int? rating;
+    if (json['rating'] != null) {
+      rating = int.tryParse(json['rating'].toString());
+      if (rating == 0) rating = null; // Treat 0 as no rating
     }
 
     return PropertyBookingModel(
@@ -93,10 +113,7 @@ class PropertyBookingModel {
       ownerName: json['owner_name'],
       ownerPhone: json['owner_phone'],
       ownerAvatar: json['owner_avatar'],
-      createdAt:
-          json['created_at'] != null
-              ? DateTime.tryParse(json['created_at'])
-              : null,
+      createdAt: createdAt,
       insideViews: images,
       videoPath: json['video_path'],
       bedrooms: json['bedrooms'],
@@ -105,6 +122,25 @@ class PropertyBookingModel {
           json['square_feet'] != null
               ? double.tryParse(json['square_feet'].toString())
               : null,
+      rating: rating,
+      reviewText: json['review_text'],
+      ratedAt: json['rated_at'] != null
+          ? DateTime.tryParse(json['rated_at'])
+          : null,
     );
   }
+
+  // ✅ Helper to check if property can be rated
+  bool get canRate {
+    // Must be visit_confirmed, have no rating, and at least 30 days old
+    return status == 'visit_confirmed' &&
+        (rating == null || rating == 0) &&
+        createdAt.difference(DateTime.now()).inDays.abs() >= 30;
+  }
+
+  // ✅ Helper to get days since booking
+  int get daysSinceBooking => DateTime.now().difference(createdAt).inDays.abs();
+
+  // ✅ Helper to get days remaining until can rate
+  int get daysUntilCanRate => 30 - daysSinceBooking;
 }

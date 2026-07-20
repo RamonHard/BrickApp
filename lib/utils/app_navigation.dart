@@ -19,6 +19,7 @@ import 'package:brickapp/pages/onboardingPages/truck_driver_register.dart';
 import 'package:brickapp/pages/onboardingPages/user_options.dart';
 import 'package:brickapp/pages/pManagerPages/add_post.dart';
 import 'package:brickapp/pages/pManagerPages/edit_post.dart';
+import 'package:brickapp/pages/pManagerPages/manager_stats.dart';
 import 'package:brickapp/pages/pManagerPages/my_posts.dart';
 import 'package:brickapp/pages/pManagerPages/p_manager_seetings.dart';
 import 'package:brickapp/pages/pManagerPages/requests_for_p_m.dart';
@@ -65,6 +66,7 @@ class MainNavigation {
   static String register_addpostRoute = "/register_addpostRoute";
   static String register_truckerDriverRoute = "/register_truckerDriverRoute";
   static String PManagerSettingsRoute = "/PManagerSettingsRoute";
+  static const String managerStatsRoute = '/manager-stats';
   static String requestsForPropertyManagerRoute =
       "/requestsForPropertyManagerRoute";
   static String requestsForSProviderRoute = "/requestsForSProviderRoute";
@@ -151,6 +153,9 @@ class MainNavigation {
     }
     if (settings.name == PManagerSettingsRoute) {
       return MaterialPageRoute(builder: (context) => PManagerSettings());
+    }
+     if (settings.name == managerStatsRoute) {
+      return MaterialPageRoute(builder: (context) => ManagerStatsPage());
     }
     if (settings.name == register_addpostRoute) {
       return MaterialPageRoute(

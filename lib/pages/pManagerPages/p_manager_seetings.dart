@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:brickapp/pages/pManagerPages/manager_stats.dart';
 import 'package:brickapp/pages/pManagerPages/payment_settings.dart';
+import 'package:brickapp/providers/p_manager_State_provider.dart';
 import 'package:brickapp/providers/stats_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
@@ -455,6 +457,7 @@ Future<double> _getWithdrawalCharge(double amount) async {
             ),
           ),
           actions: [
+             
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel'),
@@ -547,290 +550,338 @@ Future<double> _getWithdrawalCharge(double amount) async {
 
   @override
   Widget build(BuildContext context) {
-    final token = ref.watch(userProvider).token ?? '';
-    final statsAsync = ref.watch(managerStatsProvider(token));
-    final formatter = NumberFormat('#,###');
+  // ✅ Use the auto provider that gets token internally
+  final statsAsync = ref.watch(managerStatsAutoProvider);
+  final formatter = NumberFormat('#,###');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manager Settings'),
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        actions: [
-          if (_hasChanges)
-            IconButton(icon: const Icon(Icons.save),
-                onPressed: _savePaymentMethods, tooltip: 'Save'),
-          IconButton(icon: const Icon(Icons.refresh),
-              onPressed: () {
-                ref.refresh(managerStatsProvider(token));
-                _loadWallet();
-              }),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            // ─── WALLET SECTION ───────────────────────
-            _buildSectionTitle('💰 My Wallet'),
-            _isLoadingWallet
-                ? const Center(child: CircularProgressIndicator())
-                : Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildWalletCard(
-  '✅ Ready to Withdraw',
-  'UGX ${formatter.format(_withdrawableBalance)}',
-  Colors.green,
-  'Your earnings after all deductions',
-),),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildWalletCard(
-  '🔒 Awaiting Client Confirmation',
-  'UGX ${formatter.format(_lockedBalance)}',
-  Colors.orange,
-  'Released when client confirms visit',
-),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _withdrawableBalance > 0
-                                  ? _requestWithdrawal : null,
-                              icon: const Icon(Icons.account_balance_wallet,
-                                  color: Colors.white),
-                              label: // ✅ Update withdraw button label
-Text(
-  'Withdraw UGX ${formatter.format(_withdrawableBalance)}',
-  style: const TextStyle(color: Colors.white),
-),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                disabledBackgroundColor: Colors.grey[300],
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ),
-                          if (_lockedBalance > 0) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.orange[50],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.orange[200]!),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.lock_clock,
-                                      color: Colors.orange[700], size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'UGX ${formatter.format(_lockedBalance)} is locked until clients confirm property visits.',
-                                      style: TextStyle(
-                                          color: Colors.orange[800],
-                                          fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Manager Settings'),
+      backgroundColor: Colors.deepOrange,
+      foregroundColor: Colors.white,
+      actions: [
+        if (_hasChanges)
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: _savePaymentMethods,
+            tooltip: 'Save',
+          ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () {
+            ref.refresh(managerStatsAutoProvider);
+            _loadWallet();
+          },
+        ),
+      ],
+    ),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ─── WALLET SECTION ───────────────────────
+_buildSectionTitle('💰 My Wallet'),
+_isLoadingWallet
+    ? const Center(child: CircularProgressIndicator())
+    : Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildWalletCard(
+                      '✅ Ready to Withdraw',
+                      'UGX ${formatter.format(_withdrawableBalance)}',
+                      Colors.green,
+                      'Your earnings after all deductions',
                     ),
                   ),
-            const SizedBox(height: 24),
-
-            // ─── STATS SECTION ────────────────────────
-            statsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Failed to load stats: $e'),
-              data: (stats) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('My Properties'),
-                  Row(children: [
-                    Expanded(child: _buildStatCard('Active',
-                        '${stats['properties']['active']}', Icons.home, Colors.green)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Pending',
-                        '${stats['properties']['pending']}', Icons.pending, Colors.orange)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Inactive',
-                        '${stats['properties']['inactive']}', Icons.visibility_off, Colors.grey)),
-                  ]),
-                  const SizedBox(height: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildWalletCard(
+                      '🔒 Awaiting Client Confirmation',
+                      'UGX ${formatter.format(_lockedBalance)}',
+                      Colors.orange,
+                      'Released when client confirms visit',
+                    ),
+                  ),
                 ],
               ),
-            ),
-
-            // ─── PAYMENT METHODS SECTION ──────────────
-            _buildSectionTitle('💳 Payment Methods'),
-            // const Text(
-            //   'Set how clients can pay you. These will be shown during booking.',
-            //   style: TextStyle(color: Colors.grey, fontSize: 13),
-            // ),
-            // const SizedBox(height: 12),
-
-            // _isLoadingMethods
-            //     ? const Center(child: CircularProgressIndicator())
-            //     : Card(
-            //         elevation: 2,
-            //         shape: RoundedRectangleBorder(
-            //             borderRadius: BorderRadius.circular(12)),
-            //         child: Padding(
-            //           padding: const EdgeInsets.all(16),
-            //           child: Column(
-            //             children: [
-            //               // Mobile Money
-            //               SwitchListTile(
-            //                 value: _mobileMoneyEnabled,
-            //                 onChanged: (v) => setState(() {
-            //                   _mobileMoneyEnabled = v;
-            //                   _hasChanges = true;
-            //                 }),
-            //                 secondary: const Icon(Icons.phone_android,
-            //                     color: Colors.deepOrange),
-            //                 title: const Text('Mobile Money',
-            //                     style: TextStyle(fontWeight: FontWeight.w600)),
-            //                 subtitle: const Text('MTN & Airtel Money'),
-            //                 activeColor: Colors.deepOrange,
-            //               ),
-            //               if (_mobileMoneyEnabled) ...[
-            //                 const SizedBox(height: 8),
-            //                 Row(
-            //                   children: [
-            //                     Expanded(
-            //                       flex: 2,
-            //                       child: DropdownButtonFormField<String>(
-            //                         value: _mobileMoneyProvider,
-            //                         decoration: const InputDecoration(
-            //                           labelText: 'Provider',
-            //                           border: OutlineInputBorder(),
-            //                           contentPadding: EdgeInsets.symmetric(
-            //                               horizontal: 12, vertical: 12),
-            //                         ),
-            //                         items: ['MTN', 'Airtel'].map((p) =>
-            //                             DropdownMenuItem(value: p, child: Text(p)))
-            //                             .toList(),
-            //                         onChanged: (v) => setState(() {
-            //                           _mobileMoneyProvider = v!;
-            //                           _hasChanges = true;
-            //                         }),
-            //                       ),
-            //                     ),
-            //                     const SizedBox(width: 8),
-            //                     Expanded(
-            //                       flex: 3,
-            //                       child: TextField(
-            //                         controller: _mobileNumberController,
-            //                         keyboardType: TextInputType.phone,
-            //                         onChanged: (_) => setState(() => _hasChanges = true),
-            //                         decoration: const InputDecoration(
-            //                           labelText: 'Mobile Money Number',
-            //                           hintText: '+256 7XX XXX XXX',
-            //                           border: OutlineInputBorder(),
-            //                           prefixIcon: Icon(Icons.phone),
-            //                         ),
-            //                       ),
-            //                     ),
-            //                   ],
-            //                 ),
-            //               ],
-
-            //               const Divider(height: 24),
-
-            //               // Bank Transfer
-            //               SwitchListTile(
-            //                 value: _bankEnabled,
-            //                 onChanged: (v) => setState(() {
-            //                   _bankEnabled = v;
-            //                   _hasChanges = true;
-            //                 }),
-            //                 secondary: const Icon(Icons.account_balance,
-            //                     color: Colors.deepOrange),
-            //                 title: const Text('Bank Transfer',
-            //                     style: TextStyle(fontWeight: FontWeight.w600)),
-            //                 subtitle: const Text('Direct bank payment'),
-            //                 activeColor: Colors.deepOrange,
-            //               ),
-            //               if (_bankEnabled) ...[
-            //                 const SizedBox(height: 8),
-            //                 TextField(
-            //                   controller: _bankNameController,
-            //                   onChanged: (_) => setState(() => _hasChanges = true),
-            //                   decoration: const InputDecoration(
-            //                     labelText: 'Bank Name',
-            //                     border: OutlineInputBorder(),
-            //                     prefixIcon: Icon(Icons.account_balance),
-            //                   ),
-            //                 ),
-            //                 const SizedBox(height: 8),
-            //                 TextField(
-            //                   controller: _accountNumberController,
-            //                   keyboardType: TextInputType.number,
-            //                   onChanged: (_) => setState(() => _hasChanges = true),
-            //                   decoration: const InputDecoration(
-            //                     labelText: 'Account Number',
-            //                     border: OutlineInputBorder(),
-            //                     prefixIcon: Icon(Icons.numbers),
-            //                   ),
-            //                 ),
-            //                 const SizedBox(height: 8),
-            //                 TextField(
-            //                   controller: _accountHolderController,
-            //                   onChanged: (_) => setState(() => _hasChanges = true),
-            //                   decoration: const InputDecoration(
-            //                     labelText: 'Account Holder Name',
-            //                     border: OutlineInputBorder(),
-            //                     prefixIcon: Icon(Icons.person),
-            //                   ),
-            //                 ),
-            //               ],
-            //             ],
-            //           ),
-            //         ),
-            //       ),
-            // const SizedBox(height: 16),
-
-            if (_hasChanges)
+              if (_pendingReleaseBalance > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildWalletCard(
+                        '⏳ Pending Release',
+                        'UGX ${formatter.format(_pendingReleaseBalance)}',
+                        Colors.purple,
+                        'Released when property is fully approved',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _savePaymentMethods,
-                  icon: _isSaving
-                      ? const SizedBox(width: 18, height: 18,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.save, color: Colors.white),
-                  label: Text(_isSaving ? 'Saving...' : 'Save Payment Settings',
-                      style: const TextStyle(color: Colors.white)),
+                  onPressed: _withdrawableBalance > 0
+                      ? _requestWithdrawal
+                      : null,
+                  icon: const Icon(
+                    Icons.account_balance_wallet,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    'Withdraw UGX ${formatter.format(_withdrawableBalance)}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: Colors.green,
+                    disabledBackgroundColor: Colors.grey[300],
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
-            const SizedBox(height: 24),
+              if (_lockedBalance > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lock_clock,
+                        color: Colors.orange[700],
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'UGX ${formatter.format(_lockedBalance)} is locked until clients confirm property visits.',
+                          style: TextStyle(
+                            color: Colors.orange[800],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+const SizedBox(height: 24),
+
+          // ─── STATS SECTION ────────────────────────
+          _buildSectionTitle('📊 My Statistics'),
+          
+          // ✅ Use the auto provider
+          statsAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 12),
+                    Text('Loading statistics...'),
+                  ],
+                ),
+              ),
+            ),
+            error: (e, stack) => Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red[400], size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Failed to load stats',
+                    style: TextStyle(
+                      color: Colors.red[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    e.toString(),
+                    style: TextStyle(color: Colors.red[600], fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      ref.refresh(managerStatsAutoProvider);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+            data: (stats) {
+              // Debug print
+              print('📊 Stats data in UI: $stats');
+              
+              // Safely get values with fallbacks
+              final totalProps = stats['total_properties'] ?? 0;
+              final activeProps = stats['active_properties'] ?? 0;
+              final pendingProps = stats['pending_properties'] ?? 0;
+              final inactiveProps = stats['inactive_properties'] ?? 0;
+              final totalViews = stats['total_views'] ?? 0;
+              final totalBookings = stats['total_bookings'] ?? 0;
+              final totalRevenue = stats['total_revenue'] ?? 0.0;
+              final avgRating = stats['average_rating'] ?? 0.0;
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ─── Property Status Cards ──────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Properties',
+                          '$totalProps',
+                          Icons.home_work,
+                          Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Active',
+                          '$activeProps',
+                          Icons.home,
+                          Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Pending',
+                          '$pendingProps',
+                          Icons.pending,
+                          Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // ─── Views & Bookings ──────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Views',
+                          '$totalViews',
+                          Icons.visibility,
+                          Colors.purple,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Bookings',
+                          '$totalBookings',
+                          Icons.calendar_today,
+                          Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Avg Rating',
+                          avgRating > 0 ? avgRating.toStringAsFixed(1) : '—',
+                          Icons.star,
+                          Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // ─── Revenue ──────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _buildStatCard(
+                          'Total Revenue',
+                          'UGX ${formatter.format(totalRevenue)}',
+                          Icons.attach_money,
+                          Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Inactive',
+                          '$inactiveProps',
+                          Icons.visibility_off,
+                          Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // ─── View Detailed Stats Button ────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ManagerStatsPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.bar_chart, color: Colors.white),
+                      label: const Text(
+                        'View Detailed Statistics',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
           ],
         ),
       ),

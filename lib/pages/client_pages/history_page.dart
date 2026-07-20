@@ -3,6 +3,7 @@ import 'package:brickapp/models/booking_model.dart';
 import 'package:brickapp/providers/booking_provider.dart';
 import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
+import 'package:brickapp/utils/rating_dialogue.dart';
 import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -131,6 +132,7 @@ class _PropertyBookingCard extends ConsumerStatefulWidget {
 
 class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
   bool _isConfirming = false;
+  bool _isRating = false;
 
   Color get _statusColor {
     switch (widget.booking.status) {
@@ -261,6 +263,23 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
         child: Text(text, style: const TextStyle(fontSize: 13)),
       );
 
+  // ✅ NEW: Show Rating Dialog
+  Future<void> _showRatingDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => RatingDialog(
+        bookingId: widget.booking.id,
+        propertyName: widget.booking.propertyType ?? 'Property',
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Refresh the page to update the UI
+      widget.onVisitConfirmed();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat('#,###');
@@ -271,6 +290,12 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
       if (booking.videoUrl != null) booking.videoUrl!,
       ...booking.insideViewUrls,
     ];
+
+    // ✅ Check if 30 days have passed since booking
+    final daysSinceBooking = DateTime.now().difference(booking.createdAt).inDays;
+    final canRate = booking.status == 'visit_confirmed' && 
+                    daysSinceBooking >= 30 && 
+                    booking.rating == 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -660,6 +685,100 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
                                     fontSize: 12),
                               ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ✅ RATING SECTION - Show after 30 days
+                if (canRate) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.star_rate_rounded,
+                            color: Colors.amber, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Rate Your Experience ⭐',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber[800],
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Share your experience with this property',
+                                style: TextStyle(
+                                  color: Colors.amber[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _showRatingDialog,
+                          icon: const Icon(Icons.star_border, size: 16),
+                          label: const Text('Rate Now'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.amber[800],
+                            side: BorderSide(color: Colors.amber[200]!),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ✅ Already Rated - Show rating badge
+                if (booking.rating != null && booking.rating! > 0) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Row(
+                          children: List.generate(5, (index) {
+                            return Icon(
+                              index < (booking.rating ?? 0)
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                              size: 16,
+                            );
+                          }),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${booking.rating ?? 0}.0',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber[700],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Rated',
+                          style: TextStyle(
+                            color: Colors.green[600],
+                            fontSize: 12,
                           ),
                         ),
                       ],
