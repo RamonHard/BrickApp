@@ -1,67 +1,51 @@
 import 'dart:convert';
+import 'package:brickapp/utils/pop_up_dialogues.dart';
+import 'package:intl/intl.dart';
 import 'package:brickapp/models/property_model.dart';
 import 'package:brickapp/notifiers/fav_item_notofier.dart';
-import 'package:brickapp/pages/client_pages/booking-pages/appartment_booking_page.dart';
 import 'package:brickapp/pages/client_pages/gallery_view.dart';
-import 'package:brickapp/pages/pManagerPages/pdf_pre_view.dart';
 import 'package:brickapp/providers/discount_provider.dart';
-import 'package:brickapp/providers/user_provider.dart';
 import 'package:brickapp/utils/app_colors.dart';
 import 'package:brickapp/utils/app_navigation.dart';
 import 'package:brickapp/utils/build_image_method.dart';
-import 'package:brickapp/utils/pop_up_dialogues.dart';
 import 'package:brickapp/utils/urls.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 
-class ViewSelectedProperty extends ConsumerStatefulWidget {
-  ViewSelectedProperty({super.key, required this.selectedProduct});
+class ViewPropertyofOneManager extends ConsumerStatefulWidget {
+  const ViewPropertyofOneManager({super.key, required this.selectedProduct});
   final PropertyModel selectedProduct;
 
   @override
-  ConsumerState<ViewSelectedProperty> createState() =>
-      _ViewSelectedPropertyState();
+  ConsumerState<ViewPropertyofOneManager> createState() => _ViewPropertyofOneManagerState();
 }
 
-class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
+class _ViewPropertyofOneManagerState extends ConsumerState<ViewPropertyofOneManager> {
   double _clientDiscountPercent = 5.0;
   int _commissionMonths = 3;
-  double _commissionPercent = 10.0;
   bool _settingsLoaded = false;
-  
+
   bool get _isPendingNotApproved {
     return widget.selectedProduct.status == 'pending' &&
         !widget.selectedProduct.adminApproved;
+  }
+
+  bool get _showRentButton {
+    final type = widget.selectedProduct.listingType;
+    return type == 'rent' || type == 'rent_and_sale';
+  }
+
+  bool get _showSaleButton {
+    final type = widget.selectedProduct.listingType;
+    return type == 'sale' || type == 'rent_and_sale';
   }
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _trackPropertyView();
-    });
-  }
-
-  String? _getDocumentUrl() {
-    final path = widget.selectedProduct.rulesDocumentPath;
-    if (path == null || path.isEmpty) return null;
-    
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    
-    if (path.startsWith('/uploads/')) {
-      return '${AppUrls.baseUrl}$path';
-    }
-    if (path.startsWith('uploads/')) {
-      return '${AppUrls.baseUrl}/$path';
-    }
-    
-    return '${AppUrls.baseUrl}/$path';
   }
 
   Future<void> _loadSettings() async {
@@ -80,51 +64,12 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
           if (s['key'] == 'commission_months') {
             _commissionMonths = int.tryParse(s['value'].toString()) ?? 3;
           }
-          if (s['key'] == 'property_commission_percent') {
-            _commissionPercent = double.tryParse(s['value'].toString()) ?? 10.0;
-          }
         }
       }
     } catch (e) {
       print('❌ Settings error: $e');
     }
     if (mounted) setState(() => _settingsLoaded = true);
-  }
-
-  Future<void> _trackPropertyView() async {
-    try {
-      final propertyId = widget.selectedProduct.id;
-      final token = ref.read(userProvider).token;
-      
-      final url = AppUrls.propertyView(propertyId);
-      print('📊 Tracking view for property $propertyId');
-      
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        print('✅ View tracked successfully');
-      } else {
-        print('❌ Failed to track view: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ Error tracking view: $e');
-    }
-  }
-
-  bool get _showRentButton {
-    final type = widget.selectedProduct.listingType;
-    return type == 'rent' || type == 'rent_and_sale';
-  }
-
-  bool get _showSaleButton {
-    final type = widget.selectedProduct.listingType;
-    return type == 'sale' || type == 'rent_and_sale';
   }
 
   @override
@@ -145,15 +90,13 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
         if (_settingsLoaded) {
           _showDiscountDialog(context);
         } else {
-          Future.delayed(const Duration(milliseconds: 800), () {
+          Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _showDiscountDialog(context);
           });
         }
         ref.read(discountDialogShownProvider.notifier).state = true;
       });
     }
-
-    final docUrl = _getDocumentUrl();
 
     return Scaffold(
       appBar: AppBar(
@@ -282,6 +225,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  // Pending reason banner
                   if (widget.selectedProduct.status == 'pending' &&
                       widget.selectedProduct.pendingReason != null &&
                       widget.selectedProduct.pendingReason!.isNotEmpty)
@@ -315,7 +259,10 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                         ],
                       ),
                     ),
-                  if (_showRentButton || _showSaleButton)
+
+                  // Booking / Buy buttons
+                  if (widget.selectedProduct.isActive &&
+                      (_showRentButton || _showSaleButton))
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final bool isWide = constraints.maxWidth > 400;
@@ -344,7 +291,8 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                             children: [
                               if (_showRentButton)
                                 Padding(
-                                  padding: EdgeInsets.only(bottom: _showSaleButton ? 10 : 0),
+                                  padding: EdgeInsets.only(
+                                      bottom: _showSaleButton ? 10 : 0),
                                   child: SizedBox(
                                     width: double.infinity,
                                     child: _buildBookingButton('rent'),
@@ -375,14 +323,20 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       Expanded(
                         child: Text(
                           widget.selectedProduct.propertyType,
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      // ✅ View count badge
-                      if (widget.selectedProduct.viewCount != null && widget.selectedProduct.viewCount! > 0)
+                      if (widget.selectedProduct.viewCount != null &&
+                          widget.selectedProduct.viewCount! > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(12),
@@ -390,7 +344,8 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                              Icon(Icons.visibility,
+                                  size: 14, color: Colors.grey[600]),
                               const SizedBox(width: 4),
                               Text(
                                 '${widget.selectedProduct.viewCount}',
@@ -410,8 +365,11 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                   // ─── Venue Packages ──────────────────────
                   if (widget.selectedProduct.venuePricing != null &&
                       widget.selectedProduct.venuePricing!.isNotEmpty) ...[
-                    const Text('Venue Packages',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const Text(
+                      'Venue Packages',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
                     const SizedBox(height: 8),
                     ...widget.selectedProduct.venuePricing!.entries.map((entry) {
                       final icons = {
@@ -428,30 +386,39 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       };
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: Colors.orange[50],
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.orange[200]!),
                         ),
                         child: Row(children: [
-                          Icon(icons[entry.key] ?? Icons.attach_money, color: Colors.orange, size: 20),
+                          Icon(icons[entry.key] ?? Icons.attach_money,
+                              color: Colors.orange, size: 20),
                           const SizedBox(width: 10),
                           Text(
                             '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 14),
                           ),
                           const Spacer(),
-                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text(
-                              'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 15),
-                            ),
-                            Text(
-                              labels[entry.key] ?? '',
-                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                            ),
-                          ]),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'UGX ${NumberFormat('#,###').format(double.tryParse(entry.value.toString()) ?? 0)}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                      fontSize: 15),
+                                ),
+                                Text(
+                                  labels[entry.key] ?? '',
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.grey[600]),
+                                ),
+                              ]),
                         ]),
                       );
                     }).toList(),
@@ -459,36 +426,101 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                   // ─── Regular Rent Price ──────────────────
                   else if (widget.selectedProduct.rentPrice != null &&
                       widget.selectedProduct.rentPrice! > 0) ...[
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
-                          widget.selectedProduct.numberOfMonths != '0' &&
-                          widget.selectedProduct.numberOfMonths != 'null')
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (widget.selectedProduct.numberOfMonths.isNotEmpty &&
+                            widget.selectedProduct.numberOfMonths != '0' &&
+                            widget.selectedProduct.numberOfMonths != 'null')
+                          Text(
+                            'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey[600]),
+                          ),
                         Text(
-                          'Min. ${widget.selectedProduct.numberOfMonths} month${int.tryParse(widget.selectedProduct.numberOfMonths) != null && int.parse(widget.selectedProduct.numberOfMonths) > 1 ? "s" : ""}',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
+                          style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green),
                         ),
-                      Text(
-                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.rentPrice)}/mo',
-                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                      ),
-                    ]),
+                      ],
+                    ),
                   ],
 
                   // ─── Sale Price ──────────────────────────
                   if (widget.selectedProduct.salePrice != null &&
                       widget.selectedProduct.salePrice! > 0) ...[
                     const SizedBox(height: 6),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Sale Price:', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
-                      Text(
-                        'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
-                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                    ]),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Sale Price:',
+                            style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700])),
+                        Text(
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.salePrice)}',
+                          style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue),
+                        ),
+                      ],
+                    ),
                   ],
                 ],
               ),
             ),
+
+            // ─── Sale Conditions Box ───────────────────────
+            if (widget.selectedProduct.isSale &&
+                widget.selectedProduct.enteredSalePrice > 0 &&
+                !(widget.selectedProduct.salePrice != null &&
+                    widget.selectedProduct.salePrice! > 0))
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Sale Price',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'UGX ${NumberFormat('#,###').format(widget.selectedProduct.enteredSalePrice)}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (widget.selectedProduct.saleConditions.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Conditions: ${widget.selectedProduct.saleConditions}',
+                        style:
+                            TextStyle(color: Colors.grey[700], fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
 
             // ─── Location + Rating ────────────────────────
             Padding(
@@ -653,7 +685,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
               ),
 
             // ─── Description ───────────────────────────────
-            if (!(widget.selectedProduct.status == 'pending' && !widget.selectedProduct.adminApproved)) ...[
+            if (!_isPendingNotApproved) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -684,10 +716,11 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.lock_outline, color: Colors.orange[700], size: 32),
+                      Icon(Icons.lock_outline,
+                          color: Colors.orange[700], size: 32),
                       const SizedBox(height: 8),
                       Text(
-                        'Property yet Details Not Avialble',
+                        'Property Details Not Available',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.orange[700],
@@ -698,111 +731,14 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       Text(
                         'Full property details will be displayed here. You can save it to your favourites and check back later.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.orange[600], fontSize: 13),
+                        style: TextStyle(
+                            color: Colors.orange[600], fontSize: 13),
                       ),
                     ],
                   ),
                 ),
               ),
             ],
-
-            // ─── Rules Document ────────────────────────────
-            if (docUrl != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: AppColors.orangeTextColor),
-                  ),
-                  leading: const Icon(Icons.description, color: Colors.orange),
-                  title: const Text(
-                    'View Rules & Regulations',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    print('📄 Opening document: $docUrl');
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DocumentPreviewScreen(
-                          networkUrl: docUrl,
-                          fileName: 'Rules & Regulations',
-                          title: 'Rules & Regulations',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-            // ─── Owner Info ─────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey[300],
-                        child: widget.selectedProduct.uploaderIMG.isNotEmpty
-                            ? null
-                            : const Icon(Icons.person),
-                        backgroundImage:
-                            widget.selectedProduct.uploaderIMG.isNotEmpty
-                                ? NetworkImage(
-                                    widget.selectedProduct.uploaderIMG,
-                                  )
-                                : null,
-                      ),
-                      title: Text(
-                        widget.selectedProduct.ownerName ??
-                            widget.selectedProduct.uploaderName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkTextColor,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        'Property Manager',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: AppColors.lightGrey,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: MaterialButton(
-                      onPressed: () => MainNavigation.navigateToRoute(
-                        MainNavigation.viewMoreProducts,
-                        data: widget.selectedProduct,
-                      ),
-                      padding: const EdgeInsets.all(8.0),
-                      color: Colors.orange,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'View More',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 30),
           ],
         ),
@@ -810,6 +746,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
     );
   }
 
+  // ─── Booking / Buy Button Builder ──────────────────────
   Widget _buildBookingButton(String type) {
     if (_isPendingNotApproved) {
       return Container(
@@ -839,16 +776,10 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
 
     if (type == 'rent') {
       return ElevatedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PropertyBookingPage(
-                productModel: widget.selectedProduct,
-              ),
-            ),
-          );
-        },
+        onPressed: () => MainNavigation.navigateToRoute(
+          MainNavigation.paymentMethodRoute,
+          data: widget.selectedProduct,
+        ),
         icon: const Icon(Icons.calendar_month, color: Colors.white, size: 18),
         label: const Text(
           'Book Now',
@@ -865,7 +796,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
       );
     } else {
       return ElevatedButton.icon(
-        onPressed: () => BrickContactDialog.show(
+        onPressed: ()=> BrickContactDialog.show(
           context,
           property: widget.selectedProduct,
         ),
@@ -888,221 +819,202 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
 
   // ─── Discount Dialog ──────────────────────────────────────
   void _showDiscountDialog(BuildContext context) {
-  // ✅ Detect property type
-  final isVenue = widget.selectedProduct.propertyType == 'Venue' ||
-                  widget.selectedProduct.propertyType == 'Ceremony Ground';
-  final isLand = widget.selectedProduct.propertyType == 'Land';
-  final isRent = widget.selectedProduct.listingType == 'rent' ||
-                 widget.selectedProduct.listingType == 'rent_and_sale';
+    final isVenue = widget.selectedProduct.propertyType == 'Venue' ||
+        widget.selectedProduct.propertyType == 'Ceremony Ground';
+    final isLand = widget.selectedProduct.propertyType == 'Land';
+    final isRent = widget.selectedProduct.listingType == 'rent' ||
+        widget.selectedProduct.listingType == 'rent_and_sale';
 
-  // ✅ Get the correct price based on property type
-  double price = 0;
-  String priceLabel = '';
-  String discountLabel = '';
-  String firstPaymentLabel = '';
-  double discountedPrice = 0;
-  String savingsLabel = '';
+    double price = 0;
+    String priceLabel = '';
+    String discountLabel = '';
+    String firstPaymentLabel = '';
+    double discountedPrice = 0;
+    String savingsLabel = '';
 
-  if (isVenue) {
-    // ─── VENUE (Daily Pricing) ──────────────────────
-    price = widget.selectedProduct.dailyPrice ?? 
-            widget.selectedProduct.rentPrice ?? 
-            widget.selectedProduct.price;
-    priceLabel = 'UGX ${_fmt(price)}/day';
-    
-    final discountAmount = price * (_clientDiscountPercent / 100);
-    discountedPrice = price - discountAmount;
-    
-    discountLabel = 
-        'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on your booking';
-    firstPaymentLabel = 'First day you pay:';
-    savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)} per day';
-    
-  } else if (isLand) {
-    // ─── LAND (Percentage-based commission) ─────────
-    // Land doesn't get discounts from our commission (typically)
-    // Skip discount dialog for land
-    return;
-    
-  } else if (isRent) {
-    // ─── RENTAL (Monthly Pricing) ───────────────────
-    price = widget.selectedProduct.rentPrice ?? widget.selectedProduct.price;
-    priceLabel = 'UGX ${_fmt(price)}/month';
-    
-    final minimumMonths = int.tryParse(
-      widget.selectedProduct.numberOfMonths.isEmpty ||
-              widget.selectedProduct.numberOfMonths == 'null'
-          ? '1'
-          : widget.selectedProduct.numberOfMonths) ?? 1;
+    if (isVenue) {
+      price = widget.selectedProduct.dailyPrice ??
+          widget.selectedProduct.rentPrice ??
+          widget.selectedProduct.price;
+      priceLabel = 'UGX ${_fmt(price)}/day';
 
-    final commMonths = minimumMonths < _commissionMonths
-        ? minimumMonths
-        : _commissionMonths;
-    final discountAmount = price * commMonths * (_clientDiscountPercent / 100);
-    discountedPrice = price * (1 - _clientDiscountPercent / 100);
-    
-    discountLabel =
-        'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on first $commMonths month${commMonths > 1 ? "s" : ""}';
-    firstPaymentLabel = 'First month you pay:';
-    savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
-    
-  } else {
-    // ─── SALE ONLY ─────────────────────────────────
-    final salePrice = widget.selectedProduct.salePrice ??
-                      widget.selectedProduct.enteredSalePrice;
-    if (salePrice <= 0) return;
-    
-    price = salePrice;
-    priceLabel = 'UGX ${_fmt(price)}';
-    
-    final discountAmount = price * (_clientDiscountPercent / 100);
-    discountedPrice = price - discountAmount;
-    
-    discountLabel =
-        'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on the sale price';
-    firstPaymentLabel = 'You pay:';
-    savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
-  }
+      final discountAmount = price * (_clientDiscountPercent / 100);
+      discountedPrice = price - discountAmount;
 
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('🎉 Brick Exclusive Offer'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ✅ Price display
-          if (price > 0) ...[
-            Text(
-              priceLabel,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
+      discountLabel =
+          'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on your booking';
+      firstPaymentLabel = 'First day you pay:';
+      savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)} per day';
+    } else if (isLand) {
+      return;
+    } else if (isRent) {
+      price =
+          widget.selectedProduct.rentPrice ?? widget.selectedProduct.price;
+      priceLabel = 'UGX ${_fmt(price)}/month';
+
+      final minimumMonths = int.tryParse(
+              widget.selectedProduct.numberOfMonths.isEmpty ||
+                      widget.selectedProduct.numberOfMonths == 'null'
+                  ? '1'
+                  : widget.selectedProduct.numberOfMonths) ??
+          1;
+
+      final commMonths = minimumMonths < _commissionMonths
+          ? minimumMonths
+          : _commissionMonths;
+      final discountAmount =
+          price * commMonths * (_clientDiscountPercent / 100);
+      discountedPrice = price * (1 - _clientDiscountPercent / 100);
+
+      discountLabel =
+          'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on first $commMonths month${commMonths > 1 ? "s" : ""}';
+      firstPaymentLabel = 'First month you pay:';
+      savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
+    } else {
+      final salePrice = widget.selectedProduct.salePrice ??
+          widget.selectedProduct.enteredSalePrice;
+      if (salePrice <= 0) return;
+
+      price = salePrice;
+      priceLabel = 'UGX ${_fmt(price)}';
+
+      final discountAmount = price * (_clientDiscountPercent / 100);
+      discountedPrice = price - discountAmount;
+
+      discountLabel =
+          'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on the sale price';
+      firstPaymentLabel = 'You pay:';
+      savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🎉 Brick Exclusive Offer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (price > 0) ...[
+              Text(
+                priceLabel,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          // ✅ Minimum months (for rentals only)
-          if (isRent && !isVenue) ...[
-            Builder(
-              builder: (context) {
-                final minimumMonths = int.tryParse(
-                  widget.selectedProduct.numberOfMonths.isEmpty ||
-                          widget.selectedProduct.numberOfMonths == 'null'
-                      ? '1'
-                      : widget.selectedProduct.numberOfMonths) ?? 1;
-                if (minimumMonths > 0) {
-                  return Text(
-                    'Minimum: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          // ✅ Discount info
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      const TextSpan(text: '🎉 '),
-                      const TextSpan(
-                        text: 'Pay through Brick and save!\n',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                      TextSpan(
-                        text: discountLabel,
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.green),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  savingsLabel,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // ✅ First payment display
-          if (price > 0)
+              const SizedBox(height: 8),
+            ],
+            if (isRent && !isVenue) ...[
+              Builder(
+                builder: (context) {
+                  final minimumMonths = int.tryParse(
+                          widget.selectedProduct.numberOfMonths.isEmpty ||
+                                  widget.selectedProduct.numberOfMonths ==
+                                      'null'
+                              ? '1'
+                              : widget.selectedProduct.numberOfMonths) ??
+                      1;
+                  if (minimumMonths > 0) {
+                    return Text(
+                      'Minimum: $minimumMonths month${minimumMonths > 1 ? "s" : ""}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    );
+                  }
+                  return const SizedBox();
+                },
+              ),
+            ],
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.orange[50],
+                color: Colors.green[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange[200]!),
+                border: Border.all(color: Colors.green[200]!),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    firstPaymentLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: '🎉 '),
+                        const TextSpan(
+                          text: 'Pay through Brick and save!\n',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        TextSpan(
+                          text: discountLabel,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.green),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 6),
                   Text(
-                    'UGX ${_fmt(discountedPrice)}',
+                    savingsLabel,
                     style: const TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange,
-                      fontSize: 15,
+                      color: Colors.green,
                     ),
                   ),
                 ],
               ),
             ),
-
-          const SizedBox(height: 12),
-          const Text(
-            '💡 Refund available within 24 hours of booking.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            const SizedBox(height: 8),
+            if (price > 0)
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      firstPaymentLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      'UGX ${_fmt(discountedPrice)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            const Text(
+              '💡 Refund available within 24 hours of booking.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Got it!'),
           ),
         ],
       ),
-      actions: [
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Got it!'),
-        ),
-      ],
-    ),
-  );
-}
-
-  // ─── Contact Dialog ──────────────────────────────────────
- 
+    );
+  }
 
   // ─── Helpers ──────────────────────────────────────────────
   int _getMediaCount(PropertyModel product) {
@@ -1249,10 +1161,10 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
   }
 
   String _fmt(double value) {
-  final formatted = value.toStringAsFixed(0).replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (m) => '${m[1]},',
-  );
-  return formatted;
-}
+    final formatted = value.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
+    );
+    return formatted;
+  }
 }

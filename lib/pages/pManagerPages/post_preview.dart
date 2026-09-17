@@ -963,15 +963,11 @@ class _PostPreviewPageState extends State<PostPreviewPage> {
             ),
           ),
           const SizedBox(height: 12),
-          if (widget.property.uploaderName != null)
-            _buildInfoRow('Uploaded by', widget.property.uploaderName!),
-          if (widget.property.dateCreated != null)
-            _buildInfoRow(
-              'Date Posted',
-              dateFormatter.format(widget.property.dateCreated!),
-            ),
-          if (widget.property.uploaderPhoneNumber != null)
-            _buildInfoRow('Contact', widget.property.uploaderPhoneNumber!.toString()),
+          _buildInfoRow(
+            'Date Posted',
+            dateFormatter.format(widget.property.dateCreated!),
+          ),
+        
           if (widget.property.pendingReason != null &&
               widget.property.pendingReason!.isNotEmpty)
             _buildInfoRow('Pending Reason', widget.property.pendingReason!),

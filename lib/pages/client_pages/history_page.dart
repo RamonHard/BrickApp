@@ -545,11 +545,11 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('Platform fee',
+                        Text('Number of Months',
                             style: TextStyle(
                                 color: Colors.grey[500], fontSize: 11)),
                         Text(
-                          'UGX ${formatter.format(booking.platformCommission)}',
+                          '${widget.booking.endDate.difference(widget.booking.startDate).inDays ~/ 30} months',
                           style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
@@ -587,7 +587,7 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Visit the property physically. Once you are satisfied, tap "Confirm Visit" to release the payment to the manager.',
+                          'Visit the property physically. Once you are satisfied, tap "Confirm Visit" to complete the transaction or Request for a refund in the requests section in your profile.',
                           style: TextStyle(
                               fontSize: 12, color: Colors.blue),
                         ),
@@ -607,7 +607,7 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
                               const SizedBox(width: 6),
                               const Expanded(
                                 child: Text(
-                                  'Your payment is safely locked in escrow until you confirm.',
+                                  'Your payment is safe. Please Confirm property visit.',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.orange),

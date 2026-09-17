@@ -970,129 +970,158 @@ Future<void> _loadPMPaymentMethods() async {
   }
 
   // ─── Process Booking ─────────────────────────────────
-  // ─── Process Booking ─────────────────────────────────
-  // ─── Process Booking ─────────────────────────────────
-  Future<void> _processBooking(String phone) async {
-    // Validation
-    if (_isVenue && (_venueStartDate == null || _venueEndDate == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select venue dates'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+ Future<void> _processBooking(String phone) async {
+  // Validation
+  if (_isVenue && (_venueStartDate == null || _venueEndDate == null)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select venue dates'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    if (_isLand && _landValueController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the land value'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  if (_isLand && _landValueController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please enter the land value'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    // Show processing dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (ctx) => const AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(color: Colors.orange),
-                SizedBox(height: 16),
-                Text('Processing payment...'),
-                SizedBox(height: 4),
-                Text(
-                  'Please wait',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
+  // ✅ Flag to track if dialog is shown
+  bool dialogShown = false;
+
+  // Show processing dialog
+  showDialog(
+    context: context,
+    barrierDismissible: false, // ✅ Prevent user from closing it
+    builder: (processingContext) {
+      dialogShown = true;
+      return const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.orange),
+            SizedBox(height: 16),
+            Text('Processing payment...'),
+            SizedBox(height: 4),
+            Text(
+              'Please wait',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-          ),
+          ],
+        ),
+      );
+    },
+  );
+
+  try {
+    final token = ref.read(userProvider).token;
+
+    Map<String, dynamic> body;
+
+    if (_isVenue) {
+      body = {
+        'property_id': widget.productModel.id,
+        'start_date': _venueStartDate!.toIso8601String(),
+        'end_date': _venueEndDate!.toIso8601String(),
+        'booking_days': _venueDays,
+        'payment_method': 'mobile_money',
+        'payment_phone': phone,
+      };
+    } else if (_isLand) {
+      final landValue = double.tryParse(_landValueController.text) ?? 0;
+      body = {
+        'property_id': widget.productModel.id,
+        'land_total_value': landValue,
+        'payment_method': 'mobile_money',
+        'payment_phone': phone,
+      };
+    } else {
+      final startDate = DateTime.now();
+      final endDate = DateTime(
+        startDate.year,
+        startDate.month + _totalMonths,
+        startDate.day,
+      );
+      body = {
+        'property_id': widget.productModel.id,
+        'start_date': startDate.toIso8601String(),
+        'end_date': endDate.toIso8601String(),
+        'payment_method': 'mobile_money',
+        'payment_phone': phone,
+      };
+    }
+
+    print('📤 Sending booking request');
+    print('📤 Body: $body');
+
+    final res = await http.post(
+      Uri.parse(AppUrls.bookProperty),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
     );
 
-    await Future.delayed(const Duration(seconds: 2));
+    final data = jsonDecode(res.body);
 
-    try {
-      final token = ref.read(userProvider).token;
+    print('📥 Booking response: ${res.statusCode}');
+    print('📥 Data: $data');
 
-      // ✅ Build request body based on property type
-      Map<String, dynamic> body;
-
-      if (_isVenue) {
-        body = {
-          'property_id': widget.productModel.id,
-          'start_date': _venueStartDate!.toIso8601String(),
-          'end_date': _venueEndDate!.toIso8601String(),
-          'booking_days': _venueDays,
-          'payment_method': 'mobile_money',
-          'payment_phone': phone,
-        };
-      } else if (_isLand) {
-        final landValue = double.tryParse(_landValueController.text) ?? 0;
-        body = {
-          'property_id': widget.productModel.id,
-          'land_total_value': landValue,
-          'payment_method': 'mobile_money',
-          'payment_phone': phone,
-        };
-      } else {
-        // Regular monthly - backend will calculate months from dates
-        final startDate = DateTime.now();
-        final endDate = DateTime(
-          startDate.year,
-          startDate.month + _totalMonths,
-          startDate.day,
-        );
-        body = {
-          'property_id': widget.productModel.id,
-          'start_date': startDate.toIso8601String(),
-          'end_date': endDate.toIso8601String(),
-          'payment_method': 'mobile_money',
-          'payment_phone': phone,
-          // ❌ REMOVED: total_months (backend calculates from dates)
-        };
-      }
-
-      print('📤 Sending booking request (backend will calculate pricing)');
-      print('📤 Body: $body');
-
-      final res = await http.post(
-        Uri.parse(AppUrls.bookProperty),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
-
-      final data = jsonDecode(res.body);
-      Navigator.pop(context); // close processing dialog
-
-      if (res.statusCode == 200 && data['status'] == true) {
-        _showSuccessDialog();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              data['message'] ?? 'Booking failed: ${res.statusCode}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    // ✅ Close processing dialog using the correct context
+    if (mounted && dialogShown) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
+
+    // Wait for dialog to fully dismiss
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    if (res.statusCode == 200 && data['status'] == true) {
+      print('✅ PAYMENT SUCCESSFUL');
+
+      // ✅ Show success dialog
+      _showSuccessDialog();
+    } else {
+      print('❌ PAYMENT FAILED');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            data['message'] ?? 'Booking failed: ${res.statusCode}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    print('❌ PAYMENT ERROR: $e');
+
+    // ✅ Close processing dialog on error
+    if (mounted && dialogShown) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    // Wait for dialog to fully dismiss
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   void _showSuccessDialog() {
     showDialog(

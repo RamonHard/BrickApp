@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "../../../../bricknodejs"
+		},
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../brickdashboard"
+		},
+		{
+			"path": "../../../../../Kidi"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "Kidi"
+	}
+}

@@ -163,19 +163,19 @@ class _ClientBookingCardState extends ConsumerState<_ClientBookingCard> {
     return _status == 'awaiting_visit' && _escrowStatus == 'held';
   }
 
-  String get _timeLeft {
-    try {
-      final bookedAt = DateTime.parse(widget.booking['booked_at'].toString());
-      final minutesLeft = 120 - DateTime.now().difference(bookedAt).inMinutes;
-      if (minutesLeft <= 0) return 'Refund window expired';
-      if (minutesLeft > 60) {
-        return '${minutesLeft ~/ 60}h ${minutesLeft % 60}m left to refund';
-      }
-      return '${minutesLeft}m left to refund';
-    } catch (_) {
-      return '';
-    }
-  }
+  // String get _timeLeft {
+  //   try {
+  //     final bookedAt = DateTime.parse(widget.booking['booked_at'].toString());
+  //     final minutesLeft = 120 - DateTime.now().difference(bookedAt).inMinutes;
+  //     if (minutesLeft <= 0) return 'Refund window expired';
+  //     if (minutesLeft > 60) {
+  //       return '${minutesLeft ~/ 60}h ${minutesLeft % 60}m left to refund';
+  //     }
+  //     return '${minutesLeft}m left to refund';
+  //   } catch (_) {
+  //     return '';
+  //   }
+  // }
 
   // ✅ Confirm property visit - releases money from escrow
   Future<void> _confirmVisit() async {
@@ -677,62 +677,7 @@ SizedBox(
               const SizedBox(height: 12),
             ],
 
-            // ✅ Refund for property bookings within 2 hours (only if still awaiting visit)
-            if (_isProperty && _status == 'awaiting_visit') ...[
-              if (_canRefund) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _loading ? null : _requestRefund,
-                    icon:
-                        _loading
-                            ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                            : const Icon(Icons.undo, size: 16),
-                    label: const Text('Request Refund'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 12, color: Colors.orange[700]),
-                    const SizedBox(width: 4),
-                    Text(
-                      _timeLeft,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.orange[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ] else
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Refund window expired (2 hours passed)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+            
 
             // ✅ Pay button for accepted transport bookings
             if (!_isProperty && _status == 'accepted') ...[

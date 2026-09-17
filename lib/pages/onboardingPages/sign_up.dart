@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:brickapp/custom_widgets/phone_number_input_field.dart';
 import 'package:brickapp/models/user_model.dart';
 import 'package:brickapp/pages/main_display.dart';
 import 'package:brickapp/providers/account_type_provider.dart';
@@ -131,10 +132,12 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                     height: 50,
                     child: TextField(
                       controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(color: Colors.white, fontSize: 20),
                       obscureText: false,
                       decoration: InputDecoration(
                         fillColor: HexColor("ffffff"),
+                        
                         filled: false,
                         focusedBorder: OutlineInputBorder(
                           borderSide: const BorderSide(
@@ -229,75 +232,24 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   }
 
   Widget _buildPhoneNumberField() {
-    return Row(
-      children: [
-        Container(
-          width: 100,
-          child: DropdownButtonFormField<String>(
-            value: selectedCountryCode,
-            dropdownColor: Colors.grey[900],
-            style: TextStyle(color: Colors.white),
-            items:
-                ['+256', '+255', '+254', '+250'].map((code) {
-                  return DropdownMenuItem(
-                    value: code,
-                    child: Text(code, style: TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
-            onChanged: (value) {
-              setState(() {
-                selectedCountryCode = value!;
-              });
-            },
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.flag, color: AppColors.iconColor),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(100),
-                borderSide: BorderSide(color: Colors.white, width: 2),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            height: 50,
-            child: TextField(
-              controller: phoneController,
-              style: const TextStyle(color: Colors.white, fontSize: 20),
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                fillColor: HexColor("ffffff"),
-                filled: false,
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  return PhoneInputField(
+    hintText: 'Phone Number',
+    textEditingController: phoneController,
+    onCountryCodeChanged: (value) {
+      setState(() {
+        selectedCountryCode = value;
+      });
+    },
+    onChanged: (value) {
+      // The PhoneInputField already updates phoneController
+    },
+  );
+}
 
   Future<void> _signUp() async {
     final String email = emailController.text.trim();
     final String password = passwordController.text.trim();
-    final String phoneNumber =
-        selectedCountryCode + phoneController.text.trim();
+    final String phoneNumber = phoneController.text.trim();
     final String fullName = fullNameController.text.trim();
 
     if (fullName.isEmpty || password.isEmpty || phoneController.text.isEmpty) {
