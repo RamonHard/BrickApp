@@ -11,6 +11,8 @@ class PropertyBookingModel {
   final String status;
   final String? propertyType;
   final String? address;
+  final double? longitude;
+  final double? latitude;
   final String? description;
   final String? thumbnail;
   final String? ownerName;
@@ -37,6 +39,8 @@ class PropertyBookingModel {
     required this.status,
     this.propertyType,
     this.address,
+    this.longitude,
+    this.latitude,
     this.description,
     this.thumbnail,
     this.ownerName,
@@ -108,6 +112,8 @@ class PropertyBookingModel {
       status: json['status'] ?? 'pending',
       propertyType: json['property_type'],
       address: json['address'],
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
+      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
       description: json['description'],
       thumbnail: json['thumbnail'],
       ownerName: json['owner_name'],

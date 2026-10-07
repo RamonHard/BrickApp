@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ClientHistoryPage extends ConsumerWidget {
   const ClientHistoryPage({super.key});
@@ -280,6 +281,49 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
     }
   }
 
+  // ✅ NEW: Open property location in Google Maps
+  Future<void> _openGoogleMaps() async {
+    final booking = widget.booking;
+
+    // Build the query — use lat/lng if available, otherwise fall back to address
+    final String query;
+    if (booking.latitude != null && booking.longitude != null) {
+      query = '${booking.latitude},${booking.longitude}';
+    } else if (booking.address != null && booking.address!.isNotEmpty) {
+      query = Uri.encodeComponent(booking.address!);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No location available for this property'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final Uri googleMapsUrl = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$query',
+    );
+
+    try {
+      if (!await launchUrl(
+        googleMapsUrl,
+        mode: LaunchMode.externalApplication,
+      )) {
+        throw 'Could not launch maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open maps: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat('#,###');
@@ -293,9 +337,9 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
 
     // ✅ Check if 30 days have passed since booking
     final daysSinceBooking = DateTime.now().difference(booking.createdAt).inDays;
-    final canRate = booking.status == 'visit_confirmed' && 
-                    daysSinceBooking >= 30 && 
-                    booking.rating == 0;
+    final canRate = booking.status == 'visit_confirmed' &&
+        daysSinceBooking >= 30 &&
+        booking.rating == 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -368,6 +412,30 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
                       ),
                     ),
                   ],
+                ),
+
+                // ✅ NEW: View Location on Google Maps button
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _openGoogleMaps,
+                    icon: const Icon(Icons.map_outlined, size: 16),
+                    label: const Text(
+                      'View Location on Google Maps',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.iconColor,
+                      side: BorderSide(
+                          color: AppColors.iconColor.withOpacity(0.4)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
                 ),
 
                 // Amenities

@@ -580,7 +580,7 @@ class _FilterSearchState extends ConsumerState<FilterSearch> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Sort By",
+                        "Search By",
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

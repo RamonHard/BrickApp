@@ -867,7 +867,7 @@ class _ViewPropertyofOneManagerState extends ConsumerState<ViewPropertyofOneMana
       discountedPrice = price * (1 - _clientDiscountPercent / 100);
 
       discountLabel =
-          'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on first $commMonths month${commMonths > 1 ? "s" : ""}';
+          'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on the first payment';
       firstPaymentLabel = 'First month you pay:';
       savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
     } else {

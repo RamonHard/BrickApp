@@ -38,7 +38,7 @@ class HomePage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Search properties...',
+                  hintText: 'Search properties e.g. location, price, etc.',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.white,
@@ -69,7 +69,7 @@ class HomePage extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
-                  "Sort by",
+                  "Search by",
                   style: GoogleFonts.actor(
                     fontSize: 16,
                     color: HexColor('FFFFFF'),
@@ -115,10 +115,10 @@ class HomePage extends ConsumerWidget {
                         child: HouseCard(
                           profileIMG: property.uploaderIMG ?? '',
                           price: property.displayPrice,
-                          location: property.address ?? 'Location not set',
+                          location: property.location ?? 'Location not set',
                           description: property.description ?? '',
                           thumbnail: property.thumbnailUrl ?? '',
-                          houseType: property.propertyType,
+                          propertyType: property.propertyType,
                           isActive: property.status == 'active',
                           id: property.id,
                           uploaderName: property.ownerName ?? '',

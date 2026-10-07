@@ -703,29 +703,30 @@ Future<void> _loadPMPaymentMethods() async {
       // ─── Commissionable section ───────────────────
       if (_isRegular && _commissionableMonths < _totalMonths) ...[
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Discount applies on first $_commissionableMonths of $_totalMonths months:',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 4),
+        // Thi Container shows how many months are commissionable and the discount applies to those months
+        // Container(
+        //   padding: const EdgeInsets.all(10),
+        //   decoration: BoxDecoration(
+        //     color: Colors.grey[100],
+        //     borderRadius: BorderRadius.circular(8),
+        //     border: Border.all(color: Colors.grey[300]!),
+        //   ),
+        //   child: Column(
+        //     crossAxisAlignment: CrossAxisAlignment.start,
+        //     children: [
+        //       Text(
+        //         'Discount applies on first $_commissionableMonths of $_totalMonths months:',
+        //         style: TextStyle(
+        //           fontSize: 11,
+        //           color: Colors.grey[600],
+        //           fontStyle: FontStyle.italic,
+        //         ),
+        //       ),
+        //       const SizedBox(height: 4),
              
-            ],
-          ),
-        ),
+        //     ],
+        //   ),
+        // ),
       ],
 
       const Divider(height: 20),

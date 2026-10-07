@@ -216,7 +216,7 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                           children: [
                             ExpansionTileWidget(
                               icon: Icons.document_scanner,
-                              text: "User ID Info",
+                              text: "Profile Info",
                               children: [
                                 Padding(
                                   padding: EdgeInsets.all(8.0),
@@ -253,7 +253,7 @@ class _ClientProfileState extends ConsumerState<ClientProfile> {
                                     color: AppColors.iconColor,
                                   ),
                                   title: Text(
-                                    "Settings",
+                                    "Account Info",
                                     style: GoogleFonts.actor(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w800,

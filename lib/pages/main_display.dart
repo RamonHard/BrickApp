@@ -60,7 +60,7 @@ class ClientNavBar extends ConsumerWidget {
           //   icon: Icon(Icons.car_rental),
           // ),
           BottomNavigationBarItem(label: 'History', icon: Icon(Icons.history)),
-          BottomNavigationBarItem(label: 'Profile', icon: Icon(Icons.person)),
+          BottomNavigationBarItem(label: 'Account', icon: Icon(Icons.person)),
         ],
         currentIndex: selectedIndex.value,
         fixedColor: AppColors.iconColor,

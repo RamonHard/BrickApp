@@ -46,7 +46,7 @@ class FavouriteItemList extends HookConsumerWidget {
                 unitsNum: product.units,
                 id: product.id,
                 profileIMG: product.uploaderIMG,
-                houseType: product.propertyType,
+                propertyType: product.propertyType,
                 uploaderName: product.uploaderName,
                 bedroomNum: product.bedrooms,
                 starRating: product.starRating,

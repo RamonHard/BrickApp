@@ -556,7 +556,7 @@ Future<double> _getWithdrawalCharge(double amount) async {
 
   return Scaffold(
     appBar: AppBar(
-      title: const Text('Manager Settings'),
+      title: const Text('Account Info'),
       backgroundColor: Colors.deepOrange,
       foregroundColor: Colors.white,
       actions: [

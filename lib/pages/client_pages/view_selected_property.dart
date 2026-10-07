@@ -27,7 +27,7 @@ class ViewSelectedProperty extends ConsumerStatefulWidget {
 }
 
 class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
-  double _clientDiscountPercent = 5.0;
+  double _clientDiscountPercent = 7.0;
   int _commissionMonths = 3;
   double _commissionPercent = 10.0;
   bool _settingsLoaded = false;
@@ -687,7 +687,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
                       Icon(Icons.lock_outline, color: Colors.orange[700], size: 32),
                       const SizedBox(height: 8),
                       Text(
-                        'Property yet Details Not Avialble',
+                        'Property Details are not yet Avialble',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.orange[700],
@@ -942,7 +942,7 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
     discountedPrice = price * (1 - _clientDiscountPercent / 100);
     
     discountLabel =
-        'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on first $commMonths month${commMonths > 1 ? "s" : ""}';
+        'Get ${_clientDiscountPercent.toStringAsFixed(0)}% off on first the payment';
     firstPaymentLabel = 'First month you pay:';
     savingsLabel = 'You can save up to: UGX ${_fmt(discountAmount)}';
     

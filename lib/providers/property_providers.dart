@@ -186,20 +186,45 @@ bool _applyLocalFilters(PropertyModel p, PropertyFilter filter) {
 }
 
 // ─── Search Filter Provider ───────────────────────────────
+// ─── Search Filter Provider ───────────────────────────────
 final filteredPropertiesProvider =
     Provider<AsyncValue<List<PropertyModel>>>((ref) {
   final propertiesAsync = ref.watch(propertiesProvider);
-  final query = ref.watch(searchQueryProvider).toLowerCase();
+  final rawQuery = ref.watch(searchQueryProvider).trim();
+  final query = rawQuery.toLowerCase();
 
   return propertiesAsync.whenData((properties) {
     if (query.isEmpty) return properties;
+
+    // Extract numbers from the query (e.g. "50000" or "3 bedroom 50000")
+    final numberMatches =
+        RegExp(r'\d+(\.\d+)?').allMatches(rawQuery).map((m) => m.group(0)!).toList();
+
     return properties.where((property) {
-      final title = property.propertyType.toLowerCase();
-      final location = (property.address ?? '').toLowerCase();
-      final description = (property.description ?? '').toLowerCase();
-      return title.contains(query) ||
-          location.contains(query) ||
-          description.contains(query);
+      final haystack = <String>[
+        property.propertyType,
+        property.address ?? '',
+        property.description ?? '',
+        property.ownerName ?? '',
+        property.rentPrice?.toString() ?? '',
+        property.listingType ?? '',
+        property.description ?? '',
+        property.bedrooms?.toString() ?? '',
+        property.units?.toString() ?? '',
+        property.sqft?.toString() ?? '',
+        // include amenities if you have them
+        ...?property.amenities,
+      ].map((s) => s.toLowerCase()).toList();
+
+      // 1. Plain text match
+      final textMatch = haystack.any((field) => field.contains(query));
+
+      // 2. Number match — user typed a number and it appears somewhere
+      final numberMatch = numberMatches.any(
+        (n) => haystack.any((field) => field.contains(n)),
+      );
+
+      return textMatch || numberMatch;
     }).toList();
   });
 });

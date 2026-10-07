@@ -19,7 +19,7 @@ class HouseCard extends StatelessWidget {
     this.sqft,
     required this.id,
     required this.profileIMG,
-    required this.houseType,
+    required this.propertyType,
     required this.uploaderName,
     required this.bedroomNum,
     required this.starRating,
@@ -30,7 +30,7 @@ class HouseCard extends StatelessWidget {
   final String description;
   final String thumbnail;
   final String location;
-  final String houseType;
+  final String propertyType;
   final double price;
   final String profileIMG;
   final int id;
@@ -183,7 +183,7 @@ class HouseCard extends StatelessWidget {
               ),
               ListTile(
                 title: Text(
-                  houseType,
+                  propertyType,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
@@ -214,65 +214,81 @@ class HouseCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.bed,
-                      color: Color.fromARGB(255, 128, 127, 127),
-                    ),
-                    Text(
-                      '$bedroomNum',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: const Color.fromARGB(255, 128, 127, 127),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    const Icon(
-                      Icons.square_foot_rounded,
-                      color: Color.fromARGB(255, 128, 127, 127),
-                    ),
-                    Text(
-                      sqft != null ? '${sqft}sqft' : 'N/A',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: const Color.fromARGB(255, 128, 127, 127),
-                      ),
-                    ),
-                    const SizedBox(width: 5.0),
-                    const Icon(
-                      Icons.house_rounded,
-                      color: Color.fromARGB(255, 128, 127, 127),
-                    ),
-                    const SizedBox(width: 4),
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '$unitsNum',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' Units',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: const Color.fromARGB(255, 128, 127, 127),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 8.0,
+    vertical: 4.0,
+  ),
+  child: Row(
+    children: [
+      if (propertyType == 'Venue' || propertyType == 'Land') ...[
+        // Venue / Land: ONLY Sq Ft
+        const Icon(
+          Icons.square_foot_rounded,
+          size: 18,
+          color: Color.fromARGB(255, 128, 127, 127),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          sqft != null ? '${sqft} sqft' : 'N/A',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            color: const Color.fromARGB(255, 128, 127, 127),
+          ),
+        ),
+      ] else ...[
+        // Other properties: Beds
+        const Icon(
+          Icons.bed,
+          size: 18,
+          color: Color.fromARGB(255, 128, 127, 127),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '$bedroomNum',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            color: const Color.fromARGB(255, 128, 127, 127),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // Sq Ft
+        const Icon(
+          Icons.square_foot_rounded,
+          size: 18,
+          color: Color.fromARGB(255, 128, 127, 127),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          sqft != null ? '${sqft} sqft' : 'N/A',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            color: const Color.fromARGB(255, 128, 127, 127),
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // Units
+        const Icon(
+          Icons.house_rounded,
+          size: 18,
+          color: Color.fromARGB(255, 128, 127, 127),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '$unitsNum Units',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            color: const Color.fromARGB(255, 128, 127, 127),
+          ),
+        ),
+      ],
+    ],
+  ),
+),
               Padding(
                 padding: const EdgeInsets.only(
                   left: 10.0,
