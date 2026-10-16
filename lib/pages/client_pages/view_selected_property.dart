@@ -1082,8 +1082,8 @@ class _ViewSelectedPropertyState extends ConsumerState<ViewSelectedProperty> {
 
           const SizedBox(height: 12),
           const Text(
-            '💡 Refund available within 24 hours of booking.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            'Your money is safe with us. Brick ensures secure payments and protects your booking. You can request for a refund if the property is not as described or if the booking cannot be honored.',
+            style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ],
       ),

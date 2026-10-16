@@ -342,523 +342,563 @@ class _PropertyBookingCardState extends ConsumerState<_PropertyBookingCard> {
         booking.rating == 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  margin: const EdgeInsets.only(bottom: 12),
+  elevation: 2,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // ─── Thumbnail + status ─────────────────────
+      Stack(
         children: [
-          // ─── Thumbnail + status ─────────────────────
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12)),
-                child: booking.thumbnailUrl != null
-                    ? Image.network(
-                        booking.thumbnailUrl!,
-                        width: double.infinity,
-                        height: 160,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(12)),
+            child: booking.thumbnailUrl != null
+                ? Image.network(
+                    booking.thumbnailUrl!,
+                    width: double.infinity,
+                    height: 160,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                  )
+                : _buildPlaceholder(),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _statusColor,
+                borderRadius: BorderRadius.circular(20),
               ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _statusColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+              child: Text(
+                _statusLabel,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Property type + address
+            Text(booking.propertyType ?? 'Property',
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
                   child: Text(
-                    _statusLabel,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
+                    booking.address ?? '',
+                    style:
+                        TextStyle(color: Colors.grey[600], fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            // ✅ View Location on Google Maps button
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openGoogleMaps,
+                icon: const Icon(Icons.map_outlined, size: 16),
+                label: const Text(
+                  'View Location on Google Maps',
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.iconColor,
+                  side: BorderSide(
+                      color: AppColors.iconColor.withOpacity(0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
 
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Amenities
+            if (booking.bedrooms != null ||
+                booking.bathrooms != null ||
+                booking.squareFeet != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (booking.bedrooms != null)
+                    _amenityChip(Icons.bed, '${booking.bedrooms} Beds'),
+                  if (booking.bathrooms != null)
+                    _amenityChip(
+                        Icons.bathroom, '${booking.bathrooms} Baths'),
+                  if (booking.squareFeet != null)
+                    _amenityChip(Icons.square_foot,
+                        '${booking.squareFeet!.toInt()} sqft'),
+                ],
+              ),
+            ],
+
+            // Media gallery
+            if (allMedia.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Featured Media',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 80,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: allMedia.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) {
+                    final url = allMedia[i];
+                    final isVideo =
+                        url.endsWith('.mp4') || url.endsWith('.mov');
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(
+                        children: [
+                          Image.network(
+                            isVideo ? (booking.thumbnailUrl ?? url) : url,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[200],
+                              child: Icon(
+                                isVideo ? Icons.play_circle : Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                          if (isVideo)
+                            const Positioned.fill(
+                              child: Center(
+                                child: Icon(Icons.play_circle_fill,
+                                    color: Colors.white, size: 28),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+
+            // ✅ NEED HELP? — Visible & Well Designed Banner
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.orange[50]!, Colors.amber[50]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.support_agent,
+                      color: Colors.orange[800],
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Need help?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.deepOrange,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Call the property manager for assistance with directions.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Owner info
+            Row(
               children: [
-                // Property type + address
-                Text(booking.propertyType ?? 'Property',
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on,
-                        size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        booking.address ?? '',
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.orange[100],
+                  backgroundImage: booking.ownerAvatar != null &&
+                          booking.ownerAvatar!.isNotEmpty
+                      ? NetworkImage(
+                          '${AppUrls.baseUrl}/${booking.ownerAvatar}')
+                      : null,
+                  child: booking.ownerAvatar == null ||
+                          booking.ownerAvatar!.isEmpty
+                      ? Text(
+                          (booking.ownerName ?? 'M')[0].toUpperCase(),
+                          style: TextStyle(
+                              color: Colors.orange[800],
+                              fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking.ownerName ?? 'Property Manager',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      Text(
+                        booking.ownerPhone ?? '',
                         style: TextStyle(
-                            color: Colors.grey[600], fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                            color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (booking.ownerPhone != null)
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Icon(Icons.phone,
+                        color: Colors.green[700], size: 18),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+
+            // Dates
+            Row(
+              children: [
+                const Icon(Icons.calendar_today,
+                    size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  '${dateFormat.format(booking.startDate)} → ${dateFormat.format(booking.endDate)}',
+                  style:
+                      TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Amount
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total Paid',
+                        style: TextStyle(
+                            color: Colors.grey[500], fontSize: 11)),
+                    Text(
+                      'UGX ${formatter.format(booking.totalPrice)}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.green),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Number of Months',
+                        style: TextStyle(
+                            color: Colors.grey[500], fontSize: 11)),
+                    Text(
+                      '${widget.booking.endDate.difference(widget.booking.startDate).inDays ~/ 30} months',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            // ─── ESCROW / VISIT CONFIRMATION ─────────
+            if (booking.status == 'awaiting_visit') ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.home_work,
+                            color: Colors.blue, size: 18),
+                        SizedBox(width: 8),
+                        Text('Next Step',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                                fontSize: 14)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Visit the property physically. Once you are satisfied, tap "Confirm Visit" to complete the transaction or Request for a refund in the requests section in your profile.',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.blue),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lock,
+                              color: Colors.orange[700], size: 14),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: Text(
+                              'Your payment is safe. Please Confirm property visit.',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isConfirming ? null : _confirmVisit,
+                        icon: _isConfirming
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2))
+                            : const Icon(Icons.check_circle,
+                                color: Colors.white, size: 18),
+                        label: Text(
+                          _isConfirming
+                              ? 'Confirming...'
+                              : 'Confirm Property Visit',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ],
 
-                // ✅ NEW: View Location on Google Maps button
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _openGoogleMaps,
-                    icon: const Icon(Icons.map_outlined, size: 16),
-                    label: const Text(
-                      'View Location on Google Maps',
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.iconColor,
-                      side: BorderSide(
-                          color: AppColors.iconColor.withOpacity(0.4)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+            if (booking.status == 'visit_confirmed') ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.verified, color: Colors.green, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Visit Confirmed!',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green)),
+                          SizedBox(height: 2),
+                          Text(
+                            'Payment has been released to the property manager.',
+                            style: TextStyle(
+                                color: Colors.green, fontSize: 12),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            ],
 
-                // Amenities
-                if (booking.bedrooms != null ||
-                    booking.bathrooms != null ||
-                    booking.squareFeet != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (booking.bedrooms != null)
-                        _amenityChip(
-                            Icons.bed, '${booking.bedrooms} Beds'),
-                      if (booking.bathrooms != null)
-                        _amenityChip(Icons.bathroom,
-                            '${booking.bathrooms} Baths'),
-                      if (booking.squareFeet != null)
-                        _amenityChip(Icons.square_foot,
-                            '${booking.squareFeet!.toInt()} sqft'),
-                    ],
-                  ),
-                ],
-
-                // Media gallery
-                if (allMedia.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text('Featured Media',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 80,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: allMedia.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, i) {
-                        final url = allMedia[i];
-                        final isVideo = url.endsWith('.mp4') ||
-                            url.endsWith('.mov');
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Stack(
-                            children: [
-                              Image.network(
-                                isVideo
-                                    ? (booking.thumbnailUrl ?? url)
-                                    : url,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 80,
-                                  height: 80,
-                                  color: Colors.grey[200],
-                                  child: Icon(
-                                    isVideo
-                                        ? Icons.play_circle
-                                        : Icons.image,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              if (isVideo)
-                                const Positioned.fill(
-                                  child: Center(
-                                    child: Icon(Icons.play_circle_fill,
-                                        color: Colors.white, size: 28),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 12),
-                const Divider(height: 1),
-                const SizedBox(height: 12),
-
-                // Owner info
-                Row(
+            // ✅ RATING SECTION - Show after 30 days
+            if (canRate) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.orange[100],
-                      backgroundImage: booking.ownerAvatar != null &&
-                              booking.ownerAvatar!.isNotEmpty
-                          ? NetworkImage(
-                              '${AppUrls.baseUrl}/${booking.ownerAvatar}')
-                          : null,
-                      child: booking.ownerAvatar == null ||
-                              booking.ownerAvatar!.isEmpty
-                          ? Text(
-                              (booking.ownerName ?? 'M')[0].toUpperCase(),
-                              style: TextStyle(
-                                  color: Colors.orange[800],
-                                  fontWeight: FontWeight.bold),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
+                    const Icon(Icons.star_rate_rounded,
+                        color: Colors.amber, size: 24),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            booking.ownerName ?? 'Property Manager',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13),
+                            'Rate Your Experience ⭐',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber[800],
+                              fontSize: 14,
+                            ),
                           ),
                           Text(
-                            booking.ownerPhone ?? '',
+                            'Share your experience with this property',
                             style: TextStyle(
-                                color: Colors.grey[600], fontSize: 12),
+                              color: Colors.amber[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    if (booking.ownerPhone != null)
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green[200]!),
-                        ),
-                        child: Icon(Icons.phone,
-                            color: Colors.green[700], size: 18),
+                    OutlinedButton.icon(
+                      onPressed: _showRatingDialog,
+                      icon: const Icon(Icons.star_border, size: 16),
+                      label: const Text('Rate Now'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.amber[800],
+                        side: BorderSide(color: Colors.amber[200]!),
                       ),
+                    ),
                   ],
                 ),
+              ),
+            ],
 
-                const SizedBox(height: 12),
-                const Divider(height: 1),
-                const SizedBox(height: 10),
-
-                // Dates
-                Row(
+            // ✅ Already Rated - Show rating badge
+            if (booking.rating != null && booking.rating! > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
                   children: [
-                    const Icon(Icons.calendar_today,
-                        size: 14, color: Colors.grey),
-                    const SizedBox(width: 6),
+                    Row(
+                      children: List.generate(5, (index) {
+                        return Icon(
+                          index < (booking.rating ?? 0)
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: Colors.amber,
+                          size: 16,
+                        );
+                      }),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      '${dateFormat.format(booking.startDate)} → ${dateFormat.format(booking.endDate)}',
+                      '${booking.rating ?? 0}.0',
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey[700]),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber[700],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Rated',
+                      style: TextStyle(
+                        color: Colors.green[600],
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-
-                // Amount
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Paid',
-                            style: TextStyle(
-                                color: Colors.grey[500], fontSize: 11)),
-                        Text(
-                          'UGX ${formatter.format(booking.totalPrice)}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.green),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Number of Months',
-                            style: TextStyle(
-                                color: Colors.grey[500], fontSize: 11)),
-                        Text(
-                          '${widget.booking.endDate.difference(widget.booking.startDate).inDays ~/ 30} months',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                              color: Colors.grey[700]),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                // ─── ESCROW / VISIT CONFIRMATION ─────────
-                if (booking.status == 'awaiting_visit') ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.home_work,
-                                color: Colors.blue, size: 18),
-                            SizedBox(width: 8),
-                            Text('Next Step',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                    fontSize: 14)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Visit the property physically. Once you are satisfied, tap "Confirm Visit" to complete the transaction or Request for a refund in the requests section in your profile.',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.blue),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: Colors.orange[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.lock,
-                                  color: Colors.orange[700], size: 14),
-                              const SizedBox(width: 6),
-                              const Expanded(
-                                child: Text(
-                                  'Your payment is safe. Please Confirm property visit.',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.orange),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed:
-                                _isConfirming ? null : _confirmVisit,
-                            icon: _isConfirming
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2))
-                                : const Icon(Icons.check_circle,
-                                    color: Colors.white, size: 18),
-                            label: Text(
-                              _isConfirming
-                                  ? 'Confirming...'
-                                  : 'Confirm Property Visit',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                if (booking.status == 'visit_confirmed') ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green[200]!),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.verified,
-                            color: Colors.green, size: 20),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Text('Visit Confirmed!',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green)),
-                              SizedBox(height: 2),
-                              Text(
-                                'Payment has been released to the property manager.',
-                                style: TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // ✅ RATING SECTION - Show after 30 days
-                if (canRate) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[50],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.star_rate_rounded,
-                            color: Colors.amber, size: 24),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Rate Your Experience ⭐',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.amber[800],
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                'Share your experience with this property',
-                                style: TextStyle(
-                                  color: Colors.amber[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _showRatingDialog,
-                          icon: const Icon(Icons.star_border, size: 16),
-                          label: const Text('Rate Now'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.amber[800],
-                            side: BorderSide(color: Colors.amber[200]!),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // ✅ Already Rated - Show rating badge
-                if (booking.rating != null && booking.rating! > 0) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Row(
-                          children: List.generate(5, (index) {
-                            return Icon(
-                              index < (booking.rating ?? 0)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 16,
-                            );
-                          }),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${booking.rating ?? 0}.0',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber[700],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Rated',
-                          style: TextStyle(
-                            color: Colors.green[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _amenityChip(IconData icon, String label) {

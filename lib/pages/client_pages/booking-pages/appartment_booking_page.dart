@@ -1169,6 +1169,11 @@ Future<void> _loadPMPaymentMethods() async {
                     ),
                   ),
                 ),
+                Text(
+                  'Visit the place physically and confirm the booking with the property owner. You can request a refund if the property is not suitable to what was advertised. You can request for the refund in the history section of the app.',
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
             actions: [
